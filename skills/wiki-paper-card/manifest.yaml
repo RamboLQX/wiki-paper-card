@@ -1,0 +1,63 @@
+name: wiki-paper-card
+version: 0.1.0
+description: >
+  Source-grounded 01-16 paper card with LLM Wiki integration and
+  knowledge-crystallization gates.
+
+always_load:
+  - ../../vendor/nature-paper-card/SKILL.md
+  - ../wiki-shared/references/wiki-schema.md
+  - ../wiki-shared/references/knowledge-model.md
+  - ../../vendor/nature-paper-card/static/core/principles.md
+  - ../../vendor/nature-paper-card/static/core/workflow.md
+  - ../../vendor/nature-paper-card/static/core/output-contract.md
+  - ../../vendor/nature-shared/core/terminology-ledger.md
+
+axes:
+  paper_type:
+    detect: |
+      Use the upstream nature-paper-card manifest and paper-type fragments.
+      Select one primary lens and at most one secondary lens.
+    values:
+      methods: ../../vendor/nature-paper-card/static/fragments/paper_type/methods.md
+      discovery: ../../vendor/nature-paper-card/static/fragments/paper_type/discovery.md
+      resource: ../../vendor/nature-paper-card/static/fragments/paper_type/resource.md
+      clinical: ../../vendor/nature-paper-card/static/fragments/paper_type/clinical.md
+      materials: ../../vendor/nature-paper-card/static/fragments/paper_type/materials.md
+      review: ../../vendor/nature-paper-card/static/fragments/paper_type/review.md
+    default: methods
+    multi: true
+
+references:
+  on_demand:
+    - condition: running the complete single or batch workflow
+      path: references/workflow-contract.md
+    - condition: batch processing a directory
+      path: references/batch-mode.md
+    - condition: running the processor subagent
+      path: references/processor-brief.md
+    - condition: generating or validating paper-digest.json
+      path: references/paper-digest-schema.md
+    - condition: running the batch linker
+      path: references/linker-brief.md
+    - condition: generating or validating link-plan.json
+      path: references/link-plan-schema.md
+    - condition: writing or updating wiki pages
+      path: references/wiki-integration.md
+    - condition: drafting the exact Sections 01-16 card
+      path: ../../vendor/nature-paper-card/references/card-schema.md
+    - condition: assigning provenance labels
+      path: ../../vendor/nature-paper-card/references/evidence-and-provenance.md
+    - condition: generating candidate research ideas
+      path: ../../vendor/nature-paper-card/references/research-idea-gates.md
+
+quality_tools:
+  prepare_script: ../../vendor/nature-paper-card/scripts/prepare_paper.py
+  upstream_audit_script: ../../vendor/nature-paper-card/scripts/audit_paper_card.py
+  kb_context_script: ../../scripts/build_kb_context.py
+  finalize_script: ../../scripts/finalize_paper_card.py
+  paper_digest_audit_script: ../../scripts/audit_paper_digest.py
+  link_plan_audit_script: ../../scripts/audit_link_plan.py
+  publish_script: ../../scripts/publish_wiki.py
+  wiki_audit_script: ../../scripts/audit_wiki_paper_card.py
+  script_resolution: relative to the loaded SKILL.md directory
