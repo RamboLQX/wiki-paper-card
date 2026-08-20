@@ -101,7 +101,7 @@ mkdir -p "$VAULT_ROOT/.claude/agents"
 ```text
 $REPO_ROOT/template/wiki/index.md
 $REPO_ROOT/template/wiki/log.md
-$REPO_ROOT/template/wiki/meta/论文处理约定.md
+$REPO_ROOT/template/wiki/meta/paper-processing-conventions.md
 ```
 
 如果当前运行环境没有可用的 no-clobber 复制命令，逐个检查目标是否存在，再复制缺失文件。

@@ -6,3 +6,11 @@ __pycache__/
 .planning/
 AGENTS.md
 tmp/
+
+# Secrets and local environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+

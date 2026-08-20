@@ -68,17 +68,17 @@ Use wiki-paper-card to reprocess raw/papers/example.pdf.
 
 A single paper creates its source page under `wiki/sources/`. New concept, entity, and topic pages require the cross-paper knowledge gates described in the main README. Batch processing runs up to three `wiki-processor` agents concurrently and starts the link and publish phase only after every card and digest passes.
 
-## Experimental Model Reference
+## Optional: Anthropic-compatible model endpoint
 
-The following settings were used in one test environment. They are optional and are not a compatibility or performance guarantee. Users can configure any other Anthropic-compatible model.
+Claudian talks to the model through the standard Anthropic API. To use a compatible gateway or provider, point the runtime at it with the usual environment variables:
 
 ```bash
-ANTHROPIC_API_KEY=<your-deepseek-api-key>
-ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
-ANTHROPIC_MODEL=deepseek-v4-flash
+ANTHROPIC_API_KEY=<your-api-key>
+ANTHROPIC_BASE_URL=<provider-anthropic-endpoint>
+ANTHROPIC_MODEL=<model-name>
 ```
 
-In Claudian, set the context window to 1M and use Medium or High thinking effort. In the current test setup, one paper took about 5 to 6 minutes on average; this is a local observation, not a benchmark result.
+The exact values are provider-specific and are not a compatibility or performance guarantee. In Claudian, set the context window to 1M and use Medium or High thinking effort. In one test setup, a single paper took about 5 to 6 minutes on average; this is a local observation, not a benchmark result.
 
 Do not commit a real API key to this repository.
 
