@@ -9,6 +9,21 @@
 - 批次中间产物写入 `work/`，不得混入 `wiki/`。
 - 论文全文不得进入主会话。
 
+## Skill 路由（先判断场景，再调用）
+
+按场景选择入口，不按关键词猜测：
+
+1. 处理论文（单篇或批量、PDF 或 source map）→ 调用 `wiki-paper-card` skill。
+2. 在知识库上提问、检索、查证或写综述 → 不调用 `wiki-paper-card`，直接遵循
+   `wiki-shared` 的 `references/retrieval-protocol.md`：先读
+   `wiki/meta/knowledge-tree.md`（定向问答同时读 `wiki/meta/research.md`），
+   再按 lookup 或 survey 模式下降检索；结论必须带页面与证据指针。
+3. 修改 wiki 结构（建页、合并、别名、矛盾记录）→ 先读 `wiki-shared` 的
+   `references/knowledge-model.md` 与 `references/wiki-schema.md`，且所有
+   wiki 写入最终由确定性 `publish_wiki.py` 执行。
+4. 与论文处理或知识库检索无关的请求 → 不调用本框架任何 skill。
+5. `wiki-shared` 是只读参考包，不作为独立流程调用。
+
 ## 处理入口
 
 用户给出明确输入路径后，使用 `wiki-paper-card` skill 执行单篇或批量流程。子代理可用时使用 `wiki-processor` 和 `wiki-linker`；所有 wiki 写入最终由确定性 `publish_wiki.py` 执行。
