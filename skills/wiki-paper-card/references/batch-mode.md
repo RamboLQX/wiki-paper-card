@@ -40,6 +40,7 @@ The linker sees all current digests at the same time. Card generation order does
 ## Recovery
 
 - Resume by rescanning target report paths and processing only remaining papers.
+- Checks are event-driven: reconcile with `workflow_status.py` only when a processor settles or on session resume. Do not poll on a timer or create round-based re-check loops, and do not print time or round estimates.
 - If a processor output is missing, continue the same processor for the same paper with a compact instruction.
 - If a finalizer error is substantive, send only the reported error items back to the same processor for the same paper.
 - Do not ask a processor to start a different paper after its current paper is complete.

@@ -100,13 +100,16 @@ The processor does not run audit scripts, read `raw/`, write `wiki/`, or return 
 
 - A processor is complete only when `paper-card.md` and `paper-digest.json` both exist and are non-empty.
 - A subagent status message is not completion proof.
-- A subagent return or wake is only a signal to re-check filesystem state, not a completion result. After every return or wake, run the deterministic status check and treat its exit status and `INCOMPLETE` lines as the only completion fact:
+- Checks are event-driven, not timer-driven. Run the deterministic status check only when a new completion signal arrives: a processor subagent settles, the host reports a finished background job, or a continuation instruction was just answered:
 
 ```bash
 python "<REPO_ROOT>/scripts/workflow_status.py" --work-dir "<BATCH_WORKDIR>"
 ```
 
-- If a return or wake leaves a free processor slot, emit the next action in the same turn (spawn the next processor or start finalize). Do not end the turn after only writing a sentence that describes the next step.
+Treat its exit status and `INCOMPLETE` lines as the only completion fact.
+
+- After spawning processors, do not poll. Do not re-run the status check on a timer, do not create a round-based re-check loop (for example a goal round that reconciles every few minutes), and do not compute or print elapsed-time or rounds-based estimates. A processor takes minutes to tens of minutes; intermediate checks add nothing. When all spawned processors are still running, end the turn and wait for their completion notices.
+- If a completion signal leaves a free processor slot, emit the next action in the same turn (spawn the next processor or start finalize). Do not end the turn after only writing a sentence that describes the next step.
 - If either output is missing, send a continuation instruction to the same subagent: `Continue until both output files exist. Do not return a summary before they are written.`
 - Check files after each continuation. Allow at most three attempts before running that paper serially.
 - A processor may continue only on the same paper. After that paper passes its audits, close or release the processor before creating one for another paper.

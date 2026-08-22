@@ -26,6 +26,7 @@
 ### 修复
 
 - `publish_wiki.py` 的 `parse_frontmatter` 把 `sources:`/`aliases:` 空值行误判为标量字段，导致枢纽页更新丢失已有 sources 列表（新增回归测试）。
+- 完成检查改为事件驱动：处理器派发后不轮询、不按轮次定时重查、不输出耗时/轮次预估，仅在子代理完成通知到达时对账一次（workflow-contract / dsh-mode / batch-mode 同步修订）。
 
 ## [0.1.0] - 2026-08-15
 
