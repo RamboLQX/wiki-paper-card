@@ -2,7 +2,7 @@
 
 本文档供用户自己的 Agent 读取并执行。用户不需要手动复制这些命令，只需要提供项目仓库和目标 Obsidian Vault 的位置。
 
-当前项目的论文处理运行宿主是 Claude Code 和 Obsidian Claudian。用户自己的 Agent 工具负责引导或执行安装适配，其他 Agent 运行宿主的论文处理流程暂不属于正式支持范围。
+当前项目支持两个论文处理运行宿主：Claude Code（Obsidian 入口推荐 Claudian 插件）与 DeepSeek Harness（DSH，在 Vault 目录中启动会话）。用户自己的 Agent 工具负责引导或执行安装适配，其他 Agent 运行宿主的论文处理流程暂不属于正式支持范围。
 
 推荐触发语句：
 
@@ -10,6 +10,7 @@
 请阅读 <REPO_ROOT>/docs/agent-quick-setup.md，并帮我配置 wiki-paper-card。
 项目仓库：/path/to/wiki-paper-card
 Obsidian Vault：/path/to/vault
+运行宿主：claude-code / dsh / both
 ```
 
 如果仓库尚未克隆，可以用仓库 URL 代替本地路径。
@@ -18,10 +19,10 @@ Obsidian Vault：/path/to/vault
 
 将 `wiki-paper-card` 接入现有或新建的 Obsidian Vault：
 
-1. 确认 Python 和 Agent 运行环境。
-2. 引导用户完成 Obsidian、Claudian 和 Claude Code 等手动安装步骤。
+1. 确认 Python 与所选 Agent 运行环境。
+2. 引导用户完成 Obsidian、Claudian（仅 Claude Code 宿主）等手动安装步骤。
 3. 在 Vault 中补齐 Wiki 目录，但不覆盖已有文件。
-4. 链接 skill，复制 Claude Code agent，合并 Vault 级 `CLAUDE.md`。
+4. 链接 skill 到宿主技能目录（Claude Code：`.claude/skills`；DSH：`.dsh/skills`）。
 5. 设置 `WIKI_PAPER_CARD_ROOT` 并运行现有 smoke test。
 6. 返回安装报告和后续调用示例。
 
@@ -36,11 +37,12 @@ Obsidian Vault：/path/to/vault
 
 ## 必要信息
 
-执行前至少确认以下两个值：
+执行前至少确认以下三个值：
 
 ```text
 REPO_ROOT=/path/to/wiki-paper-card
 VAULT_ROOT=/path/to/vault
+HOST=claude|dsh|both
 ```
 
 如果用户没有提供，必须先询问，不能使用当前目录或主目录作为默认 Vault。
@@ -51,7 +53,6 @@ Agent 应检查可用的命令：
 
 ```bash
 command -v python3
-command -v claude
 python3 --version
 python3 -m pip show pymupdf
 ```
@@ -63,9 +64,10 @@ python3 -m pip show pymupdf
 python3 -m pip install pymupdf
 ```
 
-- Claude Code 缺失时，引导用户按照官方安装说明配置。
-- Obsidian 缺失时，引导用户从 <https://obsidian.md/download> 下载并打开目标 Vault。
-- Claudian 缺失时，引导用户在 Obsidian 的 Community plugins 中安装并启用。
+按 `HOST` 检查宿主环境：
+
+- `claude` 或 `both`：检查 `command -v claude`；缺失时引导用户按官方说明安装 Claude Code。Obsidian 缺失时引导用户从 <https://obsidian.md/download> 下载并打开目标 Vault；Claudian 缺失时引导用户在 Obsidian 的 Community plugins 中安装并启用。
+- `dsh` 或 `both`：确认用户的 DeepSeek Harness 环境可用（能启动会话并执行命令）。DSH 不需要在 Vault 内安装插件，会话在 Vault 目录中启动即可。
 
 Agent 无法完成 GUI 操作时，应把这些项目列入待用户操作清单，而不是标记为已完成。
 
@@ -81,54 +83,51 @@ git clone <repository-url> "$REPO_ROOT"
 
 不要自动选择用户主目录下的未指定路径。
 
-## 第三步：补齐 Vault 目录
+## 第三步：执行安装脚本（推荐）
 
-只创建缺失目录，不修改已有内容：
+仓库自带幂等安装脚本，同时处理目录补齐、模板复制与宿主 skill 链接：
+
+```bash
+"$REPO_ROOT/scripts/install.sh" --repo-root "$REPO_ROOT" --host "$HOST" "$VAULT_ROOT"
+```
+
+脚本行为与安全保证：
+
+- 只创建缺失目录与缺失文件；已有 `wiki/`、`CLAUDE.md`、知识页面一律保留。
+- skill 使用符号链接；链接已存在且指向不同位置时报冲突并退出码 1，不会自动替换。
+- Claude Code 宿主：链接 skill 到 `$VAULT_ROOT/.claude/skills/`，复制 agent 到 `$VAULT_ROOT/.claude/agents/`（同名不同内容报冲突）。
+- DSH 宿主：链接 skill 到 `$VAULT_ROOT/.dsh/skills/`。DSH 自动发现该目录与 Vault 根目录的 `CLAUDE.md`/`AGENTS.md`。
+- 退出码非 0 时，把脚本输出的 CONFLICT 行逐条报告给用户，不擅自处理。
+
+## 第四步：手动安装（不使用脚本时的等价步骤）
+
+仅当用户明确要求逐步手动安装时使用。
+
+补齐目录：
 
 ```bash
 mkdir -p "$VAULT_ROOT/raw/papers"
-mkdir -p "$VAULT_ROOT/wiki/sources"
-mkdir -p "$VAULT_ROOT/wiki/concepts"
-mkdir -p "$VAULT_ROOT/wiki/entities"
-mkdir -p "$VAULT_ROOT/wiki/topics"
+mkdir -p "$VAULT_ROOT/wiki/sources" "$VAULT_ROOT/wiki/concepts" "$VAULT_ROOT/wiki/entities" "$VAULT_ROOT/wiki/topics" "$VAULT_ROOT/wiki/meta"
 mkdir -p "$VAULT_ROOT/work"
-mkdir -p "$VAULT_ROOT/.claude/skills"
-mkdir -p "$VAULT_ROOT/.claude/agents"
 ```
 
-使用项目模板补齐 Wiki 文件时，只添加目标 Vault 中不存在的文件。执行前检查每个目标文件，已有文件必须保留原内容：
+链接 skill 并复制模板文件，规则与脚本一致（no-clobber、链接冲突报告不替换）：
+
+- Claude Code：链接到 `$VAULT_ROOT/.claude/skills/`，复制 `$REPO_ROOT/adapters/claude-code/agents/*.md` 到 `$VAULT_ROOT/.claude/agents/`。
+- DSH：链接到 `$VAULT_ROOT/.dsh/skills/`。
+- 模板文件按缺失补齐：
 
 ```text
 $REPO_ROOT/template/wiki/index.md
 $REPO_ROOT/template/wiki/log.md
 $REPO_ROOT/template/wiki/meta/paper-processing-conventions.md
+$REPO_ROOT/template/CLAUDE.md
 ```
-
-如果当前运行环境没有可用的 no-clobber 复制命令，逐个检查目标是否存在，再复制缺失文件。
-
-## 第四步：链接 skill 与复制 agent
-
-优先使用符号链接：
-
-```bash
-ln -s "$REPO_ROOT/skills/wiki-paper-card" "$VAULT_ROOT/.claude/skills/wiki-paper-card"
-ln -s "$REPO_ROOT/skills/wiki-shared" "$VAULT_ROOT/.claude/skills/wiki-shared"
-```
-
-如果目标链接已经存在，先确认它指向同一仓库。指向不同位置时不要自动替换，应报告并询问用户。
-
-复制 Claude Code agent：
-
-```bash
-cp "$REPO_ROOT"/adapters/claude-code/agents/*.md "$VAULT_ROOT/.claude/agents/"
-```
-
-同名文件已存在时不要静默覆盖，应比较并报告差异。
 
 ## 第五步：合并 Vault 级 CLAUDE.md
 
-- 如果 `$VAULT_ROOT/CLAUDE.md` 不存在，复制 `$REPO_ROOT/template/CLAUDE.md`。
-- 如果已经存在，只合并模板中缺失的必要段落：
+- 如果 `$VAULT_ROOT/CLAUDE.md` 不存在，脚本已复制 `$REPO_ROOT/template/CLAUDE.md`。
+- 如果已经存在且内容不同，只合并模板中缺失的必要段落：
 
 ```text
 ## Vault 约定
@@ -151,7 +150,7 @@ cp "$REPO_ROOT"/adapters/claude-code/agents/*.md "$VAULT_ROOT/.claude/agents/"
 export WIKI_PAPER_CARD_ROOT="$REPO_ROOT"
 ```
 
-持久化方式由用户使用的 Agent 工具决定，通常可以设置在其环境变量或 Claudian 配置中。Agent 应说明当前会话已经生效，并告知用户如何持久化。
+持久化方式由用户使用的宿主决定（Claudian 配置或启动 shell 的环境变量）。Agent 应说明当前会话已经生效，并告知用户如何持久化。
 
 ## 第七步：验证
 
@@ -171,10 +170,12 @@ test -d "$VAULT_ROOT/wiki/sources"
 test -d "$VAULT_ROOT/wiki/concepts"
 test -d "$VAULT_ROOT/wiki/entities"
 test -d "$VAULT_ROOT/wiki/topics"
-test -d "$VAULT_ROOT/.claude/skills"
-test -d "$VAULT_ROOT/.claude/agents"
 test -f "$VAULT_ROOT/CLAUDE.md"
+test -L "$VAULT_ROOT/.claude/skills/wiki-paper-card"   # HOST 含 claude 时
+test -L "$VAULT_ROOT/.dsh/skills/wiki-paper-card"      # HOST 含 dsh 时
 ```
+
+DSH 宿主额外说明：skill 目录在会话启动时编入目录，需要新开一个 DSH 会话才能确认 `wiki-paper-card` 出现在会话技能列表里；把这一条写入"仍需用户手动完成的步骤"。
 
 ## 第八步：返回安装报告
 
@@ -197,3 +198,4 @@ Use wiki-paper-card to process raw/papers/example.pdf.
 
 - Wiki 分层、Agent 持续维护、`index.md` 和 `log.md` 等设计参考 Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 思路。
 - 论文分析内核和共享规则来自 `nature-skills`，固定版本与同步策略见 `UPSTREAM.md`。
+- DSH 适配层见 `adapters/dsh/`，编排映射见 `adapters/dsh/dsh-mode.md`。

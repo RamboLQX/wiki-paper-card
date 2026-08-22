@@ -55,6 +55,59 @@ class BuildKbContextTests(unittest.TestCase):
             context = KB_CONTEXT.build_context(Path(directory), "paper", 3, 1600)
             self.assertIn("为空", context)
 
+    def test_alias_bridges_english_query_to_chinese_page(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wiki = root / "wiki"
+            for name in ("sources", "concepts", "entities", "topics"):
+                (wiki / name).mkdir(parents=True)
+            (wiki / "index.md").write_text(
+                "# Index\n\n"
+                "## 概念\n"
+                "- [[wiki/concepts/knowledge-conflict.md|知识冲突]] — 参数化知识与上下文知识相悖\n"
+                "- [[wiki/concepts/other.md|其他概念]] — 与查询无关的概念\n",
+                encoding="utf-8",
+            )
+            (wiki / "concepts" / "knowledge-conflict.md").write_text(
+                "---\n"
+                "tags: [concept]\n"
+                'aliases:\n  - "parametric knowledge"\n  - "contextual knowledge"\n'
+                "status: stub\n"
+                "---\n\n"
+                "# 知识冲突\n\n"
+                "两类知识相悖。\n",
+                encoding="utf-8",
+            )
+            (wiki / "concepts" / "other.md").write_text(
+                "# 其他概念\n\n无关内容。\n", encoding="utf-8"
+            )
+            context = KB_CONTEXT.build_context(
+                root, "parametric knowledge", max_pages=1, max_chars=1600
+            )
+            self.assertIn("[[knowledge-conflict|知识冲突]]", context)
+            self.assertNotIn("[[other|其他概念]]", context)
+
+    def test_zero_overlap_marks_index_order_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wiki = root / "wiki"
+            for name in ("sources", "concepts", "entities", "topics"):
+                (wiki / name).mkdir(parents=True)
+            (wiki / "index.md").write_text(
+                "# Index\n\n"
+                "## 来源\n"
+                "- [[wiki/sources/a.md|A]] — 完全无关的中文描述\n",
+                encoding="utf-8",
+            )
+            (wiki / "sources" / "a.md").write_text(
+                "# A\n\n无关内容。\n", encoding="utf-8"
+            )
+            context = KB_CONTEXT.build_context(
+                root, "unrelated english terms", max_pages=3, max_chars=1600
+            )
+            self.assertIn("无关键词重合", context)
+            self.assertIn("[[a|A]]", context)
+
 
 if __name__ == "__main__":
     unittest.main()

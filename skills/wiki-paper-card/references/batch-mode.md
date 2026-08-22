@@ -12,13 +12,14 @@ one or the requested directory is ambiguous.
 2. Compute each target report path.
 3. Skip files whose target report already exists unless the user asks to reprocess.
 4. Run all `prepare_paper.py` and `build_kb_context.py` steps outside the main conversation.
+5. Build the processor pack once per batch with `build_processor_pack.py`; run `--verify` before spawning processors.
 
 ## Card Phase
 
 All paper cards are independent. Do not make one card depend on another current card.
 
 - Create a fresh processor for each paper. Do not reuse a completed processor for a different paper.
-- Claude Code starts up to three processors concurrently for a batch of three; for larger batches keep at most three active and schedule remaining papers as processors finish.
+- Concurrency by host: Claude Code starts up to three processors concurrently for a batch of three and keeps at most three active for larger batches; DeepSeek Harness starts up to six concurrently by default, at most eight. Schedule remaining papers as processors finish.
 - Every paper writes to its own `work/<paper-name>/` directory.
 - Each paper has an independent checkpoint: source bundle, Paper Card, digest, evidence report, and audit reports.
 - After a paper passes its audits, close or release its processor before using a new processor for another paper.

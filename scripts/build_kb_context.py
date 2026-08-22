@@ -61,6 +61,34 @@ def parse_index(index_path: Path) -> list[dict[str, str]]:
     return entries
 
 
+def page_aliases(path: Path) -> list[str]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    match = FRONTMATTER_RE.match(text)
+    if not match:
+        return []
+    raw = match.group(1)
+    aliases: list[str] = []
+    in_aliases = False
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if re.match(r"^aliases\s*:", stripped):
+            in_aliases = True
+            continue
+        if in_aliases:
+            item = re.match(r"^-\s+(.+)$", stripped)
+            if item:
+                value = item.group(1).strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                    value = value[1:-1]
+                aliases.append(value)
+            elif stripped and not stripped.startswith("-"):
+                break
+    return aliases
+
+
 def page_notes(path: Path) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8")
@@ -106,6 +134,24 @@ def entry_text(entry: dict[str, str]) -> str:
     return f"{entry['label']} {entry['description']}"
 
 
+def score_entries(
+    query: str,
+    entries: list[dict[str, str]],
+    wiki_root: Path,
+    with_aliases: bool,
+) -> list[tuple[int, dict[str, str]]]:
+    """Rank entries by token overlap; alias-aware when with_aliases is set."""
+    scored: list[tuple[int, dict[str, str]]] = []
+    for entry in entries:
+        text = entry_text(entry)
+        if with_aliases:
+            aliases = page_aliases(wiki_root / entry["path"])
+            if aliases:
+                text = f"{text} {' '.join(aliases)}"
+        scored.append((token_overlap(query, text), entry))
+    return scored
+
+
 def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -> str:
     index_path = wiki_root / "wiki" / "index.md"
     if not index_path.is_file():
@@ -118,30 +164,46 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
     source_entries = [
         entry for entry in entries if entry["path"].startswith("wiki/sources/")
     ]
-    related_sources = sorted(
-        source_entries,
-        key=lambda entry: token_overlap(query, entry_text(entry)),
-        reverse=True,
-    )[: max(0, max_pages)]
+    related_sources = [
+        entry
+        for _, entry in sorted(
+            score_entries(query, source_entries, wiki_root, with_aliases=False),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )[: max(0, max_pages)]
+    ]
 
     hub_entries = [
         entry
         for entry in entries
         if entry["path"].startswith(("wiki/concepts/", "wiki/entities/"))
     ]
-    related_hubs = sorted(
-        hub_entries,
-        key=lambda entry: token_overlap(query, entry_text(entry)),
-        reverse=True,
-    )[: max(0, max_pages)]
+    related_hubs = [
+        entry
+        for _, entry in sorted(
+            score_entries(query, hub_entries, wiki_root, with_aliases=True),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )[: max(0, max_pages)]
+    ]
     topic_entries = [
         entry for entry in entries if entry["path"].startswith("wiki/topics/")
     ]
-    related_topics = sorted(
-        topic_entries,
-        key=lambda entry: token_overlap(query, entry_text(entry)),
-        reverse=True,
-    )[: max(0, max_pages)]
+    related_topics = [
+        entry
+        for _, entry in sorted(
+            score_entries(query, topic_entries, wiki_root, with_aliases=True),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )[: max(0, max_pages)]
+    ]
+
+    all_scored = (
+        score_entries(query, source_entries, wiki_root, with_aliases=False)
+        + score_entries(query, hub_entries, wiki_root, with_aliases=True)
+        + score_entries(query, topic_entries, wiki_root, with_aliases=True)
+    )
+    zero_overlap = bool(all_scored) and all(pair[0] == 0 for pair in all_scored)
 
     notes: list[str] = []
     for entry in related_sources + related_hubs + related_topics:
@@ -149,6 +211,11 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
         notes.extend(page_notes(page_path))
 
     lines: list[str] = ["# KB Context", ""]
+    if zero_overlap:
+        lines.append(
+            "> 检索说明：查询与索引无关键词重合，候选按索引顺序给出，仅作参考。"
+        )
+        lines.append("")
     if related_sources:
         lines.append("## 相关论文")
         for entry in related_sources:
@@ -162,7 +229,9 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
         lines.extend(f"- {note}" for note in notes[:10])
         lines.append("")
 
-    candidate_list = candidate_notes(wiki_root / "wiki" / "meta" / "candidates.md")
+    candidate_list = candidate_notes(
+        wiki_root / "wiki" / "meta" / "research.md"
+    ) or candidate_notes(wiki_root / "wiki" / "meta" / "candidates.md")
     if candidate_list:
         lines.append("## 待升级 L1 候选")
         lines.extend(f"- {note}" for note in candidate_list[:10])

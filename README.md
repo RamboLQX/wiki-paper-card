@@ -7,14 +7,17 @@
 [English](README.en.md)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
-![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-lightgrey)
+![Version: 0.2.0](https://img.shields.io/badge/version-0.2.0-orange)
 ![Runtime: Claude Code](https://img.shields.io/badge/runtime-Claude%20Code%20%2B%20Claudian-2f4f4f)
 
 > 状态：核心流程已经可以运行，项目仍会继续迭代流程契约、知识规则和输出格式。
 
 ## 运行环境与入口
 
-本项目以 [Claude Code](https://code.claude.com/docs/en/overview) 为运行宿主，在 [Obsidian](https://obsidian.md/download) 中通过 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件使用。Claudian 的官方仓库见 [GitHub](https://github.com/YishenTu/claudian)。
+本项目支持两个运行宿主：
+
+- [Claude Code](https://code.claude.com/docs/en/overview)：在 [Obsidian](https://obsidian.md/download) 中通过 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件使用。Claudian 的官方仓库见 [GitHub](https://github.com/YishenTu/claudian)。
+- DeepSeek Harness（DSH）：在 Vault 目录中启动 DSH 会话即可，无需 Obsidian 插件。适配与编排映射见 [adapters/dsh/](adapters/dsh/)。
 
 推荐在 Obsidian 中打开一个由 `template/` 初始化的独立 Vault，不要直接打开本仓库根目录。仓库根目录还包含 `vendor/`、`scripts/`、`tests/` 等实现文件。
 
@@ -33,7 +36,7 @@
 - 批量独立处理论文，避免单篇论文之间相互污染上下文。
 - 通过 L0、L1、L2 三级知识门槛控制建页：论文内局部概念和待验证候选先留在 Paper Card，只有跨论文证据充分的节点才提升为概念或实体枢纽页。
 - 在 topic 页中跨论文对比方法、证据、模型、数据集和结果，区分共识 / 单篇主张 / 分歧，矛盾保留双方并给出裁决证据，研究空白带来源锚点、可检验方向与承接性。
-- 增量沉淀：新论文可把既有 L1 候选升级为 L2 枢纽、并入既有 topic 对照表、回答既有开放问题；待升级候选沉淀在 `wiki/meta/candidates.md`。
+- 增量沉淀：新论文可把既有 L1 候选升级为 L2 枢纽、并入既有 topic 对照表、回答既有开放问题；待升级候选、开放问题与研究空白按领域沉淀在 `wiki/meta/research.md` 研究仪表盘。
 - 只写能改变读者判断的内容，没有真实价值就留空（宁缺毋滥），避免注水。
 - 使用确定性脚本执行 prepare、finalize、audit、publish，重复更新不会制造重复内容，并提供结构化验收。
 - 自动维护 `wiki/index.md`、`wiki/log.md` 和来源页关联；处理过程不把完整论文文本送回主会话，以控制上下文开销。
@@ -63,12 +66,12 @@
 
 前置条件：
 
-- [Claude Code](https://code.claude.com/docs/en/overview)
-- [Obsidian](https://obsidian.md/download)，并安装 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件
+- [Claude Code](https://code.claude.com/docs/en/overview) 或 DeepSeek Harness（二选一或都要）
+- [Obsidian](https://obsidian.md/download)（Claude Code 宿主需安装 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件）
 - Python 3
 - 处理 PDF 时安装 PyMuPDF
 
-新建或选择一个独立 Vault，将 `template/` 中的内容复制进去，再将本仓库的 skill 和 Agent 链接到该 Vault：
+新建或选择一个独立 Vault，用安装脚本接入：
 
 ```bash
 git clone <repository-url> wiki-paper-card
@@ -76,22 +79,20 @@ cd wiki-paper-card
 
 VAULT=/path/to/vault
 mkdir -p "$VAULT"
-cp -R -n template/* "$VAULT/"
 
-mkdir -p "$VAULT/.claude/skills" "$VAULT/.claude/agents"
-ln -s "$PWD/skills/wiki-paper-card" "$VAULT/.claude/skills/wiki-paper-card"
-ln -s "$PWD/skills/wiki-shared" "$VAULT/.claude/skills/wiki-shared"
-cp adapters/claude-code/agents/*.md "$VAULT/.claude/agents/"
-cp template/CLAUDE.md "$VAULT/CLAUDE.md"
+# --host 可选 claude | dsh | both（默认 both）
+scripts/install.sh --host dsh "$VAULT"
+# 或同时接入两个宿主：
+scripts/install.sh --host both "$VAULT"
 
 export WIKI_PAPER_CARD_ROOT="$PWD"
 ```
 
-在 Obsidian 中打开 `$VAULT`，不要打开本仓库根目录。上面的 `-n` 会保留目标 Vault 中已有的文件；如果已有 `CLAUDE.md`，请合并相关段落，不要直接覆盖。
+安装脚本幂等：只创建缺失的目录、模板文件和 skill 链接，不会覆盖 Vault 中已有的 `CLAUDE.md`、知识页面或 `raw/` 资料。Claude Code 宿主会把 skill 链接到 `$VAULT/.claude/skills/` 并复制子 Agent；DSH 宿主会把 skill 链接到 `$VAULT/.dsh/skills/`（DSH 自动发现该目录与 Vault 根目录的 `CLAUDE.md`）。
 
-`template/` 只提供 Vault 的目录结构。完成上述链接并设置 `WIKI_PAPER_CARD_ROOT` 后，Claudian 才能从 Vault 中发现 `wiki-paper-card`、`wiki-shared` 和子 Agent，并通过该环境变量找到仓库中的脚本与上游快照；只复制模板但不执行安装，skill 不会自动出现。
+在 Obsidian 中打开 `$VAULT`（DSH 宿主则在 Vault 目录中启动 DSH 会话），不要打开本仓库根目录。设置 `WIKI_PAPER_CARD_ROOT` 后，宿主才能从 Vault 中发现 `wiki-paper-card`、`wiki-shared` 和子 Agent，并通过该环境变量找到仓库中的脚本与上游快照；只复制模板但不执行安装，skill 不会自动出现。
 
-把论文放到 Vault 的 `raw/papers/` 下，然后在 Claudian 会话中调用：
+把论文放到 Vault 的 `raw/papers/` 下，然后发送：
 
 ```text
 Use wiki-paper-card to process raw/papers/example.pdf.
@@ -234,13 +235,11 @@ Paper Card 保留论文的完整细节；概念和实体页保持薄枢纽结构
 
 | 项目 | 当前支持 |
 |---|---|
-| 运行宿主 | Claude Code |
-| Obsidian 入口 | Claudian |
+| 运行宿主 | Claude Code、DeepSeek Harness（DSH） |
+| Obsidian 入口 | Claudian（Claude Code 宿主） |
 | 主要输入 | PDF、`nature-reader` source map |
 | Wiki 写入 | 本地 Vault |
 | 输出语言 | 跟随用户语言 |
-
-当前版本尚未提供其他 LLM 运行宿主的正式适配。
 
 ## 项目结构
 
@@ -248,10 +247,11 @@ Paper Card 保留论文的完整细节；概念和实体页保持薄枢纽结构
 skills/wiki-paper-card/    工作流入口、契约和子 Agent 说明
 skills/wiki-shared/        Wiki schema、模板和知识结晶规则
 adapters/claude-code/      Claude Code subagent wrapper
+adapters/dsh/              DeepSeek Harness 适配与编排映射
 vendor/nature-paper-card/  固定的上游分析内核
 vendor/nature-shared/      固定的上游共享规则
 template/                  最小 Obsidian Vault 示例
-scripts/                   本地确定性检查、打包和发布脚本
+scripts/                   本地确定性检查、打包、安装和发布脚本
 docs/                      安装和架构文档
 tests/                     项目脚本测试
 ```
@@ -263,6 +263,9 @@ tests/                     项目脚本测试
 - [工作流契约](skills/wiki-paper-card/references/workflow-contract.md)
 - [Wiki 集成规则](skills/wiki-paper-card/references/wiki-integration.md)
 - [知识结晶模型](skills/wiki-shared/references/knowledge-model.md)
+- [检索协议](skills/wiki-shared/references/retrieval-protocol.md)
+- [DSH 适配](adapters/dsh/dsh-mode.md)
+- [变更记录](CHANGELOG.md)
 
 ## 验证
 

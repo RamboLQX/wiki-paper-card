@@ -16,7 +16,9 @@ wiki/
 
 The agent never modifies `raw/`.
 
-`wiki/meta/candidates.md` is the machine-maintained L1 candidate ledger. The publisher appends pending reusable candidates (dedup by id) and `build_kb_context.py` surfaces them to the linker so a later paper can trigger an L1→L2 promotion.
+`wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, plus the pending L1 candidate ledger, all grouped by domain (first directory under `wiki/sources/papers/`). A legacy `wiki/meta/candidates.md` (stem-based L1 ledger) is migrated into `research.md` on the first publish with the current publisher and is no longer written afterwards; `build_kb_context.py` reads `research.md` first and falls back to the legacy file.
+
+`wiki/meta/knowledge-tree.md` is the machine-maintained navigation tree for LLM retrieval. The publisher rebuilds it deterministically after each publish, grouped by domain (first directory under `wiki/sources/papers/`), with per-node summaries, hub aliases, and per-domain open questions and research gaps aggregated from topic pages. Retrieval follows the two-mode protocol in `retrieval-protocol.md` (lookup pruning / survey expansion).
 
 ## Frontmatter
 

@@ -68,7 +68,7 @@ Follow [references/workflow-contract.md](references/workflow-contract.md):
 4. Link all approved digests only after the whole batch passes.
 5. Apply only approved hub and topic actions.
 
-For batch input, read [references/batch-mode.md](references/batch-mode.md). For single input, do not load batch-mode.
+For batch input, read [references/batch-mode.md](references/batch-mode.md). For single input, do not load batch-mode. When running under DeepSeek Harness, also read [the DSH adapter reference](../../adapters/dsh/dsh-mode.md).
 
 The local workflow wraps the upstream skill; it must not replace or summarize away the upstream source-boundary, evidence-base, paper-type, and QA checks.
 
@@ -90,9 +90,10 @@ Before creating a page, apply [../wiki-shared/references/knowledge-model.md](../
 
 ## Platform Support
 
-The supported runtime host is Claude Code. The recommended Obsidian entry point is the Claudian plugin.
+The supported runtime hosts are Claude Code and DeepSeek Harness (DSH). The recommended Obsidian entry point for Claude Code is the Claudian plugin.
 
 - Use a fresh `wiki-processor` per paper and one `wiki-linker` per batch. Approved wiki writes are handled by `publish_wiki.py`, not an agent.
-- Close or release a completed processor before starting a different paper. Start up to three processors for a three-paper batch; for larger batches keep at most three active.
+- Claude Code: close or release a completed processor before starting a different paper. Start up to three processors for a three-paper batch; for larger batches keep at most three active.
+- DeepSeek Harness: run each processor as a background subagent. Keep up to six processors active by default, at most eight. See `adapters/dsh/dsh-mode.md` for the phase mapping.
 - If subagents are unavailable, run phases serially and explicitly say that context usage will increase.
 - Light hosts may generate only the Paper Card and skip wiki writes.

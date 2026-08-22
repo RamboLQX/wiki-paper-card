@@ -8,11 +8,16 @@ Process only the paper supplied in the parent prompt. Do not accept or continue 
 
 Before processing, read completely:
 
-1. [The pinned upstream router](../../../vendor/nature-paper-card/SKILL.md).
-2. [The upstream manifest](../../../vendor/nature-paper-card/manifest.yaml) and every file listed under its `always_load`.
-3. The selected paper-type fragment or fragments.
-4. [The local knowledge model](../../wiki-shared/references/knowledge-model.md).
-5. [The paper digest schema](paper-digest-schema.md).
+1. The processor pack supplied by the parent prompt: one generated
+   `processor-pack.md` containing this brief, the pinned upstream router,
+   the upstream manifest and every file under its `always_load`, all six
+   paper-type lens fragments, the on-demand references, the local knowledge
+   model, and the paper digest schema.
+2. The pack's `## digest-schema` section for the digest field definitions.
+
+When no pack is supplied, read the individual sources listed under
+"Processor pack" in `workflow-contract.md` Phase 0 instead. Do not mix a
+pack with individually re-read sources for the same paper.
 
 Follow the upstream router for source boundary, paper-type selection, evidence inventory, and Sections 01-16. The parent workflow runs the deterministic auditor after this subagent returns.
 

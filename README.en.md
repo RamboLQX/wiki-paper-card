@@ -7,7 +7,7 @@ It first turns each paper into a Paper Card grounded to pages, figures, tables, 
 [中文](README.md)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
-![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-lightgrey)
+![Version: 0.2.0](https://img.shields.io/badge/version-0.2.0-orange)
 ![Runtime: Claude Code](https://img.shields.io/badge/runtime-Claude%20Code%20%2B%20Claudian-2f4f4f)
 
 > Status: the core workflow is runnable, while workflow contracts, knowledge rules, and output formats will continue to evolve.
@@ -33,7 +33,7 @@ To keep detailed arguments available while making cross-paper comparison and ret
 - Processes papers in isolated batches so individual analyses do not contaminate each other.
 - Uses L0, L1, and L2 knowledge gates to control page creation: paper-local concepts and unverified candidates stay in the Paper Card, and only nodes with sufficient cross-paper evidence become concept or entity hubs.
 - Uses topic pages to compare methods, evidence, models, datasets, and results across papers; distinguishes consensus / single-paper claims / conflicts, keeps both sides of a contradiction with resolving evidence, and records research gaps with a source anchor, testable direction, and continuity.
-- Grows incrementally: a new paper can promote an existing L1 candidate to an L2 hub, merge into an existing topic comparison table, and answer an existing open question; pending candidates accumulate in `wiki/meta/candidates.md`.
+- Grows incrementally: a new paper can promote an existing L1 candidate to an L2 hub, merge into an existing topic comparison table, and answer an existing open question; pending candidates, open questions, and research gaps accumulate by domain in the `wiki/meta/research.md` dashboard.
 - Writes only content that changes a reader's judgment; leaves a section empty when there is no genuine finding (no padding).
 - Uses deterministic prepare, finalize, audit, and publish scripts; repeated updates do not create duplicate content and include structured verification.
 - Maintains `wiki/index.md`, `wiki/log.md`, and source-page links without returning full paper text to the main session, keeping context use bounded.

@@ -7,6 +7,8 @@ Process one paper or one batch into:
 ```text
 source_bundle.json
 kb-context.md
+processor-pack.md
+processor-pack.manifest.json
 paper-card.md
 paper-digest.json
 paper-digest-report.json
@@ -20,7 +22,7 @@ publish-report.json
 wiki source pages
 L2 hub pages
 optional topic pages
-wiki/meta/candidates.md (L1 candidate ledger)
+wiki/meta/research.md (research dashboard: open questions, gaps, L1 candidates)
 updated index and log
 ```
 
@@ -38,7 +40,19 @@ paths in every subagent prompt. Do not ask a subagent to rediscover the pinned
 3. Resolve each target path by mirroring the raw relative path under `wiki/sources/`.
 4. Skip papers whose target report has the same SHA-256 unless the user asks to reprocess.
 5. Run the pinned `prepare_paper.py` for every paper.
-6. Build compact existing-wiki context for every paper:
+6. Build the processor pack once per batch:
+
+```bash
+python "<REPO_ROOT>/scripts/build_processor_pack.py" \
+  --output "<BATCH_WORKDIR>/processor-pack.md" \
+  --manifest "<BATCH_WORKDIR>/processor-pack.manifest.json"
+```
+
+The pack merges every reference a processor must read into one document.
+Run it with `--verify` before spawning processors to assert the pinned
+sources are unchanged since the pack was built.
+
+7. Build compact existing-wiki context for every paper:
 
 ```bash
 python "<REPO_ROOT>/scripts/build_kb_context.py" \
@@ -66,7 +80,7 @@ Claude Code processor agent: `wiki-processor`.
 
 One processor per paper:
 
-1. Reads [processor-brief.md](processor-brief.md) and [paper-digest-schema.md](paper-digest-schema.md).
+1. Reads the processor pack once (or, when no pack was built, the individual sources listed in Phase 0 step 6).
 2. Reads the source bundle once.
 3. Reads `kb-context.md`.
 4. Writes the complete Sections 01-16 `paper-card.md`.
@@ -78,7 +92,8 @@ The processor does not run audit scripts, read `raw/`, write `wiki/`, or return 
 
 - All paper-card processors are logically independent.
 - Create a fresh processor subagent for each paper. Do not reuse a completed processor for a different paper.
-- Claude Code starts up to three processors concurrently for a three-paper batch. For larger batches, keep at most three active and schedule the remaining papers as processors finish.
+- Claude Code: start up to three processors concurrently for a three-paper batch. For larger batches, keep at most three active and schedule the remaining papers as processors finish.
+- DeepSeek Harness: start up to six processors concurrently by default, at most eight. Keep the same all-pass ordering gate regardless of host (see Phase 3).
 - Every paper writes to its own `work/<paper-name>/` directory.
 
 ### Completion And Recovery
@@ -179,7 +194,7 @@ The publisher:
 4. Updates explicit relationships, contradictions, `wiki/index.md`, and `wiki/log.md`.
 5. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
 6. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
-7. Appends pending L1 candidates to `wiki/meta/candidates.md` (dedup by id) so a later batch can promote them to L2.
+7. Rebuilds `wiki/meta/knowledge-tree.md` (domain-grouped navigation tree) and `wiki/meta/research.md` (domain-grouped dashboard: open questions, research gaps, and pending L1 candidates, dedup by id) from the current wiki state. A legacy `wiki/meta/candidates.md` is migrated into the dashboard on first publish and then left untouched.
 
 Do not run a wiki-integrator agent. The publisher does not promote L0 or L1
 candidates into hub pages, invent duplicate aliases, or rewrite unrelated prose.

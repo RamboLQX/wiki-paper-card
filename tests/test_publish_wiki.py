@@ -543,7 +543,7 @@ class PublishWikiTests(unittest.TestCase):
         self.assertEqual(merged.count("位置 A：A claims X."), 1)
         self.assertNotIn("来源：", merged)
 
-    def test_candidates_ledger_written(self) -> None:
+    def test_research_dashboard_written(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             prepare_vault(root)
@@ -575,11 +575,232 @@ class PublishWikiTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            ledger = root / "wiki" / "meta" / "candidates.md"
-            self.assertTrue(ledger.is_file())
-            text = ledger.read_text(encoding="utf-8")
+            dashboard = root / "wiki" / "meta" / "research.md"
+            self.assertTrue(dashboard.is_file())
+            text = dashboard.read_text(encoding="utf-8")
+            self.assertIn("# 研究仪表盘", text)
+            self.assertIn("Topic question", text)
+            self.assertIn("Missing benchmark", text)
             self.assertIn("reusable-concept", text)
             self.assertIn("可复用概念", text)
+            self.assertFalse((root / "wiki" / "meta" / "candidates.md").exists())
+
+    def test_research_page_groups_by_domain(self) -> None:
+        buckets = {
+            "rag": {
+                "sources": [],
+                "topics": [],
+                "hubs": [],
+                "questions": [("Q1", "T", "wiki/topics/t.md")],
+                "gaps": [("gap1", "T", "wiki/topics/t.md")],
+            }
+        }
+        candidates = [
+            {
+                "id": "c1",
+                "name": "候选",
+                "kind": "concept",
+                "definition": "def",
+                "source_refs": ["wiki/sources/papers/rag/x.md"],
+            }
+        ]
+        text = PUBLISH.render_research_page(
+            buckets, {}, candidates, {}, "2026-08-22", "2026-08-22"
+        )
+        self.assertIsNotNone(text)
+        assert text is not None
+        self.assertIn("## 开放问题", text)
+        self.assertIn("### rag", text)
+        self.assertIn("Q1 — 来源：[[t|T]]", text)
+        self.assertIn("## 研究空白", text)
+        self.assertIn("gap1 — 来源：[[t|T]]", text)
+        self.assertIn("## L1 候选", text)
+        self.assertIn("| c1 | 候选 | concept | def | [[x|x]] |", text)
+
+    def test_legacy_candidates_migrate_into_research_dashboard(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            meta = root / "wiki" / "meta"
+            meta.mkdir(parents=True, exist_ok=True)
+            (meta / "candidates.md").write_text(
+                "---\n"
+                "tags: [meta]\n"
+                'created: "2026-01-01"\n'
+                'updated: "2026-01-01"\n'
+                'status: "evergreen"\n'
+                "---\n\n"
+                "# L1 候选账本\n\n"
+                "| id | 名称 | 类型 | 定义 | 来源 |\n"
+                "|---|---|---|---|---|\n"
+                "| legacy-1 | 旧候选 | concept | 旧定义 | [[a|A]] |\n",
+                encoding="utf-8",
+            )
+            plan_path = root / "link-plan.json"
+            plan_path.write_text(json.dumps(valid_plan(), ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT_PATH), "--plan", str(plan_path), "--wiki-root", str(root)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            dashboard = root / "wiki" / "meta" / "research.md"
+            text = dashboard.read_text(encoding="utf-8")
+            self.assertIn("legacy-1", text)
+            self.assertIn("旧候选", text)
+            self.assertIn("## L1 候选", text)
+            # legacy file is left in place, not deleted or rewritten
+            self.assertIn("legacy-1", (meta / "candidates.md").read_text(encoding="utf-8"))
+
+    def test_cli_writes_knowledge_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            plan_path = root / "link-plan.json"
+            plan_path.write_text(json.dumps(valid_plan(), ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT_PATH), "--plan", str(plan_path), "--wiki-root", str(root)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            tree_path = root / "wiki" / "meta" / "knowledge-tree.md"
+            self.assertTrue(tree_path.is_file())
+            text = tree_path.read_text(encoding="utf-8")
+            self.assertIn("# 知识树", text)
+            self.assertIn("[[a|a]]", text)
+            self.assertIn("[[Shared Topic|Shared Topic]]", text)
+            self.assertIn("（别名：concept）", text)
+            self.assertIn("Topic question — 来源：[[Shared Topic|Shared Topic]]", text)
+            self.assertIn("Missing benchmark — 来源：[[Shared Topic|Shared Topic]]", text)
+
+    def test_knowledge_tree_groups_by_domain(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wiki = root / "wiki"
+            for sub in ("sources/papers/rag", "sources/papers/llm-opt", "topics", "concepts"):
+                (wiki / sub).mkdir(parents=True)
+            (wiki / "sources" / "papers" / "rag" / "x.md").write_text(
+                "# Paper X\n", encoding="utf-8"
+            )
+            (wiki / "sources" / "papers" / "llm-opt" / "y.md").write_text(
+                "# Paper Y\n", encoding="utf-8"
+            )
+            (wiki / "topics" / "t.md").write_text(
+                "---\n"
+                "tags: [topic]\n"
+                'sources:\n  - "wiki/sources/papers/rag/x.md"\n'
+                "aliases:\n"
+                "status: stub\n"
+                "---\n\n"
+                "# T\n\n"
+                "## 开放问题\n\n- Q1\n\n"
+                "## 研究空白与候选方向\n\n- gap1\n",
+                encoding="utf-8",
+            )
+            (wiki / "concepts" / "h.md").write_text(
+                "---\n"
+                "tags: [concept]\n"
+                'sources:\n  - "wiki/sources/papers/rag/x.md"\n  - "wiki/sources/papers/llm-opt/y.md"\n'
+                'aliases:\n  - "foo"\n  - "bar"\n'
+                "status: stub\n"
+                "---\n\n"
+                "# H\n\n"
+                "definition.\n",
+                encoding="utf-8",
+            )
+            (wiki / "index.md").write_text(
+                "# Wiki 索引\n\n"
+                "## 来源\n"
+                "- [[wiki/sources/papers/rag/x.md|x]] - paper x\n"
+                "- [[wiki/sources/papers/llm-opt/y.md|y]] - paper y\n"
+                "## 主题\n"
+                "- [[wiki/topics/t.md|T]] - topic t\n"
+                "## 概念\n"
+                "- [[wiki/concepts/h.md|H]] - hub h\n",
+                encoding="utf-8",
+            )
+            tree = PUBLISH.build_knowledge_tree(root)
+            self.assertIsNotNone(tree)
+            assert tree is not None
+            self.assertIn("## rag", tree)
+            self.assertIn("## llm-opt", tree)
+            self.assertIn("（别名：foo、bar）", tree)
+            self.assertIn("Q1 — 来源：[[t|T]]", tree)
+            self.assertIn("gap1 — 来源：[[t|T]]", tree)
+            self.assertLess(tree.index("## rag"), tree.index("## 跨领域"))
+
+    def test_merge_hub_preserves_existing_sources_list(self) -> None:
+        existing = (
+            "---\n"
+            "tags: [concept]\n"
+            'created: "2026-01-01"\n'
+            'updated: "2026-01-01"\n'
+            "sources:\n"
+            '  - "wiki/sources/a.md"\n'
+            '  - "wiki/sources/b.md"\n'
+            "aliases:\n"
+            '  - "old alias"\n'
+            'status: "stub"\n'
+            "---\n\n"
+            "# Hub\n\n"
+            "## 证据\n\n"
+            "| 来源 | 断言 | 证据 | confidence |\n"
+            "|---|---|---|---|\n"
+            "## 关系\n\n"
+            "## 争议与矛盾\n\n"
+            "## 开放问题\n\n"
+            "## 引用来源\n"
+        )
+        action = {
+            "action": "update_hub",
+            "id": "hub-1",
+            "name": "Hub",
+            "kind": "concept",
+            "tier": "L2",
+            "aliases": ["new alias"],
+            "definition": "",
+            "source_refs": ["wiki/sources/c.md"],
+            "connect_existing": True,
+            "existing_page": "wiki/concepts/Hub.md",
+            "evidence": [],
+            "relations": [],
+            "contradictions": [],
+            "open_questions": [],
+        }
+        merged = PUBLISH.merge_hub_page(existing, action, {}, "2026-01-02")
+        fields, lists, _ = PUBLISH.parse_frontmatter(merged)
+        self.assertEqual(
+            lists["sources"],
+            ["wiki/sources/a.md", "wiki/sources/b.md", "wiki/sources/c.md"],
+        )
+        self.assertEqual(lists["aliases"], ["old alias", "new alias"])
+
+    def test_knowledge_tree_is_stable_between_publishes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            plan_path = root / "link-plan.json"
+            plan_path.write_text(json.dumps(valid_plan(), ensure_ascii=False), encoding="utf-8")
+            command = [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "--plan",
+                str(plan_path),
+                "--wiki-root",
+                str(root),
+                "--report",
+                str(root / "publish-report.json"),
+            ]
+            first = subprocess.run(command, check=False, capture_output=True, text=True)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            tree_path = root / "wiki" / "meta" / "knowledge-tree.md"
+            original = tree_path.read_text(encoding="utf-8")
+            second = subprocess.run(command, check=False, capture_output=True, text=True)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(tree_path.read_text(encoding="utf-8"), original)
 
 
 if __name__ == "__main__":

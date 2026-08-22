@@ -53,6 +53,28 @@ Prefer the digests for context. A final card may be read only for a specific amb
 - **Snapshot semantics**: `consensus` = supported by two or more independent papers with no current counter-evidence; `single` = one paper; `conflict` = a recorded contradiction. Do not call a term "consensus" just because several papers mention it, and do not manufacture a conflict to fill space.
 - **Research gap shape**: emit `research_gaps` as objects with `gap` (the gap and its origin), `source_refs` (the papers it traces to), `direction` (what observation would move it forward), and `continuity` (a future paper may answer it; this batch need not). Record only the 2-3 gaps that most affect decisions.
 
+### Classification Decision: key_findings vs research_gaps
+
+For every candidate statement, apply two questions in order:
+
+1. **Does it change what a reader believes about the field's current state?**
+   (For example: "all three methods omit significance tests", "method A and B
+   agree on the failure mode", "results on the non-conflict subset disagree".)
+   If yes, write it as a `key_findings` entry with its kind
+   (`consensus` / `single` / `conflict`) and source pointers.
+2. **Does it name something missing plus a direction a future paper can take
+   and a way to check it?** If yes, write it as a `research_gaps` object with
+   `gap`, `source_refs`, `direction`, and `continuity`.
+
+A statement may satisfy both questions: record the full statement under
+`key_findings`, and make the gap reference the finding instead of restating
+it. A statement satisfying only one question is written only once. A
+statement satisfying neither is not written at all.
+
+The `## 关键发现` section of a topic page is the field-state snapshot; the
+`## 研究空白与候选方向` section is the actionable map. Keep consensus
+signals in the former even when they also motivate a gap in the latter.
+
 ## Link Plan Output
 
 Follow [link-plan-schema.md](link-plan-schema.md).

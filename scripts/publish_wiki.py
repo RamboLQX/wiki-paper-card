@@ -40,7 +40,7 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], dict[str, list[str]], 
     current_list: str | None = None
     for line in raw_fields.splitlines():
         field_match = FRONTMATTER_FIELD_RE.match(line.strip())
-        if field_match:
+        if field_match and field_match.group(2).strip():
             current_list = None
             value = field_match.group(2).strip()
             if value.startswith('"') and value.endswith('"'):
@@ -912,66 +912,333 @@ def collect_l1_candidates(source_pages: list[Any], wiki_root: Path) -> list[dict
     return candidates
 
 
-def candidates_page(
-    existing_text: str | None,
+def parse_l1_sections(body: str) -> dict[str, list[str]]:
+    """Parse L1 candidate table rows grouped by their `### <domain>` heading."""
+    domains: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in body.splitlines():
+        stripped = line.strip()
+        heading = re.match(r"^###\s+(.+)$", stripped)
+        if heading:
+            current = heading.group(1)
+            continue
+        if (
+            stripped.startswith("|")
+            and not stripped.startswith("|---")
+            and not stripped.startswith("| id")
+        ):
+            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+            if cells and cells[0]:
+                domains.setdefault(current or "未分类", []).append(stripped)
+    return domains
+
+
+def l1_row_id(line: str) -> str:
+    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    return cells[0] if cells and cells[0] else ""
+
+
+def l1_candidate_row(candidate: dict[str, Any], titles: dict[str, str]) -> str:
+    source_ref = candidate["source_refs"][0] if candidate["source_refs"] else ""
+    source_cell = (
+        wiki_link(source_ref, source_label(source_ref, titles)) if source_ref else ""
+    )
+    return (
+        "| "
+        + " | ".join(
+            [
+                escape_table(candidate["id"]),
+                escape_table(candidate["name"]),
+                escape_table(candidate["kind"]),
+                escape_table(candidate["definition"]),
+                source_cell,
+            ]
+        )
+        + " |"
+    )
+
+
+def render_research_page(
+    buckets: dict[str, dict[str, list[Any]]] | None,
+    existing_l1: dict[str, list[str]],
     new_candidates: list[dict[str, Any]],
     titles: dict[str, str],
     today: str,
+    created: str,
 ) -> str | None:
-    existing_ids: set[str] = set()
-    existing_rows: list[str] = []
-    if existing_text:
-        _, _, body = parse_frontmatter(existing_text)
-        for line in body.splitlines():
-            stripped = line.strip()
-            if (
-                stripped.startswith("|")
-                and not stripped.startswith("|---")
-                and not stripped.startswith("| id")
-            ):
-                cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-                if cells and cells[0]:
-                    existing_ids.add(cells[0])
-                existing_rows.append(stripped)
-    additions: list[str] = []
-    for cand in new_candidates:
-        if cand["id"] in existing_ids:
+    """Render wiki/meta/research.md: domain-grouped dashboard of open
+    questions, research gaps, and pending L1 candidates."""
+    merged = {domain: list(rows) for domain, rows in existing_l1.items()}
+    existing_ids = {l1_row_id(row) for rows in merged.values() for row in rows}
+    for candidate in new_candidates:
+        if candidate["id"] in existing_ids:
             continue
-        source_ref = cand["source_refs"][0] if cand["source_refs"] else ""
-        source_cell = (
-            wiki_link(source_ref, source_label(source_ref, titles))
-            if source_ref
-            else ""
+        domain = (
+            source_domain(candidate["source_refs"][0])
+            if candidate["source_refs"]
+            else "未分类"
         )
-        additions.append(
-            "| "
-            + " | ".join(
-                [
-                    escape_table(cand["id"]),
-                    escape_table(cand["name"]),
-                    escape_table(cand["kind"]),
-                    escape_table(cand["definition"]),
-                    source_cell,
-                ]
-            )
-            + " |"
-        )
-    if not additions:
-        return existing_text
-    created = today
-    if existing_text:
-        fields, _, _ = parse_frontmatter(existing_text)
-        created = fields.get("created", today)
-    header = [
+        merged.setdefault(domain, []).append(l1_candidate_row(candidate, titles))
+
+    questions_by_domain: dict[str, list[tuple[str, str, str]]] = {}
+    gaps_by_domain: dict[str, list[tuple[str, str, str]]] = {}
+    if buckets:
+        for domain in buckets:
+            questions_by_domain[domain] = list(buckets[domain]["questions"])
+            gaps_by_domain[domain] = list(buckets[domain]["gaps"])
+
+    has_content = bool(
+        any(questions_by_domain.values())
+        or any(gaps_by_domain.values())
+        or any(merged.values())
+    )
+    if not has_content:
+        return None
+
+    lines = [
         render_frontmatter(["meta"], created, today, "evergreen").rstrip(),
-        "# L1 候选账本",
+        "# 研究仪表盘",
         "",
-        "尚未获得第二独立来源、暂不建页的可复用候选。后续论文独立支持时，linker 可升级为 L2 枢纽页。",
+        "> 本页由 publish_wiki.py 确定性生成：按领域聚合主题页的开放问题、研究空白与待升级 L1 候选。不要手动编辑。",
         "",
-        "| id | 名称 | 类型 | 定义 | 来源 |",
-        "|---|---|---|---|---|",
     ]
-    return "\n".join(header + existing_rows + additions).rstrip() + "\n"
+
+    def domain_list(
+        title: str,
+        grouped: dict[str, list[tuple[str, str, str]]],
+    ) -> None:
+        if not any(grouped.values()):
+            return
+        lines.append(f"## {title}")
+        lines.append("")
+        for domain in ordered_domains({d: {} for d in grouped}):
+            items = grouped.get(domain, [])
+            if not items:
+                continue
+            lines.append(f"### {domain}")
+            lines.append("")
+            seen: set[str] = set()
+            for text_item, label, path in sorted(items, key=lambda row: row[0]):
+                line = f"- {text_item} — 来源：[[{Path(path).stem}|{label}]]"
+                if line in seen:
+                    continue
+                seen.add(line)
+                lines.append(line)
+            lines.append("")
+
+    domain_list("开放问题", questions_by_domain)
+    domain_list("研究空白", gaps_by_domain)
+
+    l1_domains = [d for d in ordered_domains(merged) if merged.get(d)]
+    if l1_domains:
+        lines.append("## L1 候选")
+        lines.append("")
+        lines.append(
+            "尚未获得第二独立来源、暂不建页的可复用候选。后续论文独立支持时，linker 可升级为 L2 枢纽页。"
+        )
+        lines.append("")
+        for domain in l1_domains:
+            lines.append(f"### {domain}")
+            lines.append("")
+            lines.append("| id | 名称 | 类型 | 定义 | 来源 |")
+            lines.append("|---|---|---|---|---|")
+            lines.extend(merged[domain])
+            lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def legacy_candidate_rows(text: str) -> dict[str, list[str]]:
+    """Migrate legacy candidates.md rows (stem-based source links, no domain
+    information recoverable) under 未分类."""
+    _, _, body = parse_frontmatter(text)
+    rows: list[str] = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if (
+            stripped.startswith("|")
+            and not stripped.startswith("|---")
+            and not stripped.startswith("| id")
+        ):
+            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+            if cells and cells[0]:
+                rows.append(stripped)
+    return {"未分类": rows} if rows else {}
+
+
+INDEX_ENTRY_RE = re.compile(r"^[-*]\s+\[\[([^\]|]+)(?:\|([^\]]+))?\]\](?:\s*[—-]\s*(.*))?$")
+
+
+def parse_index_entries(index_text: str) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    for line in index_text.splitlines():
+        match = INDEX_ENTRY_RE.match(line.strip())
+        if not match:
+            continue
+        path, label, description = match.groups()
+        entries.append(
+            {
+                "path": path,
+                "label": label or path.rsplit("/", 1)[-1],
+                "description": (description or "").strip(),
+            }
+        )
+    return entries
+
+
+def source_domain(source_ref: str) -> str:
+    """Domain = first directory under wiki/sources/papers/ (mirrors raw/papers/)."""
+    parts = [part for part in source_ref.split("/") if part]
+    if len(parts) >= 3 and parts[:2] == ["wiki", "sources"]:
+        rest = parts[2:]
+        if rest and rest[0] == "papers":
+            rest = rest[1:]
+        if rest and not rest[0].endswith(".md"):
+            return rest[0]
+    return "未分类"
+
+
+def section_bullets(body: str, section_name: str) -> list[str]:
+    bullets: list[str] = []
+    for line in section_body(body, section_name).splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            bullets.append(stripped[2:].strip())
+    return bullets
+
+
+def page_domains(wiki_root: Path, path: str) -> str:
+    try:
+        text = (wiki_root / path).read_text(encoding="utf-8")
+    except OSError:
+        return "未分类"
+    _, lists, _ = parse_frontmatter(text)
+    domains = {source_domain(source) for source in lists.get("sources", [])}
+    if not domains:
+        return "未分类"
+    if len(domains) > 1:
+        return "跨领域"
+    return domains.pop()
+
+
+def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | None:
+    """Collect wiki pages grouped by domain for the knowledge tree and the
+    research dashboard. Returns None when the wiki has no index yet."""
+    index_path = wiki_root / "wiki" / "index.md"
+    if not index_path.is_file():
+        return None
+    try:
+        entries = parse_index_entries(index_path.read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    if not entries:
+        return None
+
+    buckets: dict[str, dict[str, list[Any]]] = {}
+
+    def bucket(domain: str) -> dict[str, list[Any]]:
+        return buckets.setdefault(
+            domain,
+            {"sources": [], "topics": [], "hubs": [], "questions": [], "gaps": []},
+        )
+
+    for entry in entries:
+        path, label, description = entry["path"], entry["label"], entry["description"]
+        if path.startswith("wiki/sources/"):
+            bucket(source_domain(path))["sources"].append((path, label, description))
+        elif path.startswith("wiki/topics/"):
+            text = ""
+            try:
+                text = (wiki_root / path).read_text(encoding="utf-8")
+            except OSError:
+                pass
+            _, _, body = parse_frontmatter(text)
+            domain = page_domains(wiki_root, path)
+            bucket(domain)["topics"].append((path, label, description))
+            for question in section_bullets(body, "开放问题"):
+                bucket(domain)["questions"].append((question, label, path))
+            for gap in section_bullets(body, "研究空白与候选方向"):
+                bucket(domain)["gaps"].append((gap, label, path))
+        elif path.startswith(("wiki/concepts/", "wiki/entities/")):
+            text = ""
+            try:
+                text = (wiki_root / path).read_text(encoding="utf-8")
+            except OSError:
+                pass
+            _, lists, _ = parse_frontmatter(text)
+            aliases = lists.get("aliases", [])
+            domain = page_domains(wiki_root, path)
+            bucket(domain)["hubs"].append((path, label, description, aliases))
+    return buckets
+
+
+def ordered_domains(buckets: dict[str, dict[str, list[Any]]]) -> list[str]:
+    special = {"跨领域", "未分类"}
+    ordered = sorted(domain for domain in buckets if domain not in special)
+    ordered += [domain for domain in ("跨领域", "未分类") if domain in buckets]
+    return ordered
+
+
+def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
+    """Render wiki/meta/knowledge-tree.md from collected buckets.
+
+    Deterministic: identical buckets produce identical text.
+    """
+    lines = [
+        "# 知识树",
+        "",
+        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航；不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
+        "",
+    ]
+    for domain in ordered_domains(buckets):
+        data = buckets[domain]
+        lines.append(f"## {domain}")
+        lines.append("")
+        for kind, title, key in (
+            ("sources", "### 论文", "sources"),
+            ("topics", "### 主题", "topics"),
+            ("hubs", "### 概念与实体", "hubs"),
+        ):
+            items = sorted(data[key], key=lambda row: row[1])
+            if not items:
+                continue
+            lines.append(title)
+            lines.append("")
+            for row in items:
+                stem = Path(row[0]).stem
+                suffix = f" — {row[2]}" if row[2] else ""
+                if kind == "hubs" and row[3]:
+                    alias_text = f"（别名：{'、'.join(row[3])}）"
+                    lines.append(f"- [[{stem}|{row[1]}]]{alias_text}{suffix}")
+                else:
+                    lines.append(f"- [[{stem}|{row[1]}]]{suffix}")
+            lines.append("")
+        for title, key in (("### 开放问题", "questions"), ("### 研究空白", "gaps")):
+            if not data[key]:
+                continue
+            lines.append(title)
+            lines.append("")
+            seen: set[str] = set()
+            for text_item, label, path in sorted(data[key], key=lambda row: row[0]):
+                line = f"- {text_item} — 来源：[[{Path(path).stem}|{label}]]"
+                if line in seen:
+                    continue
+                seen.add(line)
+                lines.append(line)
+            lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def build_knowledge_tree(wiki_root: Path) -> str | None:
+    """Render wiki/meta/knowledge-tree.md from the current wiki state.
+
+    Deterministic: identical wiki state produces identical text. Grouped by
+    domain (first directory under wiki/sources/papers/), with per-domain
+    open questions and research gaps aggregated from topic pages.
+    """
+    buckets = collect_tree_buckets(wiki_root)
+    if buckets is None:
+        return None
+    return render_knowledge_tree(buckets)
 
 
 def parse_args() -> argparse.Namespace:
@@ -1181,24 +1448,28 @@ def main() -> int:
             )
         )
 
-    candidates_path = wiki_root / "wiki" / "meta" / "candidates.md"
-    candidates_path.parent.mkdir(parents=True, exist_ok=True)
+    research_path = wiki_root / "wiki" / "meta" / "research.md"
     l1_candidates = collect_l1_candidates(source_pages, wiki_root)
-    candidates_text = (
-        candidates_path.read_text(encoding="utf-8")
-        if candidates_path.is_file()
-        else None
+    research_existing = (
+        research_path.read_text(encoding="utf-8") if research_path.is_file() else None
     )
-    updated_candidates = candidates_page(candidates_text, l1_candidates, titles, today)
-    if updated_candidates != candidates_text:
-        candidates_path.write_text(updated_candidates, encoding="utf-8")
-        writes.append(
-            {
-                "kind": "candidates",
-                "path": "wiki/meta/candidates.md",
-                "action": "create" if candidates_text is None else "update",
-            }
-        )
+    research_created = today
+    existing_l1: dict[str, list[str]] = {}
+    if research_existing is not None:
+        research_fields, _, research_body = parse_frontmatter(research_existing)
+        research_created = research_fields.get("created", today)
+        existing_l1 = parse_l1_sections(research_body)
+    elif (wiki_root / "wiki" / "meta" / "candidates.md").is_file():
+        # 迁移旧版候选账本：行内来源为 stem 链接，无法还原领域，归入未分类。
+        try:
+            legacy_text = (
+                wiki_root / "wiki" / "meta" / "candidates.md"
+            ).read_text(encoding="utf-8")
+            legacy_fields, _, _ = parse_frontmatter(legacy_text)
+            research_created = legacy_fields.get("created", today)
+            existing_l1 = legacy_candidate_rows(legacy_text)
+        except (OSError, UnicodeDecodeError):
+            existing_l1 = {}
 
     index_path = wiki_root / "wiki" / "index.md"
     log_path = wiki_root / "wiki" / "log.md"
@@ -1220,6 +1491,44 @@ def main() -> int:
             writes.append({"kind": "log", "path": "wiki/log.md", "action": "update"})
     except (OSError, UnicodeDecodeError) as exc:
         errors.append(f"Failed to update index or log: {exc}")
+
+    buckets = collect_tree_buckets(wiki_root)
+    tree_path = wiki_root / "wiki" / "meta" / "knowledge-tree.md"
+    try:
+        tree_text = render_knowledge_tree(buckets) if buckets is not None else None
+        if tree_text is not None:
+            tree_path.parent.mkdir(parents=True, exist_ok=True)
+            existing_tree = (
+                tree_path.read_text(encoding="utf-8") if tree_path.is_file() else None
+            )
+            if existing_tree != tree_text:
+                tree_path.write_text(tree_text, encoding="utf-8")
+                writes.append(
+                    {
+                        "kind": "knowledge-tree",
+                        "path": "wiki/meta/knowledge-tree.md",
+                        "action": "create" if existing_tree is None else "update",
+                    }
+                )
+    except (OSError, UnicodeDecodeError) as exc:
+        errors.append(f"Failed to update knowledge tree: {exc}")
+
+    try:
+        research_text = render_research_page(
+            buckets, existing_l1, l1_candidates, titles, today, research_created
+        )
+        if research_text is not None and research_text != research_existing:
+            research_path.parent.mkdir(parents=True, exist_ok=True)
+            research_path.write_text(research_text, encoding="utf-8")
+            writes.append(
+                {
+                    "kind": "research",
+                    "path": "wiki/meta/research.md",
+                    "action": "create" if research_existing is None else "update",
+                }
+            )
+    except (OSError, UnicodeDecodeError) as exc:
+        errors.append(f"Failed to update research dashboard: {exc}")
 
     for error in errors:
         print(f"ERROR: {error}", file=sys.stderr)
