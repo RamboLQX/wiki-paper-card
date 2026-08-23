@@ -173,11 +173,6 @@ def render_backlinks(entries: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def relation_target(value: str) -> str:
-    target = str(value)
-    return f"[[{target}|{target}]]" if target else ""
-
-
 def related_hub_names(papers: set[str], hub_actions: Any) -> list[str]:
     names: list[str] = []
     for action in hub_actions:
@@ -262,53 +257,9 @@ def hub_page_text(
         "",
     ]
     lines.extend(f"- {alias}" for alias in aliases)
-    lines.extend(["", "## 证据", "", "| 来源 | 断言 | 证据 | confidence |", "|---|---|---|---|"])
-    evidence = action.get("evidence", [])
-    if isinstance(evidence, list):
-        for row in evidence:
-            if not isinstance(row, dict):
-                continue
-            source_ref = row.get("source_ref", "")
-            lines.append(
-                "| "
-                + " | ".join(
-                    [
-                        escape_table(source_label(source_ref, titles)),
-                        escape_table(row.get("claim", "")),
-                        escape_table(row.get("pointer", "")),
-                        escape_table(row.get("confidence", "-")),
-                    ]
-                )
-                + " |"
-            )
-    lines.extend(["", "## 关系", "", "| 类型 | 对象 | 证据 | 说明 |", "|---|---|---|---|"])
-    relations = action.get("relations", [])
-    if isinstance(relations, list):
-        for row in relations:
-            if not isinstance(row, dict):
-                continue
-            description = (
-                f"provenance: {row.get('provenance', '-')}; "
-                f"confidence: {row.get('confidence', '-')}"
-            )
-            lines.append(
-                "| "
-                + " | ".join(
-                    [
-                        escape_table(row.get("type", "")),
-                        relation_target(row.get("target", "")),
-                        escape_table(row.get("pointer", "")),
-                        escape_table(description),
-                    ]
-                )
-                + " |"
-            )
     lines.extend(["", "## 争议与矛盾", ""])
     lines.extend(render_contradictions(action.get("contradictions", []), titles))
-    lines.extend(["## 开放问题", ""])
-    for question in string_list(action.get("open_questions")):
-        lines.append(f"- {question}")
-    lines.extend(["", "## 引用来源", ""])
+    lines.extend(["## 引用来源", ""])
     for source_ref in sources:
         lines.append(f"- {wiki_link(source_ref, source_label(source_ref, titles))}")
     return "\n".join(lines).rstrip() + "\n"
@@ -616,54 +567,33 @@ def rebuild_page(
     return frontmatter + body.lstrip("\n")
 
 
+DEFINITION_RE = re.compile(r"(?ms)^(#\s+[^\n]*\n\n)(.*?)(?=\n##\s|\Z)")
+
+
+def replace_definition(body: str, definition: str) -> str:
+    """Replace the definition paragraph right after the H1 when it differs.
+
+    `update_hub` may carry a refreshed definition; the publisher applies it to
+    the template-defined definition slot instead of silently dropping it.
+    """
+    match = DEFINITION_RE.search(body)
+    if not match:
+        return body
+    current = match.group(2).strip()
+    if current == definition:
+        return body
+    return body[: match.start(2)] + definition + "\n" + body[match.end(2) :]
+
+
 def merge_hub_page(existing_text: str, action: dict[str, Any], titles: dict[str, str], today: str) -> str:
     fields, lists, body = parse_frontmatter(existing_text)
-    evidence_rows: list[str] = []
-    for row in action.get("evidence", []):
-        if not isinstance(row, dict):
-            continue
-        evidence_rows.append(
-            "| "
-            + " | ".join(
-                [
-                    escape_table(source_label(row.get("source_ref", ""), titles)),
-                    escape_table(row.get("claim", "")),
-                    escape_table(row.get("pointer", "")),
-                    escape_table(row.get("confidence", "-")),
-                ]
-            )
-            + " |"
-        )
-    relation_rows: list[str] = []
-    for row in action.get("relations", []):
-        if not isinstance(row, dict):
-            continue
-        relation_rows.append(
-            "| "
-            + " | ".join(
-                [
-                    escape_table(row.get("type", "")),
-                    relation_target(row.get("target", "")),
-                    escape_table(row.get("pointer", "")),
-                    escape_table(
-                        f"provenance: {row.get('provenance', '-')}; "
-                        f"confidence: {row.get('confidence', '-')}"
-                    ),
-                ]
-            )
-            + " |"
-        )
-    body = insert_before_next_section(body, "证据", evidence_rows)
-    body = insert_before_next_section(body, "关系", relation_rows)
+    definition = str(action.get("definition", "")).strip()
+    if definition:
+        body = replace_definition(body, definition)
     body = insert_before_next_section(
         body,
         "争议与矛盾",
         render_contradictions(action.get("contradictions", []), titles),
-    )
-    body = insert_before_next_section(
-        body,
-        "开放问题",
-        [f"- {question}" for question in string_list(action.get("open_questions"))],
     )
     fields, lists = merge_frontmatter_sets(
         fields,
@@ -910,6 +840,108 @@ def collect_l1_candidates(source_pages: list[Any], wiki_root: Path) -> list[dict
                 }
             )
     return candidates
+
+
+def normalize_entity_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", str(value).lower())
+
+
+MIN_NAME_VARIANT_LEN = 3
+
+
+def find_name_variant(name: str, wiki_root: Path) -> str | None:
+    """Find an existing hub page whose name or alias resembles `name`.
+
+    Exact raw-name matches are handled by the normal merge path; this detects
+    variants (punctuation differences, parenthetical expansions, family
+    prefixes) that would otherwise create a duplicate page.
+    """
+    key = normalize_entity_name(name)
+    if not key:
+        return None
+    for directory in ("concepts", "entities"):
+        folder = wiki_root / "wiki" / directory
+        if not folder.is_dir():
+            continue
+        for page in folder.glob("*.md"):
+            if page.stem == name:
+                continue
+            candidates = [page.stem]
+            try:
+                _, lists, _ = parse_frontmatter(page.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                lists = {}
+            candidates.extend(lists.get("aliases", []))
+            for candidate in candidates:
+                candidate_key = normalize_entity_name(candidate)
+                if len(candidate_key) < MIN_NAME_VARIANT_LEN:
+                    continue
+                if (
+                    key == candidate_key
+                    or key.startswith(candidate_key)
+                    or candidate_key.startswith(key)
+                ):
+                    return page.stem
+    return None
+
+
+def missed_entity_promotions(
+    source_pages: list[Any],
+    hub_actions: list[Any],
+    wiki_root: Path,
+) -> list[dict[str, str]]:
+    """Warn about L1 entity candidates the linker did not promote.
+
+    Public datasets, benchmarks, model families, and metrics get entity pages
+    from a single source page (see knowledge-model.md). This check reminds the
+    operator when a batch digest records such a candidate but the link plan
+    carries no entity action for it and no entity page exists yet. Warning
+    only — it never blocks publishing.
+    """
+    planned = {
+        normalize_entity_name(action.get("name", ""))
+        for action in hub_actions
+        if isinstance(action, dict) and action.get("kind") == "entity"
+    }
+    existing: set[str] = set()
+    entities_dir = wiki_root / "wiki" / "entities"
+    if entities_dir.is_dir():
+        existing = {
+            normalize_entity_name(path.stem) for path in entities_dir.glob("*.md")
+        }
+    warnings: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for page in source_pages:
+        if not isinstance(page, dict):
+            continue
+        work_dir = resolve_work_dir(page.get("work_dir", ""), wiki_root)
+        digest_path = work_dir / "paper-digest.json"
+        if not digest_path.is_file():
+            continue
+        try:
+            digest = json.loads(digest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        for cand in digest.get("candidates", []):
+            if not isinstance(cand, dict):
+                continue
+            if cand.get("kind") != "entity" or cand.get("tier") != "L1":
+                continue
+            name = str(cand.get("name", "")).strip()
+            key = normalize_entity_name(name)
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            if key in planned or key in existing:
+                continue
+            warnings.append(
+                {
+                    "code": "missed_entity_promotion",
+                    "name": name,
+                    "source_ref": page.get("source_ref", ""),
+                }
+            )
+    return warnings
 
 
 def parse_l1_sections(body: str) -> dict[str, list[str]]:
@@ -1289,9 +1321,24 @@ def main() -> int:
     source_log_entries: list[dict[str, Any]] = []
     synthesis_log_entries: list[dict[str, Any]] = []
     index_entries: list[tuple[str, str, str]] = []
-    backlinks: dict[str, list[tuple[str, str]]] = {}
+    # Pre-validate hub actions that will be refused, so backlinks and
+    # related-hub lists never reference pages that are not actually written.
+    refused_hub_ids: set[int] = set()
     for action in plan.get("hub_actions", []):
         if not isinstance(action, dict):
+            continue
+        existing_path = find_existing_hub(action, wiki_root)
+        if action.get("action") == "update_hub" and existing_path is None:
+            refused_hub_ids.add(id(action))
+            continue
+        if existing_path is None and action.get("action") == "create_hub":
+            variant = find_name_variant(action.get("name", ""), wiki_root)
+            if variant:
+                refused_hub_ids.add(id(action))
+                continue
+    backlinks: dict[str, list[tuple[str, str]]] = {}
+    for action in plan.get("hub_actions", []):
+        if not isinstance(action, dict) or id(action) in refused_hub_ids:
             continue
         kind = "实体枢纽" if action.get("kind") == "entity" else "概念枢纽"
         for source_ref in string_list(action.get("source_refs")):
@@ -1359,10 +1406,18 @@ def main() -> int:
     for action in plan.get("hub_actions", []):
         if not isinstance(action, dict):
             continue
-        existing_path = find_existing_hub(action, wiki_root)
-        if action.get("action") == "update_hub" and existing_path is None:
-            errors.append(f"Unable to locate existing hub for {action.get('name', '')}")
+        if id(action) in refused_hub_ids:
+            existing_path = find_existing_hub(action, wiki_root)
+            if action.get("action") == "update_hub":
+                errors.append(f"Unable to locate existing hub for {action.get('name', '')}")
+            else:
+                variant = find_name_variant(action.get("name", ""), wiki_root)
+                errors.append(
+                    f"hub_name_variant: '{action.get('name', '')}' resembles existing page "
+                    f"'{variant}'; use update_hub with existing_page instead of creating a name variant."
+                )
             continue
+        existing_path = find_existing_hub(action, wiki_root)
         if existing_path is None:
             directory = wiki_root / "wiki" / ("entities" if action.get("kind") == "entity" else "concepts")
             directory.mkdir(parents=True, exist_ok=True)
@@ -1414,7 +1469,11 @@ def main() -> int:
         existing_text = existing_path.read_text(encoding="utf-8") if existing_path.is_file() else None
         related_hubs = related_hub_names(
             set(string_list(action.get("papers"))),
-            plan.get("hub_actions", []),
+            [
+                hub_action
+                for hub_action in plan.get("hub_actions", [])
+                if not isinstance(hub_action, dict) or id(hub_action) not in refused_hub_ids
+            ],
         )
         try:
             if existing_text is None:
@@ -1533,6 +1592,15 @@ def main() -> int:
     for error in errors:
         print(f"ERROR: {error}", file=sys.stderr)
 
+    entity_warnings = missed_entity_promotions(
+        source_pages, plan.get("hub_actions", []), wiki_root
+    )
+    for warning in entity_warnings:
+        print(
+            f"WARNING {warning['code']}: entity candidate '{warning['name']}' "
+            f"has no page or plan action ({warning['source_ref']})"
+        )
+
     report = {
         "schema_version": "1.0",
         "summary": {
@@ -1547,6 +1615,7 @@ def main() -> int:
         },
         "writes": writes,
         "errors": errors,
+        "warnings": entity_warnings,
     }
     print(
         f"Publish status: {report['summary']['status']} "

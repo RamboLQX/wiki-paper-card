@@ -14,6 +14,7 @@ paper-digest.json
 paper-digest-report.json
 evidence-coverage-report.json
 formula-report.json
+html-lint-report.json
 audit-report.json
 wiki-audit-report.json
 link-plan.json
@@ -130,11 +131,11 @@ python "<REPO_ROOT>/scripts/finalize_paper_card.py" \
 The finalizer:
 
 1. Normalizes wrappers, frontmatter, and line endings.
-2. Verifies formula delimiters and table placement.
+2. Verifies formula delimiters, table placement, and that no raw inline HTML tags remain in card text (a literal like `<image>` breaks Obsidian Live Preview rendering; wrap literals in backticks).
 3. Classifies main and supplementary evidence, writes `evidence-coverage-report.json`, and creates a filtered `audit-bundle.json`.
 4. Blocks visible standalone evidence coverage lists.
 5. Runs the upstream paper audit and wiki audit.
-6. Writes `formula-report.json`, `audit-report.json`, and `wiki-audit-report.json`.
+6. Writes `formula-report.json`, `html-lint-report.json`, `audit-report.json`, and `wiki-audit-report.json`.
 
 Then validate the paper digest:
 
@@ -193,11 +194,27 @@ The publisher:
 
 1. Re-checks the link plan with the deterministic link-plan audit.
 2. Writes every finalized current source page and appends its `## 关联页面` backlinks.
-3. Applies only `create_hub`, `update_hub`, `create_topic`, and `update_topic` actions.
-4. Updates explicit relationships, contradictions, `wiki/index.md`, and `wiki/log.md`.
+3. Applies only `create_hub`, `update_hub`, `create_topic`, and `update_topic` actions. A `create_hub` whose name normalizes to an existing page's name or alias under a different raw name is refused with `hub_name_variant` (the linker must switch to `update_hub`), so name variants never create duplicate pages.
+4. Updates contradictions, `wiki/index.md`, and `wiki/log.md`.
 5. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
-6. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
+6. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables. Hub pages carry no evidence table, relation table, or open questions (evidence stays in Paper Cards and topic pages; connectivity is expressed as wikilinks in the definition), and an `update_hub` action that carries a new `definition` replaces the page's definition paragraph.
 7. Rebuilds `wiki/meta/knowledge-tree.md` (domain-grouped navigation tree) and `wiki/meta/research.md` (domain-grouped dashboard: open questions, research gaps, and pending L1 candidates, dedup by id) from the current wiki state. A legacy `wiki/meta/candidates.md` is migrated into the dashboard on first publish and then left untouched.
+8. Warns (non-blocking) about L1 entity candidates in the batch digests that have no entity page and no entity plan action (`missed_entity_promotion` entries in `publish-report.json`) — public datasets, benchmarks, model families, and metrics should get entity pages.
+
+After publishing, run the deterministic wiki-state audit. The Obsidian render
+smoke check is optional and soft-failing by default:
+
+```bash
+python "<REPO_ROOT>/scripts/audit_wiki_state.py" \
+  --wiki-root "<VAULT_ROOT>" \
+  --report "<BATCH_WORKDIR>/wiki-state-report.json"
+
+# Optional: verify rendering in a running Obsidian (skipped when the
+# Obsidian CLI is unavailable; add --strict to make it a hard gate).
+python "<REPO_ROOT>/scripts/smoke_obsidian.py" \
+  --report "<BATCH_WORKDIR>/publish-report.json" \
+  --output "<BATCH_WORKDIR>/smoke-obsidian-report.json"
+```
 
 Do not run a wiki-integrator agent. The publisher does not promote L0 or L1
 candidates into hub pages, invent duplicate aliases, or rewrite unrelated prose.

@@ -248,5 +248,39 @@ class FinalizePaperCardTests(unittest.TestCase):
             self.assertEqual(wiki["summary"]["errors"], 0)
 
 
+    def test_raw_html_lint_blocks_bare_tag(self) -> None:
+        card = finalizable_card().replace(
+            "Test text.", "对比 <image> token 与文本 token [Paper: PDF p. 8]"
+        )
+        report = FINALIZE.audit_raw_html(card)
+        self.assertEqual(report["summary"]["status"], "fail")
+        self.assertTrue(
+            any(item["code"] == "raw_html_tag" for item in report["findings"])
+        )
+
+    def test_raw_html_lint_allows_code_span_and_math(self) -> None:
+        card = finalizable_card().replace(
+            "Test text.", "对比 `<image>` token；公式 $y_{<i}$ 与 $$x_{<n}$$"
+        )
+        report = FINALIZE.audit_raw_html(card)
+        self.assertEqual(report["summary"]["status"], "pass")
+
+    def test_raw_html_lint_ignores_unclosed_angle(self) -> None:
+        # `y_<i` has no closing `>` and never triggered Obsidian's HTML region.
+        card = finalizable_card().replace("Test text.", "符号 y_<i 为第 i 步生成")
+        report = FINALIZE.audit_raw_html(card)
+        self.assertEqual(report["summary"]["status"], "pass")
+
+    def test_raw_html_lint_blocks_closing_tag_and_comment(self) -> None:
+        card = finalizable_card().replace(
+            "Test text.", "结束标记 </image> 与注释 <!-- x -->"
+        )
+        report = FINALIZE.audit_raw_html(card)
+        self.assertEqual(report["summary"]["status"], "fail")
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("raw_html_tag", codes)
+        self.assertIn("raw_html_comment", codes)
+
+
 if __name__ == "__main__":
     unittest.main()

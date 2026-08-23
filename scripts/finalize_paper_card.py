@@ -35,6 +35,9 @@ VISIBLE_EVIDENCE_LIST_RE = re.compile(
     r"(?:\*\*)?"
     r"(?:\s*[:：])?"
 )
+RAW_HTML_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9-]*\s*/?>")
+HTML_COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
+CODE_SPAN_RE = re.compile(r"`[^`\n]*`")
 SECTION_BOUNDARY_TITLES = {
     "acknowledgment",
     "acknowledgments",
@@ -401,6 +404,61 @@ def audit_visible_evidence_lists(card_text: str) -> dict[str, Any]:
     }
 
 
+def exposed_text(card_text: str) -> str:
+    """Text with code spans and math removed.
+
+    Literal tags inside code spans (`` `<image>` ``) or math are fine; only
+    raw inline HTML breaks Obsidian rendering.
+    """
+    text = CODE_SPAN_RE.sub(" ", card_text)
+    text = BLOCK_MATH_RE.sub(" ", text)
+    text = INLINE_MATH_RE.sub(" ", text)
+    return text
+
+
+def audit_raw_html(card_text: str) -> dict[str, Any]:
+    """Block raw inline HTML tags in card text.
+
+    Obsidian Live Preview treats a raw tag like `<image>` as the start of an
+    HTML region; without a matching closing tag it stops applying Markdown
+    decorations for the rest of the file. Wrap literals in backticks instead.
+    """
+    findings: list[dict[str, Any]] = []
+    exposed = exposed_text(card_text)
+    for line_number, line in enumerate(exposed.splitlines(), start=1):
+        for match in RAW_HTML_TAG_RE.finditer(line):
+            findings.append(
+                finding(
+                    "error",
+                    "raw_html_tag",
+                    "Raw inline HTML tag in card text breaks Obsidian rendering; wrap the literal in backticks instead.",
+                    line=line_number,
+                    tag=match.group(0),
+                )
+            )
+    if HTML_COMMENT_RE.search(exposed):
+        findings.append(
+            finding(
+                "error",
+                "raw_html_comment",
+                "Raw HTML comment in card text is not allowed; use a blockquote note instead.",
+            )
+        )
+    if not findings:
+        findings.append(
+            finding("pass", "raw_html", "No raw inline HTML tags found in card text.")
+        )
+    summary = report_summary(findings)
+    return {
+        "schema_version": "1.0",
+        "summary": {
+            **summary,
+            "status": "fail" if summary["errors"] else "pass",
+        },
+        "findings": findings,
+    }
+
+
 def build_evidence_coverage_report(card_text: str, scope: dict[str, Any]) -> dict[str, Any]:
     items = scope.get("items", [])
     missing_main = [
@@ -515,9 +573,15 @@ def main() -> int:
     card_text = normalize_section_headings(card_text)
     formula_report = audit_formulas(card_text)
     evidence_list_report = audit_visible_evidence_lists(card_text)
+    html_lint_report = audit_raw_html(card_text)
     formula_path = card_path.parent / "formula-report.json"
     formula_path.write_text(
         json.dumps(formula_report, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    html_lint_path = card_path.parent / "html-lint-report.json"
+    html_lint_path.write_text(
+        json.dumps(html_lint_report, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
@@ -583,6 +647,7 @@ def main() -> int:
 
     print(f"Formula status: {formula_report['summary']['status']}")
     print(f"Evidence list status: {evidence_list_report['summary']['status']}")
+    print(f"HTML lint status: {html_lint_report['summary']['status']}")
     if evidence_coverage_report:
         print(
             "Evidence coverage status: "
@@ -591,9 +656,10 @@ def main() -> int:
         )
     formula_errors = formula_report["summary"]["errors"]
     evidence_list_errors = evidence_list_report["summary"]["errors"]
+    html_errors = html_lint_report["summary"]["errors"]
     upstream_errors = upstream_report["summary"]["errors"] if upstream_report else 0
     wiki_errors = wiki_report["summary"]["errors"] if wiki_report else 0
-    total_errors = formula_errors + evidence_list_errors + upstream_errors + wiki_errors
+    total_errors = formula_errors + evidence_list_errors + html_errors + upstream_errors + wiki_errors
     print(f"Total audit errors: {total_errors}")
     return 1 if total_errors else 0
 

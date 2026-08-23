@@ -2,6 +2,27 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.3.0] - 2026-08-23
+
+### 新增
+
+- `scripts/audit_wiki_state.py`：wiki 结构不变量检查（孤儿表格行、裸内联 HTML 标记、未解析 wikilink、log 重复条目），把"肉眼发现的污染"变成脚本化发现。
+- `scripts/smoke_obsidian.py`：发布后 Obsidian 渲染冒烟检查（官方 Obsidian CLI，软门默认；`--strict` 变严格门）。顶部+底部双采样，断言标题装饰存在、`[[链接]]` 与 `**加粗**` 已编译。
+- `finalize_paper_card.py`：新增 `html-lint-report.json`——卡片正文禁止代码标记与公式之外的裸内联 HTML 标记（Obsidian Live Preview 会把未闭合的 `<image>` 当 HTML 区域吞掉后续渲染）。
+- `audit_link_plan.py`：关系方向一致性检查——`A extends B` 与 `B is_instance_of A` 反向矛盾对报错，自环报错。
+
+### 变更
+
+- `publish_wiki.py`：hub 页"证据/关系"新行改为直接并入现有表格（与 topic 对比表同逻辑），修复空行隔断导致的孤儿表格行；`update_hub` 携带新 `definition` 时替换页首定义段落。
+- **概念/实体页瘦身（方向 A）**：hub 页不再渲染"证据"表与"开放问题"（证据留在论文卡与主题页，开放问题只归主题页并被知识树聚合）；link plan 的 evidence 仍作为准入证明被审计校验，但不落页。`hub_actions` 携带 open_questions 时审计给出警告。
+- **移除 hub 页"关系"表**：类型化关系字段删除（模板、发布器、link-plan schema、审计、知识模型全部同步）；跨页连接改由定义行文中的 wikilink 表达（Obsidian 反向链接/图谱可见）。旧 plan 携带 `relations` 时审计给 `relations_deprecated` 警告并忽略。
+- **实体页准入放宽（策略 C）**：公开数据集/基准/模型族/指标单篇即可建实体页（身份由发布方保证）；概念仍维持跨论文门槛。审计放行单来源 `create_hub`（kind=entity）；linker-brief 增加实体晋升指引与示例。
+- **实体漏检提醒**：发布器扫描批次 digest 的 L1 entity 候选，无对应实体页/plan 动作时输出 `missed_entity_promotion` 警告（记入 publish-report，不阻断）。
+- **名称变体防重（同名模型/数据集不建重复页）**：批次内审计对归一化同名的 hub 动作给 `hub_name_variant` 警告；发布器对 create_hub 撞上已有页名称/别名（归一化相等或前缀）的动作**拒绝执行**并要求改用 update_hub。被拒绝的动作不再参与 backlinks 与相关枢纽列表（修复泄漏回归测试）。linker-brief 明确模型族粒度与变体走 update_hub。
+- `knowledge-model.md`：补齐 10 种关系的主语/宾语方向语义（`extends` 与 `is_instance_of` 同向、反向矛盾）；新增实体页建页标准（数据集/基准/模型族/指标/可复用方法）；更新 Hub Page Content 清单。
+- `processor-brief.md`：字面量标签（如 `<image>`、`<CPLINK>`）必须用反引号包裹，禁止裸内联 HTML。
+- `workflow-contract.md`：Phase 2 输出新增 `html-lint-report.json`；Phase 5 发布后新增 wiki 状态审计与 Obsidian 渲染冒烟检查。
+
 ## [0.2.0] - 2026-08-22
 
 ### 新增

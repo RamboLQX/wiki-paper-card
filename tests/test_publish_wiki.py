@@ -204,25 +204,6 @@ class PublishWikiTests(unittest.TestCase):
         )
         self.assertIn("[[a|Paper A]]", lines[2])
 
-    def test_hub_relation_target_uses_wikilink(self) -> None:
-        action = valid_plan()["hub_actions"][0]
-        action["relations"] = [
-            {
-                "type": "supports",
-                "target": "Knowledge Conflict",
-                "pointer": "[Paper: PDF p. 5]",
-                "provenance": "Paper",
-                "confidence": "high",
-            }
-        ]
-        text = PUBLISH.hub_page_text(
-            action,
-            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
-            "2026-08-16",
-            "2026-08-16",
-        )
-        self.assertIn("[[Knowledge Conflict|Knowledge Conflict]]", text)
-
     def test_topic_page_lists_related_hubs(self) -> None:
         text = PUBLISH.topic_page_text(
             valid_plan()["topic_actions"][0],
@@ -777,6 +758,272 @@ class PublishWikiTests(unittest.TestCase):
             ["wiki/sources/a.md", "wiki/sources/b.md", "wiki/sources/c.md"],
         )
         self.assertEqual(lists["aliases"], ["old alias", "new alias"])
+
+    def test_hub_page_has_no_evidence_relations_or_open_questions(self) -> None:
+        action = valid_plan()["hub_actions"][0]
+        text = PUBLISH.hub_page_text(
+            action, {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"}, "2026-01-01", "2026-01-01"
+        )
+        self.assertNotIn("## 证据", text)
+        self.assertNotIn("## 关系", text)
+        self.assertNotIn("## 开放问题", text)
+        self.assertIn("## 别名", text)
+        self.assertIn("## 争议与矛盾", text)
+        self.assertIn("## 引用来源", text)
+
+    def test_merge_hub_ignores_relations_field(self) -> None:
+        existing = (
+            "---\n"
+            "tags: [concept]\n"
+            'created: "2026-01-01"\n'
+            'updated: "2026-01-01"\n'
+            "sources:\n"
+            '  - "wiki/sources/a.md"\n'
+            "aliases:\n"
+            'status: "stub"\n'
+            "---\n\n"
+            "# Hub\n\n"
+            "A definition.\n\n"
+            "## 别名\n\n"
+            "## 争议与矛盾\n\n"
+            "## 引用来源\n"
+        )
+        action = {
+            "action": "update_hub",
+            "id": "hub-1",
+            "name": "Hub",
+            "kind": "concept",
+            "tier": "L2",
+            "aliases": [],
+            "definition": "",
+            "source_refs": ["wiki/sources/c.md"],
+            "connect_existing": True,
+            "existing_page": "wiki/concepts/Hub.md",
+            "evidence": [],
+            "relations": [
+                {
+                    "type": "applied_to",
+                    "target": "Task",
+                    "pointer": "[Paper: PDF p. 2]",
+                    "provenance": "Paper",
+                    "confidence": "high",
+                }
+            ],
+            "contradictions": [],
+            "open_questions": [],
+        }
+        merged = PUBLISH.merge_hub_page(existing, action, {}, "2026-01-02")
+        self.assertNotIn("applied_to", merged)
+        self.assertNotIn("## 关系", merged)
+
+    def test_merge_hub_replaces_definition_when_provided(self) -> None:
+        existing = (
+            "---\n"
+            "tags: [concept]\n"
+            'created: "2026-01-01"\n'
+            'updated: "2026-01-01"\n'
+            "sources:\n"
+            '  - "wiki/sources/a.md"\n'
+            "aliases:\n"
+            'status: "stub"\n'
+            "---\n\n"
+            "# Hub\n\n"
+            "Old definition.\n\n"
+            "## 证据\n\n"
+            "| 来源 | 断言 | 证据 | confidence |\n"
+            "|---|---|---|---|\n"
+            "## 关系\n\n"
+            "## 争议与矛盾\n\n"
+            "## 开放问题\n\n"
+            "## 引用来源\n"
+        )
+        action = {
+            "action": "update_hub",
+            "id": "hub-1",
+            "name": "Hub",
+            "kind": "concept",
+            "tier": "L2",
+            "aliases": [],
+            "definition": "New definition.",
+            "source_refs": ["wiki/sources/c.md"],
+            "connect_existing": True,
+            "existing_page": "wiki/concepts/Hub.md",
+            "evidence": [],
+            "relations": [],
+            "contradictions": [],
+            "open_questions": [],
+        }
+        merged = PUBLISH.merge_hub_page(existing, action, {}, "2026-01-02")
+        self.assertIn("# Hub\n\nNew definition.\n\n## 证据", merged)
+        self.assertNotIn("Old definition.", merged)
+
+    def test_missed_entity_promotions_warns_without_action(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            work = root / "work" / "a"
+            work.mkdir(parents=True)
+            (work / "paper-digest.json").write_text(
+                json.dumps(
+                    {
+                        "candidates": [
+                            {
+                                "tier": "L1",
+                                "kind": "entity",
+                                "name": "Public Benchmark",
+                                "definition": "A public benchmark.",
+                            }
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            pages = [{"source_ref": "wiki/sources/a.md", "work_dir": "work/a"}]
+            warnings = PUBLISH.missed_entity_promotions(pages, [], root)
+            self.assertEqual(len(warnings), 1)
+            self.assertEqual(warnings[0]["name"], "Public Benchmark")
+
+    def test_missed_entity_promotions_silent_when_planned_or_existing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            work = root / "work" / "a"
+            work.mkdir(parents=True)
+            (work / "paper-digest.json").write_text(
+                json.dumps(
+                    {
+                        "candidates": [
+                            {
+                                "tier": "L1",
+                                "kind": "entity",
+                                "name": "Public Benchmark",
+                                "definition": "A public benchmark.",
+                            }
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            pages = [{"source_ref": "wiki/sources/a.md", "work_dir": "work/a"}]
+            planned = [
+                {
+                    "action": "create_hub",
+                    "kind": "entity",
+                    "name": "Public Benchmark",
+                }
+            ]
+            self.assertEqual(
+                PUBLISH.missed_entity_promotions(pages, planned, root), []
+            )
+            entities = root / "wiki" / "entities"
+            entities.mkdir(parents=True)
+            (entities / "Public Benchmark.md").write_text("# Public Benchmark\n", encoding="utf-8")
+            self.assertEqual(
+                PUBLISH.missed_entity_promotions(pages, [], root), []
+            )
+
+    def test_find_name_variant_matches_alias_and_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            concepts = root / "wiki" / "concepts"
+            concepts.mkdir(parents=True)
+            page = (
+                "---\n"
+                "tags: [concept]\n"
+                "aliases:\n"
+                '  - "Knowledge Conflict"\n'
+                "---\n\n"
+                "# 知识冲突\n"
+            )
+            (concepts / "知识冲突.md").write_text(page, encoding="utf-8")
+            (concepts / "LLaVA.md").write_text("# LLaVA\n", encoding="utf-8")
+            self.assertEqual(
+                PUBLISH.find_name_variant("知识冲突（Knowledge Conflict）", root),
+                "知识冲突",
+            )
+            self.assertEqual(
+                PUBLISH.find_name_variant("LLaVA（Large Language and Vision Assistant）", root),
+                "LLaVA",
+            )
+            self.assertEqual(PUBLISH.find_name_variant("Knowledge Conflict", root), "知识冲突")
+            # exact name goes through the merge path, not the variant guard
+            self.assertIsNone(PUBLISH.find_name_variant("知识冲突", root))
+            # short names are too ambiguous to flag
+            self.assertIsNone(PUBLISH.find_name_variant("MR", root))
+
+    def test_refused_variant_action_does_not_leak_backlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            (root / "wiki" / "concepts" / "Shared Concept.md").write_text(
+                "---\n"
+                "tags: [concept]\n"
+                'created: "2026-01-01"\n'
+                'updated: "2026-01-01"\n'
+                "sources:\n"
+                "aliases:\n"
+                'status: "stub"\n'
+                "---\n\n"
+                "# Shared Concept\n\n"
+                "A definition.\n\n"
+                "## 别名\n\n"
+                "## 争议与矛盾\n\n"
+                "## 引用来源\n",
+                encoding="utf-8",
+            )
+            plan = valid_plan()
+            plan["hub_actions"].append(
+                {
+                    "action": "create_hub",
+                    "id": "hub-2",
+                    "name": "Shared Concept（扩展名）",
+                    "kind": "concept",
+                    "tier": "L2",
+                    "aliases": [],
+                    "definition": "A variant name.",
+                    "source_refs": ["wiki/sources/a.md"],
+                    "connect_existing": True,
+                    "existing_page": None,
+                    "evidence": [
+                        {
+                            "source_ref": "wiki/sources/a.md",
+                            "pointer": "[Paper: PDF p. 1]",
+                            "claim": "Paper A reports it.",
+                        }
+                    ],
+                    "contradictions": [],
+                    "open_questions": [],
+                }
+            )
+            plan_path = root / "link-plan.json"
+            plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "--plan",
+                    str(plan_path),
+                    "--wiki-root",
+                    str(root),
+                    "--report",
+                    str(root / "publish-report.json"),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            report = json.loads(
+                (root / "publish-report.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(
+                any("hub_name_variant" in error for error in report["errors"])
+            )
+            source_a = (root / "wiki" / "sources" / "a.md").read_text(encoding="utf-8")
+            topic = (root / "wiki" / "topics" / "Shared Topic.md").read_text(encoding="utf-8")
+            self.assertNotIn("Shared Concept（扩展名）", source_a)
+            self.assertNotIn("Shared Concept（扩展名）", topic)
+            self.assertIn("[[Shared Concept|Shared Concept]] - 概念枢纽", source_a)
 
     def test_knowledge_tree_is_stable_between_publishes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

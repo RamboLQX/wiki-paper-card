@@ -48,7 +48,6 @@
       "claim": "What the source reports."
     }
   ],
-  "relations": [],
   "contradictions": [],
   "open_questions": []
 }
@@ -59,8 +58,10 @@ Rules:
 - Hub actions must use `L2`.
 - `create_hub` requires at least two distinct batch `source_refs` or `connect_existing: true`.
 - `update_hub` requires `connect_existing: true` or a non-empty `existing_page`.
-- Every evidence row needs `source_ref`, `pointer`, and `claim`.
-- Relation fields follow the knowledge model.
+- `update_hub` may carry a refreshed `definition`; the publisher replaces the page's definition paragraph with it. Leave `definition` empty to keep the existing definition.
+- Every evidence row needs `source_ref`, `pointer`, and `claim`. Evidence rows are admission proof only: the audit validates them, but hub pages do not render a per-source evidence table (evidence lives in Paper Cards and topic pages).
+- Hub `open_questions` are not rendered on hub pages; record questions on a topic page (the audit warns when a hub action carries them).
+- The `relations` field is removed: hub pages have no typed relation table. Express connectivity with wikilinks inside `definition` (the audit warns when a plan still carries `relations`, and the publisher ignores the field).
 - `contradictions` must preserve both positions with their source pointers.
 
 ## Topic Action

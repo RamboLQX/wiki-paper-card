@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -13,20 +14,13 @@ from typing import Any
 ALLOWED_KINDS = {"concept", "entity"}
 ALLOWED_HUB_ACTIONS = {"create_hub", "update_hub"}
 ALLOWED_TOPIC_ACTIONS = {"create_topic", "update_topic"}
-ALLOWED_RELATION_TYPES = {
-    "defines",
-    "uses",
-    "extends",
-    "implements",
-    "derived_from",
-    "supports",
-    "contradicts",
-    "same_as",
-    "is_instance_of",
-    "applied_to",
-}
 ALLOWED_PROVENANCE = {"Paper", "External", "Analysis", "Hypothesis", "User"}
 ALLOWED_CONFIDENCE = {"high", "medium", "low"}
+
+
+def normalize_page_name(value: str) -> str:
+    """Lowercase and strip punctuation/space for identity comparison."""
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", str(value).lower())
 
 
 def finding(level: str, code: str, message: str, **details: Any) -> dict[str, Any]:
@@ -88,50 +82,12 @@ def string_list(value: Any) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
-def audit_relations(relations: Any, label: str) -> list[dict[str, Any]]:
-    findings: list[dict[str, Any]] = []
-    if not isinstance(relations, list):
-        return [finding("error", "relations", f"{label} relations must be a list.")]
-    for index, relation in enumerate(relations, start=1):
-        if not isinstance(relation, dict):
-            findings.append(finding("error", "relation_row", f"{label} relation {index} must be an object."))
-            continue
-        if relation.get("type") not in ALLOWED_RELATION_TYPES:
-            findings.append(
-                finding("error", "relation_type", f"{label} relation {index} has invalid type.", type=relation.get("type"))
-            )
-        require_string(relation, "target", findings, f"{label} relation {index}")
-        if not audit_pointer(relation.get("pointer", "")):
-            findings.append(
-                finding(
-                    "error",
-                    "relation_pointer",
-                    f"{label} relation {index} must define a valid pointer.",
-                    pointer=relation.get("pointer"),
-                )
-            )
-        if relation.get("provenance") not in ALLOWED_PROVENANCE:
-            findings.append(
-                finding(
-                    "error",
-                    "relation_provenance",
-                    f"{label} relation {index} has invalid provenance.",
-                    provenance=relation.get("provenance"),
-                )
-            )
-        if relation.get("confidence") not in ALLOWED_CONFIDENCE:
-            findings.append(
-                finding(
-                    "error",
-                    "relation_confidence",
-                    f"{label} relation {index} has invalid confidence.",
-                    confidence=relation.get("confidence"),
-                )
-            )
-    return findings
-
-
-def audit_hub_action(action: dict[str, Any], batch_refs: set[str], target_names: set[str]) -> list[dict[str, Any]]:
+def audit_hub_action(
+    action: dict[str, Any],
+    batch_refs: set[str],
+    target_names: set[str],
+    normalized_names: dict[str, str],
+) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     label = f"hub action {action.get('id') or action.get('name') or '<unnamed>'}"
     action_type = require_string(action, "action", findings, label)
@@ -151,6 +107,30 @@ def audit_hub_action(action: dict[str, Any], batch_refs: set[str], target_names:
         findings.append(finding("error", "duplicate_target", f"{label} duplicates target page {name}.", name=name))
     elif name:
         target_names.add(name)
+        key = normalize_page_name(name)
+        if key:
+            variant = None
+            for existing_key, existing_name in normalized_names.items():
+                if existing_name == name:
+                    continue
+                short = min(len(key), len(existing_key))
+                if short < 3:
+                    continue
+                if key == existing_key or key.startswith(existing_key) or existing_key.startswith(key):
+                    variant = existing_name
+                    break
+            if variant:
+                findings.append(
+                    finding(
+                        "warning",
+                        "hub_name_variant",
+                        f"{label} name resembles {variant}; merge them into one hub action instead of creating a name variant.",
+                        name=name,
+                        existing=variant,
+                    )
+                )
+            else:
+                normalized_names.setdefault(key, name)
 
     source_refs = set(string_list(action.get("source_refs")))
     unknown_refs = sorted(source_refs - batch_refs)
@@ -164,7 +144,17 @@ def audit_hub_action(action: dict[str, Any], batch_refs: set[str], target_names:
             )
         )
     if action_type == "create_hub":
-        if len(source_refs) < 2 and action.get("connect_existing") is not True:
+        if kind == "entity":
+            if len(source_refs) < 1:
+                findings.append(
+                    finding(
+                        "error",
+                        "cross_source",
+                        "create_hub (entity) requires at least one source page.",
+                        source_refs=sorted(source_refs),
+                    )
+                )
+        elif len(source_refs) < 2 and action.get("connect_existing") is not True:
             findings.append(
                 finding(
                     "error",
@@ -212,7 +202,26 @@ def audit_hub_action(action: dict[str, Any], batch_refs: set[str], target_names:
                 )
             require_string(row, "claim", findings, f"{label} evidence row {index}")
 
-    findings.extend(audit_relations(action.get("relations", []), label))
+    relations = action.get("relations", [])
+    if isinstance(relations, list) and relations:
+        findings.append(
+            finding(
+                "warning",
+                "relations_deprecated",
+                f"{label} carries relations; the field is removed. Express connectivity with wikilinks in the definition instead.",
+                count=len(relations),
+            )
+        )
+
+    open_questions = action.get("open_questions", [])
+    if isinstance(open_questions, list) and string_list(open_questions):
+        findings.append(
+            finding(
+                "warning",
+                "hub_open_questions_ignored",
+                f"{label} carries open_questions; hub pages do not render them. Record the question on a topic page instead.",
+            )
+        )
     return findings
 
 
@@ -335,12 +344,13 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
         findings.append(finding("error", "batch", "Link plan must define at least one batch source page."))
 
     target_names: set[str] = set()
+    normalized_names: dict[str, str] = {}
     hub_actions = require_list(plan, "hub_actions", findings, "link plan")
     for action in hub_actions:
         if not isinstance(action, dict):
             findings.append(finding("error", "hub_action", "Each hub action must be an object."))
             continue
-        findings.extend(audit_hub_action(action, batch_refs, target_names))
+        findings.extend(audit_hub_action(action, batch_refs, target_names, normalized_names))
 
     topic_actions = require_list(plan, "topic_actions", findings, "link plan")
     for action in topic_actions:

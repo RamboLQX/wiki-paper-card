@@ -37,15 +37,17 @@ Prefer the digests for context. A final card may be read only for a specific amb
 
 ## Link Decisions
 
-- Compare candidate identity, definitions, methods, evidence, relations, contradictions, and open questions across all batch papers.
+- Compare candidate identity, definitions, methods, evidence, contradictions, and open questions across all batch papers.
 - Compare batch digests with the existing wiki context.
 - Emit only `L2` `create_hub` or `update_hub` actions.
+- Promote a public dataset, benchmark, model family, or metric to an entity page (`kind: entity`) from a single source page: the artifact's identity is guaranteed by its publisher, and future papers are likely to reuse it. For example CONFLICTVIS, ViQuAE, InfoSeek, LLaVA, and GPT-4o all qualify as entities from one paper. Paper-private methods and components are not entities — they stay concept candidates and still need the cross-paper gate.
+- Use model-family granularity for entity names: one page for `LLaVA` (not `LLaVA-NeXT-8B`), one for `GPT-4o`; record variants and sub-models as aliases. When an entity page already exists, update it via `update_hub` with `existing_page` — never create a name variant (the deterministic audit and publisher both flag name variants).
 - Emit `create_topic` or `update_topic` actions where the knowledge model supports synthesis.
 - Emit `key_findings` for a topic action only when a finding is genuine, marked `consensus` / `single` / `conflict` with a source pointer (see the value discipline below).
 - Give every contradiction with two positions a `resolving_evidence` naming the evidence or benchmark that would settle it.
 - Never use mention frequency as a promotion signal.
 - Preserve contradictions instead of merging them away.
-- Do not invent promotions, aliases, or relations absent from the digests and existing pages.
+- Do not invent promotions or aliases absent from the digests and existing pages.
 
 ## Value And Snapshot Discipline
 
@@ -80,7 +82,7 @@ signals in the former even when they also motivate a gap in the latter.
 Follow [link-plan-schema.md](link-plan-schema.md).
 
 - Include every finalized current batch source page, each with a short display name (`short`) used for wikilinks.
-- Keep evidence, definitions, relations, and topic summaries compact.
+- Keep evidence, definitions, and topic summaries compact.
 - Use source pointers exactly as they appear in the digests or existing pages.
 
 ## Return Protocol

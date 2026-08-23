@@ -109,6 +109,20 @@ Use only pointers present in the source bundle. Separate `[Paper]`, `[External]`
 
 Section 12 contains only limitations explicitly acknowledged by the authors. Section 13 contains Agent analysis.
 
+### Literal Tag Format
+
+Never write a raw inline HTML tag in card text. A literal token such as
+`<image>` or `<CPLINK>` breaks Obsidian Live Preview: the parser treats it as
+an unclosed HTML region and stops rendering Markdown from that point to the
+end of the file. Always wrap literal tags in backticks:
+
+```markdown
+对比 `<image>` token 与文本 token
+```
+
+The deterministic finalizer blocks cards that contain raw tags, so an
+unwrapped `<image>` fails the audit and must be corrected before linking.
+
 ### Formula Format
 
 Do not place raw formulas in Markdown table cells.
