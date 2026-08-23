@@ -124,7 +124,7 @@ Prerequisites:
 Create or select a standalone vault and link it with the install script:
 
 ```bash
-git clone <repository-url> wiki-paper-card
+git clone https://github.com/RamboLQX/wiki-paper-card.git wiki-paper-card
 cd wiki-paper-card
 
 VAULT=/path/to/vault
@@ -232,15 +232,41 @@ Processing updates `wiki/index.md`, `wiki/log.md`, and existing pages without de
 
 ## Agent Quick Setup
 
-Users can start the setup from their own Agent tool with one prompt instead of running every command manually:
+An Agent with network access, terminal execution, and local filesystem write permissions can clone the repository, configure the vault, and run the smoke test. For a first-time installation, replace the repository destination, vault path, and runtime host below with actual values:
 
 ```text
-Read /path/to/wiki-paper-card/docs/agent-quick-setup.md and configure wiki-paper-card.
-Project repository: /path/to/wiki-paper-card
-Obsidian vault: /path/to/vault
+Configure wiki-paper-card by following these setup instructions:
+
+Setup instructions:
+https://raw.githubusercontent.com/RamboLQX/wiki-paper-card/main/docs/agent-quick-setup.md
+
+Project repository:
+https://github.com/RamboLQX/wiki-paper-card.git
+
+Repository destination:
+/absolute/path/to/wiki-paper-card
+
+Obsidian vault:
+/absolute/path/to/vault
+
+Runtime host:
+claude / dsh / both
+
+Check the paths and runtime first. If the repository does not exist locally, clone it to the specified destination.
+Then run the installer and smoke test, and report completed items separately from steps that still require user action.
+Do not overwrite existing files in the vault.
 ```
 
-The Agent creates missing vault directories, links the skills, merges `CLAUDE.md`, sets the environment variable, and runs the smoke test. See [docs/agent-quick-setup.md](docs/agent-quick-setup.md) for the execution rules and safety boundaries.
+If the repository is already cloned, the Agent can read the local instructions directly:
+
+```text
+Read /absolute/path/to/wiki-paper-card/docs/agent-quick-setup.md and configure wiki-paper-card.
+Project repository: /absolute/path/to/wiki-paper-card
+Obsidian vault: /absolute/path/to/vault
+Runtime host: claude / dsh / both
+```
+
+The Agent creates missing vault directories, links the skills, merges `CLAUDE.md`, sets the environment variable for the current session, and runs the smoke test. Installing Obsidian or Claudian through a graphical interface and persisting the environment variable may still require user confirmation or manual action. See [docs/agent-quick-setup.md](docs/agent-quick-setup.md) for the execution rules and safety boundaries.
 
 ## Workflow
 

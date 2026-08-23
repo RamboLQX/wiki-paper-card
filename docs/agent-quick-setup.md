@@ -1,19 +1,32 @@
 # Agent 快速安装适配说明
 
-本文档供用户自己的 Agent 读取并执行。用户不需要手动复制这些命令，只需要提供项目仓库和目标 Obsidian Vault 的位置。
+本文档供具备网络访问、终端执行和本地文件写入权限的 Agent 读取并执行。用户不需要手动复制安装命令，但必须提供或确认仓库安装目录、目标 Obsidian Vault 和运行宿主。
 
 当前项目支持两个论文处理运行宿主：Claude Code（Obsidian 入口推荐 Claudian 插件）与 DeepSeek Harness（DSH，在 Vault 目录中启动会话）。用户自己的 Agent 工具负责引导或执行安装适配，其他 Agent 运行宿主的论文处理流程暂不属于正式支持范围。
 
-推荐触发语句：
+仓库尚未克隆时，推荐使用：
 
 ```text
-请阅读 <REPO_ROOT>/docs/agent-quick-setup.md，并帮我配置 wiki-paper-card。
-项目仓库：/path/to/wiki-paper-card
-Obsidian Vault：/path/to/vault
-运行宿主：claude-code / dsh / both
+请按照以下安装说明配置 wiki-paper-card：
+安装说明：https://raw.githubusercontent.com/RamboLQX/wiki-paper-card/main/docs/agent-quick-setup.md
+项目仓库：https://github.com/RamboLQX/wiki-paper-card.git
+仓库安装目录：/absolute/path/to/wiki-paper-card
+Obsidian Vault：/absolute/path/to/vault
+运行宿主：claude / dsh / both
+
+请先检查路径和运行环境。如果仓库尚未存在，将仓库克隆到指定目录；
+然后执行安装脚本、运行 smoke test，并分别报告已完成项目和仍需手动完成的步骤。
+不要覆盖 Vault 中已有文件。
 ```
 
-如果仓库尚未克隆，可以用仓库 URL 代替本地路径。
+仓库已经克隆时，推荐使用：
+
+```text
+请阅读 /absolute/path/to/wiki-paper-card/docs/agent-quick-setup.md，并帮我配置 wiki-paper-card。
+项目仓库：/absolute/path/to/wiki-paper-card
+Obsidian Vault：/absolute/path/to/vault
+运行宿主：claude / dsh / both
+```
 
 ## 执行目标
 
@@ -37,15 +50,16 @@ Obsidian Vault：/path/to/vault
 
 ## 必要信息
 
-执行前至少确认以下三个值：
+执行前至少确认以下值：
 
 ```text
-REPO_ROOT=/path/to/wiki-paper-card
-VAULT_ROOT=/path/to/vault
+REPO_URL=https://github.com/RamboLQX/wiki-paper-card.git  # 仅仓库尚未克隆时需要
+REPO_ROOT=/absolute/path/to/wiki-paper-card
+VAULT_ROOT=/absolute/path/to/vault
 HOST=claude|dsh|both
 ```
 
-如果用户没有提供，必须先询问，不能使用当前目录或主目录作为默认 Vault。
+如果用户没有提供 `REPO_ROOT`、`VAULT_ROOT` 或 `HOST`，必须先询问。不能使用当前目录或主目录作为默认安装位置，也不能根据目录名称猜测 Vault。目标 Vault 根目录尚不存在时，创建前必须获得用户确认。
 
 ## 第一步：检查运行环境
 
@@ -75,10 +89,10 @@ Agent 无法完成 GUI 操作时，应把这些项目列入待用户操作清单
 
 如果 `REPO_ROOT` 已存在，使用该路径。
 
-如果用户只提供仓库 URL，使用用户同意的目录执行：
+如果用户提供仓库 URL 和已确认的安装目录，执行：
 
 ```bash
-git clone <repository-url> "$REPO_ROOT"
+git clone "$REPO_URL" "$REPO_ROOT"
 ```
 
 不要自动选择用户主目录下的未指定路径。

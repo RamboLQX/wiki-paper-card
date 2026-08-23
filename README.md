@@ -124,7 +124,7 @@
 新建或选择一个独立 Vault，用安装脚本接入：
 
 ```bash
-git clone <repository-url> wiki-paper-card
+git clone https://github.com/RamboLQX/wiki-paper-card.git wiki-paper-card
 cd wiki-paper-card
 
 VAULT=/path/to/vault
@@ -232,15 +232,41 @@ Use wiki-paper-card to reprocess raw/papers/example.pdf.
 
 ## Agent 快速安装
 
-用户可以在自己的 Agent 工具中使用一句话启动配置，不需要逐行执行安装命令：
+具备网络访问、终端执行和本地文件写入权限的 Agent 可以完成仓库克隆、Vault 配置和 smoke test。首次安装时，先把下面的仓库安装目录、Vault 路径和运行宿主替换为实际值：
 
 ```text
-请阅读 /path/to/wiki-paper-card/docs/agent-quick-setup.md，并帮我配置 wiki-paper-card。
-项目仓库：/path/to/wiki-paper-card
-Obsidian Vault：/path/to/vault
+请按照以下安装说明配置 wiki-paper-card：
+
+安装说明：
+https://raw.githubusercontent.com/RamboLQX/wiki-paper-card/main/docs/agent-quick-setup.md
+
+项目仓库：
+https://github.com/RamboLQX/wiki-paper-card.git
+
+仓库安装目录：
+/absolute/path/to/wiki-paper-card
+
+Obsidian Vault：
+/absolute/path/to/vault
+
+运行宿主：
+claude / dsh / both
+
+请先检查路径和运行环境。如果仓库尚未存在，将仓库克隆到指定目录；
+然后执行安装脚本、运行 smoke test，并分别报告已完成项目和仍需手动完成的步骤。
+不要覆盖 Vault 中已有文件。
 ```
 
-Agent 会补齐 Vault 目录、链接 skill、合并 `CLAUDE.md`、设置环境变量并运行 smoke test。详细执行规则和安全边界见 [docs/agent-quick-setup.md](docs/agent-quick-setup.md)。
+仓库已经克隆时，可以直接让 Agent 读取本地说明：
+
+```text
+请阅读 /absolute/path/to/wiki-paper-card/docs/agent-quick-setup.md，并帮我配置 wiki-paper-card。
+项目仓库：/absolute/path/to/wiki-paper-card
+Obsidian Vault：/absolute/path/to/vault
+运行宿主：claude / dsh / both
+```
+
+Agent 会补齐 Vault 目录、链接 skill、合并 `CLAUDE.md`、设置当前会话环境变量并运行 smoke test。Obsidian、Claudian 等图形界面安装和环境变量持久化可能需要用户确认或手动完成。详细执行规则和安全边界见 [docs/agent-quick-setup.md](docs/agent-quick-setup.md)。
 
 ## 工作流程
 
