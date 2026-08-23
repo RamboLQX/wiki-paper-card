@@ -1,69 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-label="Four-step workflow from papers to a research Wiki">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-label="Research loop from paper reading to knowledge reuse">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0b1220"/>
-      <stop offset="52%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#111827"/>
-    </linearGradient>
-    <radialGradient id="glowA" cx="0.82" cy="0.12" r="0.6">
-      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.22"/>
-      <stop offset="55%" stop-color="#6366f1" stop-opacity="0.10"/>
-      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
-    </radialGradient>
-    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
-      <circle cx="2" cy="2" r="1.5" fill="#94a3b8" opacity="0.08"/>
-    </pattern>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#07111f"/><stop offset="55%" stop-color="#0b1526"/><stop offset="100%" stop-color="#10172a"/></linearGradient>
+    <linearGradient id="loop" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2dd4bf"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="70%"><stop offset="0%" stop-color="#38bdf8" stop-opacity="0.08"/><stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/></radialGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.1" fill="#94a3b8" opacity="0.075"/></pattern>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#020617" flood-opacity="0.4"/></filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/></marker>
+    <marker id="loopArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4bf"/></marker>
   </defs>
-
-  <rect width="1200" height="320" fill="url(#bg)"/>
-  <rect width="1200" height="320" fill="url(#dots)"/>
-  <rect width="1200" height="320" fill="url(#glowA)"/>
-
-  <!-- heading -->
-  <text x="600" y="52" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="700" fill="#f8fafc">From papers to a research Wiki</text>
-  <text x="600" y="80" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#64748b">Four steps from a pile of papers to a living knowledge base</text>
-
-  <!-- arrows -->
-  <g stroke="#475569" stroke-width="2.5" fill="none" stroke-linecap="round">
-    <line x1="308" y1="192" x2="326" y2="192"/>
-    <line x1="588" y1="192" x2="606" y2="192"/>
-    <line x1="868" y1="192" x2="886" y2="192"/>
+  <rect width="1200" height="500" rx="22" fill="url(#bg)"/><rect width="1200" height="500" rx="22" fill="url(#dots)"/><rect width="1200" height="500" rx="22" fill="url(#glow)"/><rect x="1" y="1" width="1198" height="498" rx="21" fill="none" stroke="#334155" stroke-opacity="0.55"/>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"><text x="600" y="50" text-anchor="middle" font-size="27" font-weight="740" fill="#f8fafc">The Research Knowledge Loop</text><text x="600" y="79" text-anchor="middle" font-size="14.5" fill="#94a3b8">Preserve each paper's evidence, then connect, synthesize, and update knowledge across papers</text></g>
+  <g fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" marker-end="url(#arrow)"><path d="M 237 232 L 260 232"/><path d="M 462 232 L 485 232"/><path d="M 687 232 L 710 232"/><path d="M 912 232 L 935 232"/></g>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" filter="url(#shadow)">
+    <g><rect x="42" y="120" width="195" height="220" rx="17" fill="#101d2e" stroke="#334155"/><circle cx="67" cy="145" r="14" fill="#1e293b" stroke="#64748b"/><text x="67" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">1</text><g fill="none" stroke="#cbd5e1" stroke-width="1.8"><rect x="114" y="153" width="43" height="54" rx="5"/><path d="M 124 167 H 147 M 124 177 H 147 M 124 187 H 141"/><path d="M 107 162 H 100 Q 94 162 94 168 V 211 Q 94 217 100 217 H 133" stroke="#475569"/></g><text x="139.5" y="247" text-anchor="middle" font-size="18" font-weight="720" fill="#f8fafc">New papers</text><text x="139.5" y="273" text-anchor="middle" font-size="13" fill="#94a3b8">PDF or source map</text><text x="139.5" y="296" text-anchor="middle" font-size="13" fill="#94a3b8">Source files stay read-only</text><rect x="77" y="314" width="125" height="25" rx="12.5" fill="#1e293b"/><text x="139.5" y="331" text-anchor="middle" font-size="11" fill="#cbd5e1">Enter the collection</text></g>
+    <g><rect x="267" y="120" width="195" height="220" rx="17" fill="#0f2331" stroke="#2dd4bf" stroke-opacity="0.56"/><circle cx="292" cy="145" r="14" fill="#0f766e" fill-opacity="0.38" stroke="#2dd4bf"/><text x="292" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#99f6e4">2</text><g fill="none" stroke="#5eead4" stroke-width="1.9"><rect x="340" y="153" width="49" height="58" rx="6"/><path d="M 350 168 H 379 M 350 179 H 379 M 350 190 H 368"/><circle cx="379" cy="198" r="4" fill="#2dd4bf" stroke="none"/></g><text x="364.5" y="247" text-anchor="middle" font-size="18" font-weight="720" fill="#f8fafc">Paper Card</text><text x="364.5" y="273" text-anchor="middle" font-size="13" fill="#94a3b8">Preserve the full argument</text><text x="364.5" y="296" text-anchor="middle" font-size="13" fill="#94a3b8">Anchor claims to the source</text><rect x="299" y="314" width="131" height="25" rx="12.5" fill="#0f766e" fill-opacity="0.26"/><text x="364.5" y="331" text-anchor="middle" font-size="11" fill="#99f6e4">Read and verify</text></g>
+    <g><rect x="492" y="120" width="195" height="220" rx="17" fill="#102036" stroke="#38bdf8" stroke-opacity="0.56"/><circle cx="517" cy="145" r="14" fill="#0369a1" fill-opacity="0.34" stroke="#38bdf8"/><text x="517" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#bae6fd">3</text><g fill="none" stroke="#7dd3fc" stroke-width="1.8"><circle cx="567" cy="173" r="10"/><circle cx="612" cy="173" r="10"/><circle cx="589.5" cy="205" r="10"/><path d="M 576 178 L 581 196 M 603 179 L 597 196 M 577 173 H 602"/></g><text x="589.5" y="247" text-anchor="middle" font-size="17" font-weight="720" fill="#f8fafc">Concept + Entity</text><text x="589.5" y="273" text-anchor="middle" font-size="13" fill="#94a3b8">Aggregate cross-paper evidence</text><text x="589.5" y="296" text-anchor="middle" font-size="13" fill="#94a3b8">Connect objects and relations</text><rect x="516" y="314" width="147" height="25" rx="12.5" fill="#0369a1" fill-opacity="0.25"/><text x="589.5" y="331" text-anchor="middle" font-size="11" fill="#bae6fd">Accumulate knowledge</text></g>
+    <g><rect x="717" y="120" width="195" height="220" rx="17" fill="#171d38" stroke="#818cf8" stroke-opacity="0.6"/><circle cx="742" cy="145" r="14" fill="#4338ca" fill-opacity="0.34" stroke="#818cf8"/><text x="742" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#c7d2fe">4</text><g fill="none" stroke="#a5b4fc" stroke-width="1.8"><path d="M 780 210 V 159 H 849 V 210"/><path d="M 790 174 H 839 M 790 187 H 823 M 790 200 H 833"/><circle cx="838" cy="187" r="3.5" fill="#818cf8" stroke="none"/></g><text x="814.5" y="247" text-anchor="middle" font-size="18" font-weight="720" fill="#f8fafc">Topic</text><text x="814.5" y="273" text-anchor="middle" font-size="13" fill="#94a3b8">Compare methods and results</text><text x="814.5" y="296" text-anchor="middle" font-size="13" fill="#94a3b8">Keep consensus and gaps</text><rect x="746" y="314" width="137" height="25" rx="12.5" fill="#4338ca" fill-opacity="0.25"/><text x="814.5" y="331" text-anchor="middle" font-size="11" fill="#c7d2fe">Synthesize papers</text></g>
+    <g><rect x="942" y="120" width="216" height="220" rx="17" fill="#1d1b37" stroke="#a78bfa" stroke-opacity="0.62"/><circle cx="967" cy="145" r="14" fill="#7e22ce" fill-opacity="0.3" stroke="#a78bfa"/><text x="967" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#e9d5ff">5</text><g fill="none" stroke="#c4b5fd" stroke-width="1.8"><rect x="1022" y="155" width="56" height="54" rx="7"/><path d="M 1032 168 H 1068 M 1032 180 H 1052 M 1032 192 H 1062"/><circle cx="1068" cy="180" r="3.5" fill="#a78bfa" stroke="none"/></g><text x="1050" y="247" text-anchor="middle" font-size="18" font-weight="720" fill="#f8fafc">Research Wiki</text><text x="1050" y="273" text-anchor="middle" font-size="12.5" fill="#94a3b8">Index · dashboard · tree · log</text><text x="1050" y="296" text-anchor="middle" font-size="13" fill="#94a3b8">Retrieve · verify · compare · reuse</text><rect x="982" y="314" width="136" height="25" rx="12.5" fill="#7e22ce" fill-opacity="0.23"/><text x="1050" y="331" text-anchor="middle" font-size="11" fill="#e9d5ff">Support ongoing work</text></g>
   </g>
-  <g fill="#475569">
-    <polygon points="330,192 321,186 321,198"/>
-    <polygon points="610,192 601,186 601,198"/>
-    <polygon points="890,192 881,186 881,198"/>
-  </g>
-
-  <!-- step 1 -->
-  <rect x="60" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <circle cx="92" cy="134" r="16" fill="#2dd4bf"/>
-  <text x="92" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">1</text>
-  <text x="82" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Drop in papers</text>
-  <text x="82" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">PDF or source map</text>
-  <text x="82" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">into raw/papers/</text>
-
-  <!-- step 2 -->
-  <rect x="340" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <circle cx="372" cy="134" r="16" fill="#38bdf8"/>
-  <text x="372" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">2</text>
-  <text x="362" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Read closely</text>
-  <text x="362" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">structured Paper Card</text>
-  <text x="362" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">anchored to the source</text>
-
-  <!-- step 3 -->
-  <rect x="620" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <circle cx="652" cy="134" r="16" fill="#818cf8"/>
-  <text x="652" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">3</text>
-  <text x="642" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Connect evidence</text>
-  <text x="642" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">corroborate across papers</text>
-  <text x="642" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">crystallize concepts &amp; topics</text>
-
-  <!-- step 4 -->
-  <rect x="900" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <circle cx="932" cy="134" r="16" fill="#a78bfa"/>
-  <text x="932" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">4</text>
-  <text x="922" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">A living Wiki</text>
-  <text x="922" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">searchable, comparable</text>
-  <text x="922" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">traceable, keeps growing</text>
+  <path d="M 1050 361 V 406 Q 1050 428 1028 428 H 166 Q 139 428 139 401 V 354" fill="none" stroke="url(#loop)" stroke-width="2.5" stroke-linecap="round" marker-end="url(#loopArrow)"/>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"><rect x="410" y="401" width="380" height="54" rx="27" fill="#0d1b2d" stroke="#475569"/><circle cx="436" cy="428" r="5" fill="#2dd4bf"/><text x="600" y="424" text-anchor="middle" font-size="13.5" font-weight="650" fill="#e2e8f0">Open questions and research gaps guide the next reading cycle</text><text x="600" y="443" text-anchor="middle" font-size="11.5" fill="#64748b">New evidence extends, revises, or challenges existing knowledge</text></g>
 </svg>

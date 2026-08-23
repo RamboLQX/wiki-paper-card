@@ -1,50 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-label="wiki-paper-card">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="wiki-paper-card, turn papers into verifiable, connected, reusable research knowledge">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0b1220"/>
-      <stop offset="52%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#111827"/>
-    </linearGradient>
-    <radialGradient id="glowA" cx="0.82" cy="0.12" r="0.6">
-      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.30"/>
-      <stop offset="55%" stop-color="#6366f1" stop-opacity="0.14"/>
-      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="0.12" cy="0.98" r="0.55">
-      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.22"/>
-      <stop offset="100%" stop-color="#818cf8" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#2dd4bf"/>
-      <stop offset="100%" stop-color="#818cf8"/>
-    </linearGradient>
-    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
-      <circle cx="2" cy="2" r="1.5" fill="#94a3b8" opacity="0.10"/>
-    </pattern>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#07111f"/><stop offset="52%" stop-color="#0b1526"/><stop offset="100%" stop-color="#10172a"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2dd4bf"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#818cf8"/></linearGradient>
+    <radialGradient id="glow" cx="82%" cy="45%" r="58%"><stop offset="0%" stop-color="#38bdf8" stop-opacity="0.15"/><stop offset="55%" stop-color="#6366f1" stop-opacity="0.07"/><stop offset="100%" stop-color="#6366f1" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="#94a3b8" stroke-opacity="0.055" stroke-width="1"/></pattern>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity="0.45"/></filter>
   </defs>
-
-  <rect width="1200" height="280" fill="url(#bg)"/>
-  <rect width="1200" height="280" fill="url(#dots)"/>
-  <rect width="1200" height="280" fill="url(#glowA)"/>
-  <rect width="1200" height="280" fill="url(#glowB)"/>
-
-  <!-- accent underline -->
-  <rect x="72" y="186" width="152" height="6" rx="3" fill="url(#accent)"/>
-
-  <!-- title -->
-  <text x="70" y="116" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="52" font-weight="700" fill="#f8fafc" letter-spacing="-1">wiki-paper-card</text>
-  <!-- tagline -->
-  <text x="70" y="160" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="24" fill="#cbd5e1">Turn papers into a searchable, comparable, traceable research Wiki</text>
-  <!-- caption -->
-  <text x="72" y="220" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="15" fill="#64748b">read · crystallize · connect · grow</text>
-
-  <!-- card stack -->
-  <rect x="900" y="84" width="232" height="152" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
-  <rect x="916" y="66" width="232" height="152" rx="12" fill="#26354e" stroke="#3b4a63" stroke-width="1"/>
-  <rect x="932" y="48" width="232" height="152" rx="12" fill="#2e405f" stroke="#38bdf8" stroke-opacity="0.45" stroke-width="1.5"/>
-  <circle cx="962" cy="76" r="7" fill="#2dd4bf"/>
-  <rect x="962" y="98" width="170" height="11" rx="5.5" fill="#e2e8f0" opacity="0.9"/>
-  <rect x="962" y="120" width="140" height="8" rx="4" fill="#94a3b8" opacity="0.55"/>
-  <rect x="962" y="138" width="155" height="8" rx="4" fill="#94a3b8" opacity="0.55"/>
-  <rect x="962" y="156" width="110" height="8" rx="4" fill="#94a3b8" opacity="0.55"/>
+  <rect width="1200" height="360" rx="22" fill="url(#bg)"/><rect width="1200" height="360" rx="22" fill="url(#grid)"/><rect width="1200" height="360" rx="22" fill="url(#glow)"/><rect x="1" y="1" width="1198" height="358" rx="21" fill="none" stroke="#334155" stroke-opacity="0.55"/>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"><rect x="58" y="52" width="154" height="29" rx="14.5" fill="#0f766e" fill-opacity="0.18" stroke="#2dd4bf" stroke-opacity="0.38"/><circle cx="77" cy="66.5" r="4" fill="#2dd4bf"/><text x="91" y="72" font-size="13" font-weight="650" fill="#99f6e4" letter-spacing="0.7">RESEARCH WIKI</text><text x="56" y="139" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="49" font-weight="750" fill="#f8fafc" letter-spacing="-1.8">wiki-paper-card</text><rect x="58" y="159" width="112" height="5" rx="2.5" fill="url(#accent)"/><text x="57" y="206" font-size="21" font-weight="650" fill="#e2e8f0">Turn papers into verifiable, connected,</text><text x="57" y="238" font-size="21" font-weight="650" fill="#e2e8f0">and reusable research knowledge</text><text x="58" y="292" font-size="13.5" fill="#94a3b8" letter-spacing="0.35">CLOSE READING · KNOWLEDGE LINKS · SYNTHESIS · MAINTENANCE</text></g>
+  <g fill="none" stroke-linecap="round"><path d="M 810 104 C 850 112, 861 129, 883 151" stroke="#2dd4bf" stroke-opacity="0.62" stroke-width="2"/><path d="M 1012 104 C 975 113, 957 130, 937 151" stroke="#38bdf8" stroke-opacity="0.62" stroke-width="2"/><path d="M 810 256 C 850 247, 864 227, 885 207" stroke="#818cf8" stroke-opacity="0.62" stroke-width="2"/><path d="M 1012 256 C 976 246, 958 227, 938 207" stroke="#a78bfa" stroke-opacity="0.62" stroke-width="2"/><path d="M 780 116 C 747 176, 750 212, 780 244" stroke="#475569" stroke-opacity="0.45" stroke-width="1.4" stroke-dasharray="4 7"/><path d="M 1042 116 C 1071 174, 1071 211, 1042 244" stroke="#475569" stroke-opacity="0.45" stroke-width="1.4" stroke-dasharray="4 7"/></g>
+  <g fill="#cbd5e1"><circle cx="850" cy="122" r="3"/><circle cx="971" cy="117" r="3"/><circle cx="850" cy="238" r="3"/><circle cx="973" cy="240" r="3"/></g>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" filter="url(#shadow)"><g><rect x="650" y="54" width="168" height="76" rx="14" fill="#102538" stroke="#2dd4bf" stroke-opacity="0.58"/><rect x="650" y="54" width="5" height="76" rx="2.5" fill="#2dd4bf"/><text x="672" y="84" font-size="16" font-weight="720" fill="#f8fafc">Paper Card</text><text x="672" y="108" font-size="12" fill="#94a3b8">argument · source anchors</text></g><g><rect x="1004" y="54" width="148" height="76" rx="14" fill="#102238" stroke="#38bdf8" stroke-opacity="0.58"/><rect x="1004" y="54" width="5" height="76" rx="2.5" fill="#38bdf8"/><text x="1026" y="84" font-size="16" font-weight="720" fill="#f8fafc">Concept</text><text x="1026" y="108" font-size="12" fill="#94a3b8">theory · mechanism</text></g><g><rect x="650" y="230" width="168" height="76" rx="14" fill="#161e3a" stroke="#818cf8" stroke-opacity="0.62"/><rect x="650" y="230" width="5" height="76" rx="2.5" fill="#818cf8"/><text x="672" y="260" font-size="16" font-weight="720" fill="#f8fafc">Entity</text><text x="672" y="284" font-size="12" fill="#94a3b8">object · evidence · links</text></g><g><rect x="1004" y="230" width="148" height="76" rx="14" fill="#1e1c3b" stroke="#a78bfa" stroke-opacity="0.62"/><rect x="1004" y="230" width="5" height="76" rx="2.5" fill="#a78bfa"/><text x="1026" y="260" font-size="16" font-weight="720" fill="#f8fafc">Topic</text><text x="1026" y="284" font-size="12" fill="#94a3b8">compare · gaps</text></g></g>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" filter="url(#shadow)"><circle cx="911" cy="180" r="60" fill="#0f1d32" stroke="url(#accent)" stroke-width="2.4"/><circle cx="911" cy="180" r="48" fill="none" stroke="#64748b" stroke-opacity="0.23" stroke-dasharray="3 6"/><path d="M 884 179 L 898 165 L 911 178 L 928 158 L 941 171" fill="none" stroke="#67e8f9" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="884" cy="179" r="3.5" fill="#2dd4bf"/><circle cx="898" cy="165" r="3.5" fill="#38bdf8"/><circle cx="911" cy="178" r="3.5" fill="#818cf8"/><circle cx="928" cy="158" r="3.5" fill="#a78bfa"/><circle cx="941" cy="171" r="3.5" fill="#38bdf8"/><text x="911" y="205" text-anchor="middle" font-size="13" font-weight="720" fill="#e2e8f0">Research Wiki</text></g>
+  <text x="911" y="335" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" fill="#64748b" letter-spacing="1.2">RETRIEVE · VERIFY · COMPARE · REUSE</text>
 </svg>

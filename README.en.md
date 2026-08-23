@@ -1,6 +1,6 @@
 <div align="center">
   <p>
-    <img src="assets/readme-banner-en.svg" alt="wiki-paper-card —— Turn papers into a searchable, comparable, traceable research Wiki" width="100%">
+    <img src="assets/readme-banner-en.svg" alt="wiki-paper-card — Turn papers into verifiable, connected, reusable research knowledge" width="100%">
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
@@ -10,7 +10,8 @@
     <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
   </p>
   <p>
-    <a href="#what-it-does">What It Does</a>
+    <a href="#project-positioning">Positioning</a>
+    · <a href="#knowledge-loop">Knowledge Loop</a>
     · <a href="#core-capabilities">Capabilities</a>
     · <a href="#quick-start">Quick Start</a>
     · <a href="#usage">Usage</a>
@@ -22,15 +23,49 @@
 
 ---
 
-**`wiki-paper-card` turns your paper collection into a research knowledge base that keeps growing.** The hard part of reading isn't finishing papers — it's remembering what you read and finding it again when you write a survey or start something new. wiki-paper-card reads each paper into a source-grounded "Paper Card", then automatically connects evidence that multiple papers corroborate into concept, entity, and topic pages. Keep adding papers and a traceable, comparable, ever-growing research Wiki builds itself — ready whenever you need it.
+**`wiki-paper-card` is a paper knowledge framework for long-term research.** It turns each paper into a source-grounded Paper Card, connects reusable concepts and entities across a batch, and uses Topic pages to synthesize methods, results, boundaries, consensus, disagreement, and research gaps around a shared question. As new papers arrive, the Wiki's pages, relationships, indexes, and research dashboard evolve together to support paper review, cross-paper comparison, survey writing, and research planning.
 
 > Status: the core workflow is runnable, while workflow contracts, knowledge rules, and output formats will continue to evolve.
 
+## Project Positioning
+
+`wiki-paper-card` supports researchers who continuously read, compare, and reuse academic papers. It organizes source-grounded close reading, knowledge connection, cross-paper synthesis, and incremental Wiki maintenance into one continuous workflow.
+
+Each paper first becomes a complete Paper Card covering its research question, methods, experiments, conclusion boundaries, limitations, and research ideas, with key claims anchored to a page, figure, table, or equation. Batch processing then connects concepts, entities, and research topics across papers so that evidence about the same knowledge object can accumulate and related methods, results, and disagreements can be compared directly. Researchers can move from any knowledge page back to the source paper for verification, then use existing questions and research gaps to organize the next round of reading.
+
+## Knowledge Loop
+
+Four page types organize paper-level detail, knowledge objects, and research questions. Source evidence and Wiki links connect them, and each page can be updated as new papers enter the collection.
+
+| Page | What it contains | Research value |
+|---|---|---|
+| **Paper Card** | A paper's research question, core idea, method modules, formulas, experiment-to-claim evidence chain, limitations, critical analysis, and research ideas | Restores the paper's full context quickly and links every key claim back to a page, figure, table, or equation |
+| **Concept** | Transferable theories, frameworks, mechanisms, and terms, together with definitions, evidence, relationships, disputes, and open questions from multiple sources | Shows how a concept is interpreted, tested, extended, or challenged across studies and accumulates reusable research understanding |
+| **Entity** | Concrete objects such as methods, models, tools, datasets, evaluation resources, organizations, or products, together with their aliases, evidence, relationships, and contradictions | Tracks how the same research object is used, connected, and supported across papers |
+| **Topic** | Paper comparisons, key findings, consensus, disagreement, open questions, and research gaps around a shared problem, mechanism, or evidence space | Synthesizes the evidence for a research direction and compares methods, results, and boundaries for survey writing, research planning, and experiment design |
+
+`index.md`, the research dashboard, the knowledge tree, and `log.md` form the maintenance layer for entry points, question and candidate aggregation, navigation, and update history. New papers can create pages or add evidence that supports or challenges existing conclusions, closing the loop from reading and verification through connection and synthesis to later retrieval.
+
+## Core Capabilities
+
+The core goal is to turn papers you have read into research knowledge that remains searchable, verifiable, comparable, and extensible over time.
+
+| The problem you hit | How wiki-paper-card solves it |
+|---|---|
+| You finish a paper, then forget it and can't find it when writing a survey | Each paper becomes a structured card whose claims, formulas, and figures point back to the source for one-click verification |
+| Papers accumulate while concepts, methods, and research objects stay scattered | Concept and Entity pages collect cross-paper evidence, relationships, disputes, and open questions around the same knowledge object |
+| Comparing papers and forming a research judgment takes repeated manual work | Topic pages compare methods, results, and boundaries under a shared question while preserving consensus, single-paper claims, disagreements, and source evidence |
+| You worry AI output is padded or unreliable | Every claim must land on a page / figure / table / equation anchor, enforced by deterministic audits; sections stay empty when there is nothing of value |
+| A growing knowledge base becomes difficult to navigate and maintain | Deterministic scripts write incrementally, repeated runs create no duplicates, and the index, research dashboard, knowledge tree, and log stay maintained automatically |
+
+Cross-paper pages are created or updated when they have independent source support or a direct connection to existing knowledge. Material without cross-paper value remains in its Paper Card.
+
 ## Table Of Contents
 
-- [Runtime And Entry Points](#runtime-and-entry-points)
-- [What It Does](#what-it-does)
+- [Project Positioning](#project-positioning)
+- [Knowledge Loop](#knowledge-loop)
 - [Core Capabilities](#core-capabilities)
+- [Runtime And Entry Points](#runtime-and-entry-points)
 - [Relationship To Upstream nature-skills](#relationship-to-upstream-nature-skills)
 - [Design Reference](#design-reference)
 - [Quick Start](#quick-start)
@@ -53,35 +88,6 @@ This project supports two runtime hosts:
 - 🤖 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness): start a DSH session inside the vault directory — no Obsidian plugin required. See [adapters/dsh/](adapters/dsh/) for the adapter and orchestration mapping.
 
 Open a standalone vault initialized from `template/` in Obsidian, not this repository's root directory. The repository root also contains implementation files such as `vendor/`, `scripts/`, and `tests/`.
-
-## What It Does
-
-`wiki-paper-card` is designed for researchers who maintain a personal research Wiki over time. It separates the workflow into two stages: close reading of each paper, followed by cross-paper selection and connection of knowledge worth promoting.
-
-1. 📖 **Read papers**: each paper is independently read into a structured card — from bibliographic info, the research question, the core idea, method modules, and the experiment-to-claim evidence chain, through to conclusion boundaries, author-stated limitations, critical analysis, and testable research ideas; every key claim is anchored to a page, figure, table, or equation so it can be checked against the original.
-2. 🧠 **Crystallize knowledge**: after a batch completes, the project compares candidate concepts and entities across papers. A concept or entity hub page is created only when the same object is supported by at least two independent sources, or when it is directly needed to connect existing Wiki pages or answer an existing open question. Candidates seen in only one paper remain in that paper's Card.
-
-To keep detailed arguments available while making cross-paper comparison and retrieval easier, the project separates paper-level detail from cross-paper knowledge: Paper Cards keep the full record; concept and entity pages keep only stable definitions, source evidence, relations, and contradictions as thin hubs; topic pages carry comparison and synthesis. This keeps the Wiki searchable, comparable, and traceable as it grows.
-
-## Core Capabilities
-
-In short: **it turns papers you have "read" into knowledge you actually own and can reuse.** It solves the problems every long-term researcher runs into:
-
-| The problem you hit | How wiki-paper-card solves it |
-|---|---|
-| You finish a paper, then forget it and can't find it when writing a survey | Each paper becomes a structured card whose claims, formulas, and figures point back to the source for one-click verification |
-| Papers pile up and knowledge stays scattered and disconnected | It automatically connects corroborated evidence across papers into concept, entity, and topic pages — a growing knowledge graph |
-| You read a lot but never form your own judgment | Topic pages compare methods, evidence, and results across papers, marking consensus / conflict and keeping both sides of a disagreement |
-| You worry AI output is padded or unreliable | Every claim must land on a page / figure / table / equation anchor, enforced by deterministic audits; sections stay empty when there is nothing of value |
-| The knowledge base gets messy and tedious to maintain | Deterministic scripts write incrementally, repeated runs create no duplicates, and index / log stay maintained automatically |
-
-To keep only what survives repeated verification, page creation is gated by three tiers:
-
-| Tier | Meaning | Handling |
-|---|---|---|
-| L0 | A local name, component, or intermediate concept meaningful only in the current paper | Kept in the Paper Card; no standalone page |
-| L1 | Independently definable, but not yet supported by a second independent source | Kept in the Paper Card as a candidate |
-| L2 | Supported by at least two independent sources, or directly needed to connect existing Wiki pages or answer an existing open question | Creates or updates a concept/entity hub page |
 
 ## Relationship To Upstream nature-skills
 
@@ -238,9 +244,9 @@ The Agent creates missing vault directories, links the skills, merges `CLAUDE.md
 
 ## Workflow
 
-![Four-step workflow from papers to a research Wiki](assets/readme-workflow-en.svg)
+![Research loop from close reading to knowledge reuse](assets/readme-workflow-en.svg)
 
-From dropping in papers and reading them closely, to connecting evidence across papers and crystallizing a growing research Wiki. For the deterministic pipeline behind the scenes (prepare → finalize → audit → publish) and per-script details, see [docs/architecture.md](docs/architecture.md).
+New papers produce source-grounded Paper Cards; cross-paper evidence updates Concept, Entity, and Topic pages; indexes and the research dashboard stay synchronized; existing questions and research gaps guide later reading. For the deterministic pipeline behind the scenes (prepare → finalize → audit → publish) and per-script details, see [docs/architecture.md](docs/architecture.md).
 
 ## Output Layout
 
