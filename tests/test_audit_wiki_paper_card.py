@@ -54,7 +54,7 @@ def valid_card() -> str:
 
 def make_wiki_root(root: Path) -> Path:
     wiki = root / "wiki"
-    for directory in ("entities", "concepts", "topics", "sources"):
+    for directory in ("entities", "topics", "sources"):
         (wiki / directory).mkdir(parents=True)
     (wiki / "index.md").write_text("# Index\n", encoding="utf-8")
     (wiki / "log.md").write_text("# Log\n", encoding="utf-8")

@@ -10,7 +10,7 @@ This package is read only by `wiki-paper-card`.
 Before any wiki write:
 
 1. Read [references/wiki-schema.md](references/wiki-schema.md).
-2. Read [references/knowledge-model.md](references/knowledge-model.md) before deciding whether to create or update entity, concept, or topic pages.
+2. Read [references/knowledge-model.md](references/knowledge-model.md) before deciding whether to create or update entity or topic pages.
 
 When answering questions over the wiki, follow [references/retrieval-protocol.md](references/retrieval-protocol.md): start from the knowledge tree and descend by lookup or survey mode.
 

@@ -106,30 +106,6 @@ def page_notes(path: Path) -> list[str]:
     return notes
 
 
-def candidate_notes(candidates_path: Path) -> list[str]:
-    try:
-        text = candidates_path.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    notes: list[str] = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if (
-            not stripped.startswith("|")
-            or stripped.startswith("|---")
-            or stripped.startswith("| id")
-        ):
-            continue
-        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-        if len(cells) < 4 or not cells[0]:
-            continue
-        cid, name, kind, definition = cells[0], cells[1], cells[2], cells[3]
-        if not name:
-            continue
-        notes.append(f"{name}（{kind}）：{definition[:160]} [id: {cid}]")
-    return notes
-
-
 def entry_text(entry: dict[str, str]) -> str:
     return f"{entry['label']} {entry['description']}"
 
@@ -173,15 +149,15 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
         )[: max(0, max_pages)]
     ]
 
-    hub_entries = [
+    entity_entries = [
         entry
         for entry in entries
-        if entry["path"].startswith(("wiki/concepts/", "wiki/entities/"))
+        if entry["path"].startswith("wiki/entities/")
     ]
-    related_hubs = [
+    related_entities = [
         entry
         for _, entry in sorted(
-            score_entries(query, hub_entries, wiki_root, with_aliases=True),
+            score_entries(query, entity_entries, wiki_root, with_aliases=True),
             key=lambda pair: pair[0],
             reverse=True,
         )[: max(0, max_pages)]
@@ -200,13 +176,13 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
 
     all_scored = (
         score_entries(query, source_entries, wiki_root, with_aliases=False)
-        + score_entries(query, hub_entries, wiki_root, with_aliases=True)
+        + score_entries(query, entity_entries, wiki_root, with_aliases=True)
         + score_entries(query, topic_entries, wiki_root, with_aliases=True)
     )
     zero_overlap = bool(all_scored) and all(pair[0] == 0 for pair in all_scored)
 
     notes: list[str] = []
-    for entry in related_sources + related_hubs + related_topics:
+    for entry in related_sources + related_entities + related_topics:
         page_path = wiki_root / entry["path"]
         notes.extend(page_notes(page_path))
 
@@ -229,17 +205,9 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
         lines.extend(f"- {note}" for note in notes[:10])
         lines.append("")
 
-    candidate_list = candidate_notes(
-        wiki_root / "wiki" / "meta" / "research.md"
-    ) or candidate_notes(wiki_root / "wiki" / "meta" / "candidates.md")
-    if candidate_list:
-        lines.append("## 待升级 L1 候选")
-        lines.extend(f"- {note}" for note in candidate_list[:10])
-        lines.append("")
-
-    if related_hubs:
-        lines.append("## 已有概念与实体枢纽")
-        for entry in related_hubs:
+    if related_entities:
+        lines.append("## 已有实体")
+        for entry in related_entities:
             lines.append(
                 f"- [[{Path(entry['path']).stem}|{entry['label']}]] — {entry['description']}"
             )

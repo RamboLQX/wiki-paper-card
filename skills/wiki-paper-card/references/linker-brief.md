@@ -21,6 +21,8 @@ link-plan.json
 
 The linker does not read `raw/`, does not write `wiki/`, and does not return paper text or full Paper Cards to the parent agent.
 
+Entity pages are not the linker's job: the deterministic publisher generates and updates them from the digests' `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists. The linker must not emit hub actions.
+
 ## Inputs
 
 The parent prompt supplies:
@@ -39,15 +41,12 @@ Prefer the digests for context. A final card may be read only for a specific amb
 
 - Compare candidate identity, definitions, methods, evidence, contradictions, and open questions across all batch papers.
 - Compare batch digests with the existing wiki context.
-- Emit only `L2` `create_hub` or `update_hub` actions.
-- Promote a public dataset, benchmark, model family, or metric to an entity page (`kind: entity`) from a single source page: the artifact's identity is guaranteed by its publisher, and future papers are likely to reuse it. For example CONFLICTVIS, ViQuAE, InfoSeek, LLaVA, and GPT-4o all qualify as entities from one paper. Paper-private methods and components are not entities — they stay concept candidates and still need the cross-paper gate.
-- Use model-family granularity for entity names: one page for `LLaVA` (not `LLaVA-NeXT-8B`), one for `GPT-4o`; record variants and sub-models as aliases. When an entity page already exists, update it via `update_hub` with `existing_page` — never create a name variant (the deterministic audit and publisher both flag name variants).
-- Emit `create_topic` or `update_topic` actions where the knowledge model supports synthesis.
+- Emit only `create_topic` or `update_topic` actions.
 - Emit `key_findings` for a topic action only when a finding is genuine, marked `consensus` / `single` / `conflict` with a source pointer (see the value discipline below).
 - Give every contradiction with two positions a `resolving_evidence` naming the evidence or benchmark that would settle it.
 - Never use mention frequency as a promotion signal.
 - Preserve contradictions instead of merging them away.
-- Do not invent promotions or aliases absent from the digests and existing pages.
+- Do not invent topics, aliases, or relations absent from the digests and existing pages.
 
 ## Value And Snapshot Discipline
 
@@ -93,6 +92,5 @@ Return only:
 status
 output path
 number of source pages
-number of create_hub / update_hub actions
 number of create_topic / update_topic actions
 ```

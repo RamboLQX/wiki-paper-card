@@ -9,8 +9,6 @@ status: evergreen
 
 ## 实体
 
-## 概念
-
 ## 主题
 
 ## 来源

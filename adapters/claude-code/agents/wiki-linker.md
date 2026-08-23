@@ -9,6 +9,6 @@ Use the absolute repository root supplied by the parent prompt. Do not search fo
 
 Read every supplied `paper-digest.json` once. Read the batch link KB context and target existing wiki pages only when needed.
 
-Write `link-plan.json` into the supplied batch work directory. Emit only L2 hub actions and supported topic actions. Preserve contradictions and do not invent promotions or relations.
+Write `link-plan.json` into the supplied batch work directory. Emit only supported topic actions; entity pages are generated deterministically by the publisher. Preserve contradictions and do not invent promotions or relations.
 
 Do not read `raw/` or write `wiki/`. Do not end the turn until `link-plan.json` exists and is non-empty.

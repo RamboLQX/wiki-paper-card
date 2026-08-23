@@ -26,6 +26,6 @@ Force regeneration of an unchanged PDF:
 Use wiki-paper-card to reprocess raw/papers/example.pdf.
 ```
 
-A single paper creates its source page under `wiki/sources/`. New concept, entity, and topic pages are created or updated only when the cross-paper knowledge gates described in the main README are satisfied.
+A single paper creates its source page under `wiki/sources/`, and `publish_wiki.py` deterministically generates or updates entity stubs under `wiki/entities/` from the digest's public datasets, benchmarks, model families, and metrics. New topic pages are created or updated only when the cross-paper knowledge gates described in the main README are satisfied.
 
 The vault-level `CLAUDE.md` carries the runtime behavior rules for Claude Code and Claudian. The skill expects `raw/` to be read-only and writes generated pages under `wiki/`.

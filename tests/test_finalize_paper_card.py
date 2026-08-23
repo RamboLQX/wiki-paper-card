@@ -55,7 +55,7 @@ def finalizable_card() -> str:
 
 def make_wiki_root(root: Path) -> None:
     wiki = root / "wiki"
-    for name in ("entities", "concepts", "topics", "sources"):
+    for name in ("entities", "topics", "sources"):
         (wiki / name).mkdir(parents=True)
     (wiki / "index.md").write_text("# Index\n", encoding="utf-8")
     (wiki / "log.md").write_text("# Log\n", encoding="utf-8")

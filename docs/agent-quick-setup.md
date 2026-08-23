@@ -121,7 +121,7 @@ git clone "$REPO_URL" "$REPO_ROOT"
 
 ```bash
 mkdir -p "$VAULT_ROOT/raw/papers"
-mkdir -p "$VAULT_ROOT/wiki/sources" "$VAULT_ROOT/wiki/concepts" "$VAULT_ROOT/wiki/entities" "$VAULT_ROOT/wiki/topics" "$VAULT_ROOT/wiki/meta"
+mkdir -p "$VAULT_ROOT/wiki/sources" "$VAULT_ROOT/wiki/entities" "$VAULT_ROOT/wiki/topics" "$VAULT_ROOT/wiki/meta"
 mkdir -p "$VAULT_ROOT/work"
 ```
 
@@ -181,7 +181,6 @@ python3 "$REPO_ROOT/scripts/smoke_test.py"
 ```bash
 test -d "$VAULT_ROOT/raw/papers"
 test -d "$VAULT_ROOT/wiki/sources"
-test -d "$VAULT_ROOT/wiki/concepts"
 test -d "$VAULT_ROOT/wiki/entities"
 test -d "$VAULT_ROOT/wiki/topics"
 test -f "$VAULT_ROOT/CLAUDE.md"

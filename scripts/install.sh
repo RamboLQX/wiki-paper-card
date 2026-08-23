@@ -75,7 +75,7 @@ report_conflict() {
 
 # 1. Vault directory skeleton.
 mkdir -p "$VAULT/raw/papers"
-mkdir -p "$VAULT/wiki/sources" "$VAULT/wiki/concepts" "$VAULT/wiki/entities" \
+mkdir -p "$VAULT/wiki/sources" "$VAULT/wiki/entities" \
          "$VAULT/wiki/topics" "$VAULT/wiki/meta" "$VAULT/work"
 
 # 2. No-clobber copy of template wiki files.

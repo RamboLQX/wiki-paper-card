@@ -47,7 +47,7 @@ def build_card() -> str:
 
 def build_digest() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "paper": {
             "title": "Smoke Paper",
             "source_sha256": "a" * 64,
@@ -67,14 +67,13 @@ def build_digest() -> dict:
             "critical_observations": [],
             "open_questions": [],
         },
-        "candidates": [],
         "topic_seeds": [],
     }
 
 
 def build_link_plan() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "batch": {
             "source_pages": [
                 {
@@ -84,7 +83,6 @@ def build_link_plan() -> dict:
                 }
             ]
         },
-        "hub_actions": [],
         "topic_actions": [],
     }
 
@@ -96,7 +94,6 @@ def main() -> int:
         required_dirs = [
             root / "raw" / "papers",
             root / "wiki" / "entities",
-            root / "wiki" / "concepts",
             root / "wiki" / "topics",
             root / "wiki" / "sources",
         ]

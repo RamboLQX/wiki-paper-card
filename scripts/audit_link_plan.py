@@ -11,11 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-ALLOWED_KINDS = {"concept", "entity"}
-ALLOWED_HUB_ACTIONS = {"create_hub", "update_hub"}
 ALLOWED_TOPIC_ACTIONS = {"create_topic", "update_topic"}
-ALLOWED_PROVENANCE = {"Paper", "External", "Analysis", "Hypothesis", "User"}
-ALLOWED_CONFIDENCE = {"high", "medium", "low"}
 
 
 def normalize_page_name(value: str) -> str:
@@ -72,157 +68,10 @@ def require_list(
     return value
 
 
-def audit_pointer(pointer: str) -> bool:
-    return isinstance(pointer, str) and pointer.startswith(("[Paper:", "[External:"))
-
-
 def string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
-
-
-def audit_hub_action(
-    action: dict[str, Any],
-    batch_refs: set[str],
-    target_names: set[str],
-    normalized_names: dict[str, str],
-) -> list[dict[str, Any]]:
-    findings: list[dict[str, Any]] = []
-    label = f"hub action {action.get('id') or action.get('name') or '<unnamed>'}"
-    action_type = require_string(action, "action", findings, label)
-    kind = require_string(action, "kind", findings, label)
-    tier = require_string(action, "tier", findings, label)
-    require_string(action, "id", findings, label)
-    name = require_string(action, "name", findings, label)
-    require_string(action, "definition", findings, label)
-
-    if action_type not in ALLOWED_HUB_ACTIONS:
-        findings.append(finding("error", "hub_action", f"{label} has invalid action.", action=action_type))
-    if kind not in ALLOWED_KINDS:
-        findings.append(finding("error", "hub_kind", f"{label} has invalid kind.", kind=kind))
-    if tier != "L2":
-        findings.append(finding("error", "hub_tier", f"{label} must use L2.", tier=tier))
-    if name and name in target_names:
-        findings.append(finding("error", "duplicate_target", f"{label} duplicates target page {name}.", name=name))
-    elif name:
-        target_names.add(name)
-        key = normalize_page_name(name)
-        if key:
-            variant = None
-            for existing_key, existing_name in normalized_names.items():
-                if existing_name == name:
-                    continue
-                short = min(len(key), len(existing_key))
-                if short < 3:
-                    continue
-                if key == existing_key or key.startswith(existing_key) or existing_key.startswith(key):
-                    variant = existing_name
-                    break
-            if variant:
-                findings.append(
-                    finding(
-                        "warning",
-                        "hub_name_variant",
-                        f"{label} name resembles {variant}; merge them into one hub action instead of creating a name variant.",
-                        name=name,
-                        existing=variant,
-                    )
-                )
-            else:
-                normalized_names.setdefault(key, name)
-
-    source_refs = set(string_list(action.get("source_refs")))
-    unknown_refs = sorted(source_refs - batch_refs)
-    if unknown_refs:
-        findings.append(
-            finding(
-                "error",
-                "unknown_source_refs",
-                f"{label} references sources outside the current batch.",
-                source_refs=unknown_refs,
-            )
-        )
-    if action_type == "create_hub":
-        if kind == "entity":
-            if len(source_refs) < 1:
-                findings.append(
-                    finding(
-                        "error",
-                        "cross_source",
-                        "create_hub (entity) requires at least one source page.",
-                        source_refs=sorted(source_refs),
-                    )
-                )
-        elif len(source_refs) < 2 and action.get("connect_existing") is not True:
-            findings.append(
-                finding(
-                    "error",
-                    "cross_source",
-                    "create_hub requires two distinct source pages or connect_existing.",
-                    source_refs=sorted(source_refs),
-                )
-            )
-    elif action_type == "update_hub":
-        if action.get("connect_existing") is not True and not string_list([action.get("existing_page")]):
-            findings.append(
-                finding(
-                    "error",
-                    "existing_page",
-                    "update_hub requires connect_existing or existing_page.",
-                )
-            )
-
-    evidence = action.get("evidence", [])
-    if not isinstance(evidence, list) or not evidence:
-        findings.append(finding("error", "evidence", f"{label} must have at least one evidence row."))
-    else:
-        for index, row in enumerate(evidence, start=1):
-            if not isinstance(row, dict):
-                findings.append(finding("error", "evidence_row", f"{label} evidence row {index} must be an object."))
-                continue
-            source_ref = require_string(row, "source_ref", findings, f"{label} evidence row {index}")
-            if source_ref and source_ref not in batch_refs:
-                findings.append(
-                    finding(
-                        "error",
-                        "evidence_source",
-                        f"{label} evidence row {index} must reference a batch source page.",
-                        source_ref=source_ref,
-                    )
-                )
-            if not audit_pointer(row.get("pointer", "")):
-                findings.append(
-                    finding(
-                        "error",
-                        "evidence_pointer",
-                        f"{label} evidence row {index} must define a valid pointer.",
-                        pointer=row.get("pointer"),
-                    )
-                )
-            require_string(row, "claim", findings, f"{label} evidence row {index}")
-
-    relations = action.get("relations", [])
-    if isinstance(relations, list) and relations:
-        findings.append(
-            finding(
-                "warning",
-                "relations_deprecated",
-                f"{label} carries relations; the field is removed. Express connectivity with wikilinks in the definition instead.",
-                count=len(relations),
-            )
-        )
-
-    open_questions = action.get("open_questions", [])
-    if isinstance(open_questions, list) and string_list(open_questions):
-        findings.append(
-            finding(
-                "warning",
-                "hub_open_questions_ignored",
-                f"{label} carries open_questions; hub pages do not render them. Record the question on a topic page instead.",
-            )
-        )
-    return findings
 
 
 def audit_topic_action(action: dict[str, Any], batch_refs: set[str], target_names: set[str]) -> list[dict[str, Any]]:
@@ -320,12 +169,12 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     if not isinstance(plan, dict):
         return {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "summary": {"status": "fail", "passes": 0, "warnings": 0, "errors": 1},
             "metrics": {},
             "findings": [finding("error", "top_level", "Link plan must be a JSON object.")],
         }
-    if plan.get("schema_version") != "1.0":
+    if plan.get("schema_version") != "2.0":
         findings.append(finding("error", "schema_version", "Unsupported link plan schema version."))
 
     batch = plan.get("batch", {})
@@ -343,15 +192,17 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
     if not batch_refs:
         findings.append(finding("error", "batch", "Link plan must define at least one batch source page."))
 
-    target_names: set[str] = set()
-    normalized_names: dict[str, str] = {}
-    hub_actions = require_list(plan, "hub_actions", findings, "link plan")
-    for action in hub_actions:
-        if not isinstance(action, dict):
-            findings.append(finding("error", "hub_action", "Each hub action must be an object."))
-            continue
-        findings.extend(audit_hub_action(action, batch_refs, target_names, normalized_names))
+    if plan.get("hub_actions"):
+        findings.append(
+            finding(
+                "error",
+                "hub_actions_removed",
+                "Link plan must not carry hub_actions: entity pages are generated deterministically by the publisher from the batch digests.",
+                count=len(plan.get("hub_actions")),
+            )
+        )
 
+    target_names: set[str] = set()
     topic_actions = require_list(plan, "topic_actions", findings, "link plan")
     for action in topic_actions:
         if not isinstance(action, dict):
@@ -360,7 +211,7 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
         findings.extend(audit_topic_action(action, batch_refs, target_names))
 
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "summary": {
             "status": "fail"
             if any(item["level"] == "error" for item in findings)
@@ -371,7 +222,6 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
         },
         "metrics": {
             "source_pages": len(batch_refs),
-            "hub_actions": len(hub_actions),
             "topic_actions": len(topic_actions),
         },
         "findings": findings,

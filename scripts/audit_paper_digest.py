@@ -10,22 +10,6 @@ from pathlib import Path
 from typing import Any
 
 
-ALLOWED_KINDS = {"concept", "entity"}
-ALLOWED_TIERS = {"L0", "L1", "L2"}
-ALLOWED_GATES = {1, 2, 3, 4, 5}
-ALLOWED_RELATION_TYPES = {
-    "defines",
-    "uses",
-    "extends",
-    "implements",
-    "derived_from",
-    "supports",
-    "contradicts",
-    "same_as",
-    "is_instance_of",
-    "applied_to",
-}
-ALLOWED_PROVENANCE = {"Paper", "External", "Analysis", "Hypothesis", "User"}
 ALLOWED_CONFIDENCE = {"high", "medium", "low"}
 MAX_DIGEST_BYTES = 8000
 
@@ -83,122 +67,6 @@ def audit_pointer(pointer: str) -> bool:
     return isinstance(pointer, str) and pointer.startswith(("[Paper:", "[External:"))
 
 
-def audit_candidate(
-    candidate: dict[str, Any],
-    current_source_ref: str,
-) -> list[dict[str, Any]]:
-    findings: list[dict[str, Any]] = []
-    label = f"candidate {candidate.get('id') or candidate.get('name') or '<unnamed>'}"
-
-    kind = require_string(candidate, "kind", findings, label)
-    tier = require_string(candidate, "tier", findings, label)
-    definition = require_string(candidate, "definition", findings, label)
-    require_string(candidate, "id", findings, label)
-    require_string(candidate, "name", findings, label)
-
-    if kind and kind not in ALLOWED_KINDS:
-        findings.append(finding("error", "kind", f"{label} has invalid kind.", kind=kind))
-    if tier and tier not in ALLOWED_TIERS:
-        findings.append(finding("error", "tier", f"{label} has invalid tier.", tier=tier))
-
-    source_refs = require_list(candidate, "source_refs", findings, label)
-    valid_refs = [ref for ref in source_refs if isinstance(ref, str) and ref.strip()]
-    if current_source_ref and current_source_ref not in valid_refs:
-        findings.append(
-            finding(
-                "error",
-                "current_source_missing",
-                f"{label} must include the current source page.",
-                source_ref=current_source_ref,
-                source_refs=valid_refs,
-            )
-        )
-
-    passed_gates = candidate.get("passed_gates", [])
-    if not isinstance(passed_gates, list) or len(passed_gates) < 3:
-        findings.append(
-            finding(
-                "error",
-                "gates",
-                f"{label} must pass at least three gates.",
-                found=passed_gates,
-            )
-        )
-    else:
-        invalid_gates = sorted(set(passed_gates) - ALLOWED_GATES)
-        if invalid_gates:
-            findings.append(
-                finding(
-                    "error",
-                    "gate_values",
-                    f"{label} contains invalid gate numbers.",
-                    invalid=invalid_gates,
-                )
-            )
-
-    evidence = candidate.get("evidence", [])
-    if not isinstance(evidence, list) or not evidence:
-        findings.append(finding("error", "evidence", f"{label} must have at least one evidence row."))
-    else:
-        for index, row in enumerate(evidence, start=1):
-            if not isinstance(row, dict):
-                findings.append(finding("error", "evidence_row", f"{label} evidence row {index} must be an object."))
-                continue
-            if not require_string(row, "pointer", findings, f"{label} evidence row {index}"):
-                pass
-            elif not audit_pointer(row["pointer"]):
-                findings.append(
-                    finding(
-                        "error",
-                        "evidence_pointer",
-                        f"{label} evidence row {index} has an invalid pointer.",
-                        pointer=row.get("pointer"),
-                    )
-                )
-            require_string(row, "claim", findings, f"{label} evidence row {index}")
-
-    relations = require_list(candidate, "relations", findings, label)
-    for index, relation in enumerate(relations, start=1):
-        if not isinstance(relation, dict):
-            findings.append(finding("error", "relation_row", f"{label} relation {index} must be an object."))
-            continue
-        relation_type = relation.get("type")
-        if relation_type not in ALLOWED_RELATION_TYPES:
-            findings.append(
-                finding("error", "relation_type", f"{label} relation {index} has invalid type.", type=relation_type)
-            )
-        require_string(relation, "target", findings, f"{label} relation {index}")
-        if not audit_pointer(relation.get("pointer", "")):
-            findings.append(
-                finding(
-                    "error",
-                    "relation_pointer",
-                    f"{label} relation {index} must define a valid pointer.",
-                    pointer=relation.get("pointer"),
-                )
-            )
-        if relation.get("provenance") not in ALLOWED_PROVENANCE:
-            findings.append(
-                finding(
-                    "error",
-                    "relation_provenance",
-                    f"{label} relation {index} has invalid provenance.",
-                    provenance=relation.get("provenance"),
-                )
-            )
-        if relation.get("confidence") not in ALLOWED_CONFIDENCE:
-            findings.append(
-                finding(
-                    "error",
-                    "relation_confidence",
-                    f"{label} relation {index} has invalid confidence.",
-                    confidence=relation.get("confidence"),
-                )
-            )
-
-    return findings
-
-
 def audit_topic_seed(topic: dict[str, Any], current_source_ref: str) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     label = f"topic seed {topic.get('id') or topic.get('name') or '<unnamed>'}"
@@ -225,13 +93,13 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     if not isinstance(digest, dict):
         return {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "summary": {"status": "fail", "passes": 0, "warnings": 0, "errors": 1},
             "metrics": {},
             "findings": [finding("error", "top_level", "Paper digest must be a JSON object.")],
         }
 
-    if digest.get("schema_version") != "1.0":
+    if digest.get("schema_version") != "2.0":
         findings.append(finding("error", "schema_version", "Unsupported paper digest schema version."))
 
     paper = digest.get("paper", {})
@@ -297,12 +165,15 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
                         )
                     )
 
-    candidates = require_list(digest, "candidates", findings, "paper digest")
-    for candidate in candidates:
-        if not isinstance(candidate, dict):
-            findings.append(finding("error", "candidate", "Each candidate must be an object."))
-            continue
-        findings.extend(audit_candidate(candidate, current_source_ref))
+    if digest.get("candidates"):
+        findings.append(
+            finding(
+                "error",
+                "candidates_removed",
+                "Paper digest must not carry candidates: entity stubs are generated deterministically from analysis.datasets/models/metrics.",
+                count=len(digest.get("candidates")),
+            )
+        )
 
     topic_seeds = require_list(digest, "topic_seeds", findings, "paper digest")
     for topic in topic_seeds:
@@ -312,7 +183,7 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
         findings.extend(audit_topic_seed(topic, current_source_ref))
 
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "summary": {
             "status": "fail"
             if any(item["level"] == "error" for item in findings)
@@ -322,7 +193,6 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
             "errors": sum(item["level"] == "error" for item in findings),
         },
         "metrics": {
-            "candidates": len(candidates),
             "topic_seeds": len(topic_seeds),
         },
         "findings": findings,

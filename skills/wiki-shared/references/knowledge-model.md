@@ -2,79 +2,28 @@
 
 ## Goal
 
-The source Paper Card is the detailed record. Wiki concept and entity pages are thin cross-paper hubs. Topic pages carry comparison, synthesis, conflicts, and open questions.
+The source Paper Card is the detailed record. Topic pages carry comparison, synthesis, conflicts, and open questions. Entity pages are thin deterministic stubs that aggregate which papers use a public artifact.
 
-Do not create a page just because a term can be extracted from one paper. Create a page when doing so makes later papers easier to connect and compare.
+Do not create a page just because a term can be extracted from one paper. Create a topic page when doing so makes later papers easier to connect and compare.
 
-## Tiers
+## Local Records
 
-### L0 Local Candidate
+Terms, methods, mechanisms, frameworks, and model components stay local to the Paper Card:
 
-- Valuable only inside the current paper.
-- Paper-specific component, label, or intermediate concept.
-- Not independently reusable.
+- Valuable only inside the current paper: keep in Section 14 or a local table.
+- Reusable but not yet cross-paper verified: keep the definition, evidence, and proposed relations in Sections 14-15 of the source Paper Card.
 
-Action: keep in Section 14 or a local table. Do not create a wiki page.
+There are no standalone concept pages and no promotion ladder. Cross-paper synthesis happens on topic pages; the Paper Card keeps the paper-local record.
 
-### L1 Reusable Candidate
+## Entity Stubs
 
-- Has a stable identity and evidence.
-- Can be defined without the current paper's narrative.
-- Not yet supported by a second independent source.
+Entity pages record public reusable artifacts — datasets, benchmarks, model families, and metrics — whose identity is guaranteed by their publisher. The deterministic `publish_wiki.py` generates and updates them from the batch digests' `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists:
 
-Action: keep the definition, evidence, and proposed relations in the source Paper Card. Do not create a standalone concept or entity page yet.
+- The publisher normalizes names, merges name variants into one page (the shorter raw name becomes the page title, other spellings become aliases), and appends the current source pages to the `## 引用来源` list.
+- An entity stub carries only: frontmatter, the page title, aliases, and source links. Definitions, evidence, and evaluations live in the source Paper Cards.
+- Models mentioned only inside one paper's evaluation table without a public identity (for example a one-off checkpoint) stay local and must not be listed under `analysis.models`.
 
-### L2 Cross-Paper Hub
-
-- Supported by at least two independent source pages, or directly required to connect existing wiki pages or an existing open question.
-- Definition is stable enough for cross-paper retrieval.
-- Expected to accumulate contradictions or be referenced by future pages.
-
-Entities are exempt from the two-source requirement: a public dataset, benchmark, model family, or metric has its identity guaranteed by its publisher, so a single source page is enough to create its entity page. Paper-private methods and components are not entities and still need the cross-paper gate.
-
-Action: create or update a thin concept or entity page with `status: stub`.
-
-A hub page becomes `evergreen` only after:
-
-- multiple independent sources support it;
-- aliases and identity are stable;
-- other pages reference it as a navigation target;
-- no unresolved conflict blocks its use as a common reference.
-
-## Hub Promotion Gates
-
-Create or update a concept or entity page only when all of the following are true:
-
-1. Identity is stable, not a one-off local name.
-2. The candidate can be defined without the current paper's narrative.
-3. At least one `[Paper]` or `[External]` source supports it.
-4. At least two independent source pages support it, or the page is required to connect existing pages or an existing open question.
-5. It is likely to interact with future sources.
-
-Mention count is not a gate. An L1 candidate remains local until gate 4 is met.
-
-## Hub Page Content
-
-A concept or entity page must stay a navigation and identity hub, not a second Paper Card:
-
-```text
-frontmatter
-one-sentence definition (connectivity as wikilinks in the prose)
-aliases
-contradictions
-source links (引用来源)
-```
-
-Keep implementation details, ablations, long result tables, per-source evidence rows, and open questions out of hub pages: evidence lives in the source Paper Cards and topic comparison tables; open questions live on topic pages (only topic questions are aggregated into the knowledge tree and research dashboard). The link plan still carries `evidence` rows for a hub action as admission proof — the deterministic audit checks them, but the publisher does not render them.
-
-### Entity Page Criteria
-
-An entity page records a public reusable artifact — a dataset, benchmark, model family, metric, or reusable method — that:
-
-- is a public external resource whose identity is guaranteed by its publisher (a single source page is enough),
-- is expected to be referenced by future papers.
-
-Models mentioned only inside one paper's evaluation table without a public identity (for example a one-off checkpoint) stay L0/L1 and are not promoted.
+No LLM decides entity pages; the publisher is the only writer. Paper-private methods and components are not entities.
 
 ## Topic Pages
 
@@ -91,12 +40,7 @@ Research gaps and open questions are snapshots of the current corpus. Record a g
 
 ## Cross-Page Connectivity
 
-Hub pages do not carry typed relation tables. Connectivity between concepts
-and entities is expressed as wikilinks inside the definition prose (for
-example `（见 [[多模态知识冲突]]）`), which Obsidian's backlinks and graph
-already surface. Contradictions between pages are recorded explicitly in the
-`## 争议与矛盾` section of the hub page or the `## 争议与不确定` section of a
-topic page.
+Connectivity between sources, topics, and entities is expressed as wikilinks inside prose and tables, which Obsidian's backlinks and graph already surface. Contradictions between papers are recorded explicitly in the `## 争议与不确定` section of a topic page.
 
 ## Existing Page Updates
 
@@ -109,23 +53,18 @@ Before writing:
 5. Add the current source report link once.
 6. Preserve existing contradictions; add a new entry instead of overwriting.
 
-## Aliases And Merges
-
-- Use the shared terminology ledger for canonical names.
-- Add synonyms to `aliases`.
-- When two existing pages describe the same object, propose a merge; do not silently delete either page.
-
 ## Contradictions
 
 When a new source conflicts with existing knowledge:
 
 1. Keep both positions.
-2. Add or update a `## 争议与矛盾` section.
+2. Add or update a `## 争议与不确定` section on the topic page.
 3. Record the source pointer for each position.
 4. State what evidence would resolve the conflict.
 
 ## Retirement
 
 - Do not automatically delete pages.
+- Legacy `wiki/concepts/` pages are no longer written or updated by the publisher; mark them `archived` or leave them as read-only references.
 - Weak or abandoned nodes become `status: stub` or `archived`.
 - Index and log record the state change.

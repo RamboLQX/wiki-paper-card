@@ -22,7 +22,7 @@ SPEC.loader.exec_module(LINK_AUDIT)
 
 def valid_link_plan() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "batch": {
             "source_pages": [
                 {
@@ -37,35 +37,6 @@ def valid_link_plan() -> dict:
                 },
             ]
         },
-        "hub_actions": [
-            {
-                "action": "create_hub",
-                "id": "hub-1",
-                "name": "Shared Concept",
-                "kind": "concept",
-                "tier": "L2",
-                "aliases": [],
-                "definition": "A concept supported by both papers.",
-                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
-                "connect_existing": False,
-                "existing_page": None,
-                "evidence": [
-                    {
-                        "source_ref": "wiki/sources/a.md",
-                        "pointer": "[Paper: PDF p. 3, Fig. 1]",
-                        "claim": "Paper A reports the concept.",
-                    },
-                    {
-                        "source_ref": "wiki/sources/b.md",
-                        "pointer": "[Paper: PDF p. 4, Fig. 2]",
-                        "claim": "Paper B reports the concept.",
-                    },
-                ],
-                "relations": [],
-                "contradictions": [],
-                "open_questions": [],
-            }
-        ],
         "topic_actions": [
             {
                 "action": "create_topic",
@@ -97,24 +68,20 @@ class LinkPlanAuditTests(unittest.TestCase):
         self.assertEqual(report["summary"]["errors"], 0)
         self.assertEqual(report["summary"]["status"], "pass")
 
-    def test_create_hub_requires_two_sources(self) -> None:
+    def test_hub_actions_are_rejected(self) -> None:
         plan = valid_link_plan()
-        plan["hub_actions"][0]["source_refs"] = ["wiki/sources/a.md"]
+        plan["hub_actions"] = [
+            {
+                "action": "create_hub",
+                "id": "hub-1",
+                "name": "Shared Concept",
+                "kind": "concept",
+            }
+        ]
         report = LINK_AUDIT.audit(plan)
-        self.assertTrue(any(item["code"] == "cross_source" for item in report["findings"]))
-
-    def test_connect_existing_satisfies_cross_source_rule(self) -> None:
-        plan = valid_link_plan()
-        plan["hub_actions"][0]["source_refs"] = ["wiki/sources/a.md"]
-        plan["hub_actions"][0]["connect_existing"] = True
-        report = LINK_AUDIT.audit(plan)
-        self.assertEqual(report["summary"]["errors"], 0)
-
-    def test_non_l2_hub_action_fails(self) -> None:
-        plan = valid_link_plan()
-        plan["hub_actions"][0]["tier"] = "L1"
-        report = LINK_AUDIT.audit(plan)
-        self.assertTrue(any(item["code"] == "hub_tier" for item in report["findings"]))
+        self.assertTrue(
+            any(item["code"] == "hub_actions_removed" for item in report["findings"])
+        )
 
     def test_create_topic_requires_two_papers(self) -> None:
         plan = valid_link_plan()
@@ -124,12 +91,12 @@ class LinkPlanAuditTests(unittest.TestCase):
 
     def test_unknown_source_fails(self) -> None:
         plan = valid_link_plan()
-        plan["hub_actions"][0]["source_refs"] = [
+        plan["topic_actions"][0]["papers"] = [
             "wiki/sources/a.md",
             "wiki/sources/outside.md",
         ]
         report = LINK_AUDIT.audit(plan)
-        self.assertTrue(any(item["code"] == "unknown_source_refs" for item in report["findings"]))
+        self.assertTrue(any(item["code"] == "unknown_topic_papers" for item in report["findings"]))
 
     def test_topic_without_key_findings_passes_cleanly(self) -> None:
         plan = valid_link_plan()
@@ -160,70 +127,3 @@ class LinkPlanAuditTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["summary"]["status"], "pass")
-
-
-    def test_create_entity_hub_needs_only_one_source(self) -> None:
-        plan = valid_link_plan()
-        plan["hub_actions"][0]["kind"] = "entity"
-        plan["hub_actions"][0]["source_refs"] = ["wiki/sources/a.md"]
-        report = LINK_AUDIT.audit(plan)
-        self.assertEqual(report["summary"]["errors"], 0)
-
-    def test_create_entity_hub_without_sources_fails(self) -> None:
-        plan = valid_link_plan()
-        plan["hub_actions"][0]["kind"] = "entity"
-        plan["hub_actions"][0]["source_refs"] = []
-        report = LINK_AUDIT.audit(plan)
-        self.assertTrue(
-            any(item["code"] == "cross_source" for item in report["findings"])
-        )
-
-    def test_name_variant_warns_within_plan(self) -> None:
-        plan = valid_link_plan()
-        plan["hub_actions"].append(
-            {
-                "action": "create_hub",
-                "id": "hub-2",
-                "name": "Shared Concept（扩展名）",
-                "kind": "concept",
-                "tier": "L2",
-                "aliases": [],
-                "definition": "A variant name for the same concept.",
-                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
-                "connect_existing": False,
-                "existing_page": None,
-                "evidence": [
-                    {
-                        "source_ref": "wiki/sources/a.md",
-                        "pointer": "[Paper: PDF p. 1]",
-                        "claim": "Paper A reports the concept.",
-                    }
-                ],
-                "contradictions": [],
-                "open_questions": [],
-            }
-        )
-        report = LINK_AUDIT.audit(plan)
-        self.assertTrue(
-            any(item["code"] == "hub_name_variant" for item in report["findings"])
-        )
-        self.assertEqual(report["summary"]["errors"], 0)
-
-    def test_relations_field_is_deprecated(self) -> None:
-        plan = valid_link_plan()
-        plan["hub_actions"][0]["relations"] = [
-            {
-                "type": "extends",
-                "target": "Other",
-                "pointer": "[Paper: PDF p. 1]",
-                "provenance": "Paper",
-                "confidence": "medium",
-            }
-        ]
-        report = LINK_AUDIT.audit(plan)
-        self.assertTrue(
-            any(item["code"] == "relations_deprecated" for item in report["findings"])
-        )
-        self.assertEqual(report["summary"]["errors"], 0)
-
-

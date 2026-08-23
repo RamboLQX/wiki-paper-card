@@ -2,6 +2,20 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.4.0] - 2026-08-24
+
+### 移除
+
+- **concepts 层与升级门**：不再有 concept 页面，不再有 L0/L1/L2 候选分层与升级门；论文私有术语、组件与一次性命名保留在 Paper Card 的 Section 14/15，不建独立页面。已有 vault 中的旧 concept 页面不再被写入或更新，knowledge-tree 不再列出，可标记 `archived` 或保留为只读参考。
+
+### 变更
+
+- **实体页确定性生成**：`publish_wiki.py` 从每批论文 digest 的 `analysis.datasets`、`analysis.models`、`analysis.metrics` 提取公共数据集/基准/模型族/指标，归一化名称、合并变体（最短原始名做页面标题，其余拼写进 aliases），新建 stub 或向已有页面追加"引用来源"wikilinks；实体页只含 frontmatter、标题、固定说明、别名与引用来源，零 LLM 参与，重跑幂等。
+- **link-plan.json 与 paper-digest.json 的 schema_version 升至 2.0**：移除 `hub_actions` 与 `candidates` 字段，audit 对残留字段报错。
+- **linker 只做 topic 决策**：wiki-linker 子代理只产出 topic actions（`create_topic`/`update_topic`），不再做 hub 决策。
+- **研究仪表盘去 L1 台账**：`wiki/meta/research.md` 只聚合开放问题与研究空白；knowledge-tree 按领域分组，包含论文、主题、实体、开放问题与研究空白。
+- topic 页"相关实体与概念"节改名为"相关实体"。
+
 ## [0.3.0] - 2026-08-23
 
 ### 新增

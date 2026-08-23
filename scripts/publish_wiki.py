@@ -173,15 +173,12 @@ def render_backlinks(entries: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def related_hub_names(papers: set[str], hub_actions: Any) -> list[str]:
+def related_entity_names(papers: set[str], entity_source_links: dict[str, list[str]]) -> list[str]:
+    """Entity page stems that cite at least one paper of a topic action."""
     names: list[str] = []
-    for action in hub_actions:
-        if not isinstance(action, dict):
-            continue
-        if set(string_list(action.get("source_refs"))) & papers:
-            name = action.get("name", "")
-            if name:
-                names.append(name)
+    for stem, source_refs in entity_source_links.items():
+        if set(source_refs) & papers:
+            names.append(stem)
     return names
 
 
@@ -231,38 +228,58 @@ def render_contradictions(items: Any, titles: dict[str, str]) -> list[str]:
     return lines
 
 
-def hub_page_text(
-    action: dict[str, Any],
+def entity_source_line(source_ref: str, titles: dict[str, str]) -> str:
+    return f"- {wiki_link(source_ref, source_label(source_ref, titles))}"
+
+
+def entity_stub_text(
+    name: str,
+    aliases: list[str],
+    source_refs: list[str],
     titles: dict[str, str],
     today: str,
     created: str,
 ) -> str:
-    sources = string_list(action.get("source_refs"))
-    aliases = string_list(action.get("aliases"))
     frontmatter = render_frontmatter(
-        [action.get("kind") or "concept"],
+        ["entity"],
         created,
         today,
         "stub",
-        sources=sources,
+        sources=source_refs,
         aliases=aliases,
     )
     lines = [
         frontmatter.rstrip(),
-        f"# {action.get('name', '')}",
+        f"# {name}",
         "",
-        action.get("definition", ""),
+        "> 本页由 publish_wiki.py 确定性生成，只聚合引用本实体的论文；定义与评价见各来源论文页。",
         "",
         "## 别名",
         "",
     ]
     lines.extend(f"- {alias}" for alias in aliases)
-    lines.extend(["", "## 争议与矛盾", ""])
-    lines.extend(render_contradictions(action.get("contradictions", []), titles))
-    lines.extend(["## 引用来源", ""])
-    for source_ref in sources:
-        lines.append(f"- {wiki_link(source_ref, source_label(source_ref, titles))}")
+    lines.extend(["", "## 引用来源", ""])
+    for source_ref in source_refs:
+        lines.append(entity_source_line(source_ref, titles))
     return "\n".join(lines).rstrip() + "\n"
+
+
+def merge_entity_stub(
+    existing_text: str,
+    aliases: list[str],
+    source_refs: list[str],
+    titles: dict[str, str],
+    today: str,
+) -> str:
+    fields, lists, body = parse_frontmatter(existing_text)
+    fields, lists = merge_frontmatter_sets(fields, lists, source_refs, aliases, today)
+    additions = missing_lines(
+        [entity_source_line(ref, titles) for ref in source_refs],
+        section_body(body, "引用来源"),
+    )
+    if additions:
+        body = insert_before_next_section(body, "引用来源", additions)
+    return rebuild_page(fields, lists, body, "entity")
 
 
 def comparison_paper_name(item: dict[str, Any], titles: dict[str, str]) -> str:
@@ -414,7 +431,7 @@ def topic_page_text(
     titles: dict[str, str],
     today: str,
     created: str,
-    related_hubs: list[str] | None = None,
+    related_entities: list[str] | None = None,
     short_names: dict[str, str] | None = None,
 ) -> str:
     sources = string_list(action.get("papers"))
@@ -447,8 +464,8 @@ def topic_page_text(
     lines.extend(render_key_findings(action.get("key_findings", []), titles, short_names))
     lines.extend(["## 争议与不确定", ""])
     lines.extend(render_contradictions(action.get("contradictions", []), titles))
-    lines.extend(["## 相关实体与概念", ""])
-    for name in related_hubs or []:
+    lines.extend(["## 相关实体", ""])
+    for name in related_entities or []:
         lines.append(f"- [[{name}|{name}]]")
     lines.extend(["", "## 开放问题", ""])
     for question in string_list(action.get("open_questions")):
@@ -567,50 +584,12 @@ def rebuild_page(
     return frontmatter + body.lstrip("\n")
 
 
-DEFINITION_RE = re.compile(r"(?ms)^(#\s+[^\n]*\n\n)(.*?)(?=\n##\s|\Z)")
-
-
-def replace_definition(body: str, definition: str) -> str:
-    """Replace the definition paragraph right after the H1 when it differs.
-
-    `update_hub` may carry a refreshed definition; the publisher applies it to
-    the template-defined definition slot instead of silently dropping it.
-    """
-    match = DEFINITION_RE.search(body)
-    if not match:
-        return body
-    current = match.group(2).strip()
-    if current == definition:
-        return body
-    return body[: match.start(2)] + definition + "\n" + body[match.end(2) :]
-
-
-def merge_hub_page(existing_text: str, action: dict[str, Any], titles: dict[str, str], today: str) -> str:
-    fields, lists, body = parse_frontmatter(existing_text)
-    definition = str(action.get("definition", "")).strip()
-    if definition:
-        body = replace_definition(body, definition)
-    body = insert_before_next_section(
-        body,
-        "争议与矛盾",
-        render_contradictions(action.get("contradictions", []), titles),
-    )
-    fields, lists = merge_frontmatter_sets(
-        fields,
-        lists,
-        string_list(action.get("source_refs")),
-        string_list(action.get("aliases")),
-        today,
-    )
-    return rebuild_page(fields, lists, body, action.get("kind") or "concept")
-
-
 def merge_topic_page(
     existing_text: str,
     action: dict[str, Any],
     titles: dict[str, str],
     today: str,
-    related_hubs: list[str] | None = None,
+    related_entities: list[str] | None = None,
     short_names: dict[str, str] | None = None,
 ) -> str:
     fields, lists, body = parse_frontmatter(existing_text)
@@ -661,8 +640,8 @@ def merge_topic_page(
         )
     body = insert_before_next_section(
         body,
-        "相关实体与概念",
-        [f"- [[{name}|{name}]]" for name in related_hubs or []],
+        "相关实体",
+        [f"- [[{name}|{name}]]" for name in related_entities or []],
     )
     body = insert_before_next_section(
         body,
@@ -778,12 +757,8 @@ def resolve_work_dir(value: str, wiki_root: Path) -> Path:
     return (wiki_root / path).resolve()
 
 
-def find_existing_hub(action: dict[str, Any], wiki_root: Path) -> Path | None:
-    existing_page = action.get("existing_page")
-    if isinstance(existing_page, str) and existing_page:
-        return safe_relative_path(wiki_root, existing_page)
-    name = safe_filename(action.get("name", ""))
-    directory = wiki_root / "wiki" / ("entities" if action.get("kind") == "entity" else "concepts")
+def find_existing_entity(name: str, wiki_root: Path) -> Path | None:
+    directory = wiki_root / "wiki" / "entities"
     if not directory.is_dir():
         return None
     for path in directory.glob("*.md"):
@@ -806,42 +781,6 @@ def find_existing_topic(action: dict[str, Any], wiki_root: Path) -> Path | None:
     return None
 
 
-def collect_l1_candidates(source_pages: list[Any], wiki_root: Path) -> list[dict[str, Any]]:
-    candidates: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for page in source_pages:
-        if not isinstance(page, dict):
-            continue
-        work_dir = resolve_work_dir(page.get("work_dir", ""), wiki_root)
-        digest_path = work_dir / "paper-digest.json"
-        if not digest_path.is_file():
-            continue
-        try:
-            digest = json.loads(digest_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            continue
-        for cand in digest.get("candidates", []):
-            if not isinstance(cand, dict):
-                continue
-            if cand.get("tier") != "L1":
-                continue
-            cid = str(cand.get("id", "")).strip()
-            name = str(cand.get("name", "")).strip()
-            if not cid or not name or cid in seen:
-                continue
-            seen.add(cid)
-            candidates.append(
-                {
-                    "id": cid,
-                    "name": name,
-                    "kind": cand.get("kind") or "concept",
-                    "definition": str(cand.get("definition", "")).strip(),
-                    "source_refs": string_list(cand.get("source_refs")),
-                }
-            )
-    return candidates
-
-
 def normalize_entity_name(value: str) -> str:
     return re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", str(value).lower())
 
@@ -850,7 +789,7 @@ MIN_NAME_VARIANT_LEN = 3
 
 
 def find_name_variant(name: str, wiki_root: Path) -> str | None:
-    """Find an existing hub page whose name or alias resembles `name`.
+    """Find an existing entity page whose name or alias resembles `name`.
 
     Exact raw-name matches are handled by the normal merge path; this detects
     variants (punctuation differences, parenthetical expansions, family
@@ -859,58 +798,41 @@ def find_name_variant(name: str, wiki_root: Path) -> str | None:
     key = normalize_entity_name(name)
     if not key:
         return None
-    for directory in ("concepts", "entities"):
-        folder = wiki_root / "wiki" / directory
-        if not folder.is_dir():
+    folder = wiki_root / "wiki" / "entities"
+    if not folder.is_dir():
+        return None
+    for page in folder.glob("*.md"):
+        if page.stem == name:
             continue
-        for page in folder.glob("*.md"):
-            if page.stem == name:
+        candidates = [page.stem]
+        try:
+            _, lists, _ = parse_frontmatter(page.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError):
+            lists = {}
+        candidates.extend(lists.get("aliases", []))
+        for candidate in candidates:
+            candidate_key = normalize_entity_name(candidate)
+            if len(candidate_key) < MIN_NAME_VARIANT_LEN:
                 continue
-            candidates = [page.stem]
-            try:
-                _, lists, _ = parse_frontmatter(page.read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError):
-                lists = {}
-            candidates.extend(lists.get("aliases", []))
-            for candidate in candidates:
-                candidate_key = normalize_entity_name(candidate)
-                if len(candidate_key) < MIN_NAME_VARIANT_LEN:
-                    continue
-                if (
-                    key == candidate_key
-                    or key.startswith(candidate_key)
-                    or candidate_key.startswith(key)
-                ):
-                    return page.stem
+            if (
+                key == candidate_key
+                or key.startswith(candidate_key)
+                or candidate_key.startswith(key)
+            ):
+                return page.stem
     return None
 
 
-def missed_entity_promotions(
-    source_pages: list[Any],
-    hub_actions: list[Any],
-    wiki_root: Path,
-) -> list[dict[str, str]]:
-    """Warn about L1 entity candidates the linker did not promote.
+def collect_entity_mentions(
+    source_pages: list[Any], wiki_root: Path
+) -> dict[str, list[tuple[str, str]]]:
+    """Collect normalized entity mentions from the batch digests.
 
-    Public datasets, benchmarks, model families, and metrics get entity pages
-    from a single source page (see knowledge-model.md). This check reminds the
-    operator when a batch digest records such a candidate but the link plan
-    carries no entity action for it and no entity page exists yet. Warning
-    only — it never blocks publishing.
+    Returns a mapping from normalized key to a list of `(raw_name, source_ref)`
+    pairs across `analysis.datasets`, `analysis.models`, and `analysis.metrics`.
     """
-    planned = {
-        normalize_entity_name(action.get("name", ""))
-        for action in hub_actions
-        if isinstance(action, dict) and action.get("kind") == "entity"
-    }
-    existing: set[str] = set()
-    entities_dir = wiki_root / "wiki" / "entities"
-    if entities_dir.is_dir():
-        existing = {
-            normalize_entity_name(path.stem) for path in entities_dir.glob("*.md")
-        }
-    warnings: list[dict[str, str]] = []
-    seen: set[str] = set()
+    mentions: dict[str, list[tuple[str, str]]] = {}
+    seen_pairs: set[tuple[str, str]] = set()
     for page in source_pages:
         if not isinstance(page, dict):
             continue
@@ -922,96 +844,138 @@ def missed_entity_promotions(
             digest = json.loads(digest_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-        for cand in digest.get("candidates", []):
-            if not isinstance(cand, dict):
-                continue
-            if cand.get("kind") != "entity" or cand.get("tier") != "L1":
-                continue
-            name = str(cand.get("name", "")).strip()
-            key = normalize_entity_name(name)
-            if not name or key in seen:
-                continue
-            seen.add(key)
-            if key in planned or key in existing:
-                continue
-            warnings.append(
-                {
-                    "code": "missed_entity_promotion",
-                    "name": name,
-                    "source_ref": page.get("source_ref", ""),
-                }
-            )
-    return warnings
-
-
-def parse_l1_sections(body: str) -> dict[str, list[str]]:
-    """Parse L1 candidate table rows grouped by their `### <domain>` heading."""
-    domains: dict[str, list[str]] = {}
-    current: str | None = None
-    for line in body.splitlines():
-        stripped = line.strip()
-        heading = re.match(r"^###\s+(.+)$", stripped)
-        if heading:
-            current = heading.group(1)
+        analysis = digest.get("analysis", {})
+        if not isinstance(analysis, dict):
             continue
-        if (
-            stripped.startswith("|")
-            and not stripped.startswith("|---")
-            and not stripped.startswith("| id")
-        ):
-            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-            if cells and cells[0]:
-                domains.setdefault(current or "未分类", []).append(stripped)
-    return domains
+        source_ref = page.get("source_ref", "")
+        for field in ("datasets", "models", "metrics"):
+            for name in string_list(analysis.get(field)):
+                key = normalize_entity_name(name)
+                if not key:
+                    continue
+                pair = (name, source_ref)
+                if pair in seen_pairs:
+                    continue
+                seen_pairs.add(pair)
+                mentions.setdefault(key, []).append((name, source_ref))
+    return mentions
 
 
-def l1_row_id(line: str) -> str:
-    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-    return cells[0] if cells and cells[0] else ""
+def resolve_entity_targets(
+    mentions: dict[str, list[tuple[str, str]]], wiki_root: Path
+) -> list[dict[str, Any]]:
+    """Resolve collected mentions into entity page targets.
 
+    For every normalized key: the shorter raw name becomes the canonical page
+    title and other spellings become aliases. A name resembling an existing
+    entity page (or its aliases) merges into that page instead of creating a
+    variant. Names resembling each other within the batch also merge into the
+    shorter canonical name. Returns one target per canonical page.
+    """
+    proposals: dict[str, dict[str, Any]] = {}
+    for key in sorted(mentions):
+        pairs = mentions[key]
+        canonical, _ = min(pairs, key=lambda pair: (len(pair[0]), pair[0]))
+        raw_names = sorted({name for name, _ in pairs})
+        aliases = [name for name in raw_names if name != canonical]
+        source_refs: list[str] = []
+        for _, source_ref in pairs:
+            if source_ref and source_ref not in source_refs:
+                source_refs.append(source_ref)
+        existing_path = find_existing_entity(canonical, wiki_root)
+        if existing_path is None:
+            variant = find_name_variant(canonical, wiki_root)
+            if variant:
+                existing_path = find_existing_entity(variant, wiki_root)
+                if existing_path is not None:
+                    aliases = sorted(set(aliases) | {canonical})
+                    canonical = existing_path.stem
+        proposals[key] = {
+            "name": canonical,
+            "aliases": aliases,
+            "source_refs": source_refs,
+            "path": existing_path,
+        }
 
-def l1_candidate_row(candidate: dict[str, Any], titles: dict[str, str]) -> str:
-    source_ref = candidate["source_refs"][0] if candidate["source_refs"] else ""
-    source_cell = (
-        wiki_link(source_ref, source_label(source_ref, titles)) if source_ref else ""
-    )
-    return (
-        "| "
-        + " | ".join(
-            [
-                escape_table(candidate["id"]),
-                escape_table(candidate["name"]),
-                escape_table(candidate["kind"]),
-                escape_table(candidate["definition"]),
-                source_cell,
-            ]
+    # Merge within-batch proposals: a name that is a variant of an
+    # already-claimed canonical name folds into that proposal, so one batch
+    # never creates two pages for the same family (for example LLaVA and
+    # LLaVA 1.5).
+    index: dict[str, str] = {}  # normalized name -> proposal key
+    merged_out: set[str] = set()
+
+    def register(prop_key: str) -> None:
+        prop = proposals[prop_key]
+        for name in [prop["name"]] + prop["aliases"]:
+            nkey = normalize_entity_name(name)
+            if len(nkey) >= MIN_NAME_VARIANT_LEN:
+                index.setdefault(nkey, prop_key)
+
+    def merge_into(parent_key: str, child_key: str) -> None:
+        parent = proposals[parent_key]
+        child = proposals[child_key]
+        merged_names = {child["name"], *child["aliases"]} - {parent["name"]}
+        parent["aliases"] = sorted(set(parent["aliases"]) | merged_names)
+        parent["source_refs"] = list(
+            dict.fromkeys(parent["source_refs"] + child["source_refs"])
         )
-        + " |"
-    )
+        if parent["path"] is None and child["path"] is not None:
+            parent["path"] = child["path"]
+        merged_out.add(child_key)
+
+    for key in sorted(proposals, key=lambda item: (len(item), item)):
+        if key in merged_out:
+            continue
+        prop = proposals[key]
+        parent_key: str | None = None
+        for name in [prop["name"], *prop["aliases"]]:
+            nkey = normalize_entity_name(name)
+            if len(nkey) < MIN_NAME_VARIANT_LEN:
+                continue
+            for candidate_key in list(index):
+                if (
+                    nkey == candidate_key
+                    or nkey.startswith(candidate_key)
+                    or candidate_key.startswith(nkey)
+                ):
+                    parent_key = index[candidate_key]
+                    break
+            if parent_key:
+                break
+        if parent_key is not None and parent_key != key:
+            merge_into(parent_key, key)
+            register(parent_key)
+            continue
+        register(key)
+
+    targets: list[dict[str, Any]] = []
+    for key in sorted(proposals):
+        if key in merged_out:
+            continue
+        prop = proposals[key]
+        path = prop["path"]
+        if path is None:
+            directory = wiki_root / "wiki" / "entities"
+            directory.mkdir(parents=True, exist_ok=True)
+            path = directory / f"{safe_filename(prop['name'])}.md"
+        targets.append(
+            {
+                "name": prop["name"],
+                "aliases": prop["aliases"],
+                "source_refs": prop["source_refs"],
+                "path": path,
+            }
+        )
+    return targets
 
 
 def render_research_page(
     buckets: dict[str, dict[str, list[Any]]] | None,
-    existing_l1: dict[str, list[str]],
-    new_candidates: list[dict[str, Any]],
-    titles: dict[str, str],
     today: str,
     created: str,
 ) -> str | None:
     """Render wiki/meta/research.md: domain-grouped dashboard of open
-    questions, research gaps, and pending L1 candidates."""
-    merged = {domain: list(rows) for domain, rows in existing_l1.items()}
-    existing_ids = {l1_row_id(row) for rows in merged.values() for row in rows}
-    for candidate in new_candidates:
-        if candidate["id"] in existing_ids:
-            continue
-        domain = (
-            source_domain(candidate["source_refs"][0])
-            if candidate["source_refs"]
-            else "未分类"
-        )
-        merged.setdefault(domain, []).append(l1_candidate_row(candidate, titles))
-
+    questions and research gaps."""
     questions_by_domain: dict[str, list[tuple[str, str, str]]] = {}
     gaps_by_domain: dict[str, list[tuple[str, str, str]]] = {}
     if buckets:
@@ -1020,9 +984,7 @@ def render_research_page(
             gaps_by_domain[domain] = list(buckets[domain]["gaps"])
 
     has_content = bool(
-        any(questions_by_domain.values())
-        or any(gaps_by_domain.values())
-        or any(merged.values())
+        any(questions_by_domain.values()) or any(gaps_by_domain.values())
     )
     if not has_content:
         return None
@@ -1031,7 +993,7 @@ def render_research_page(
         render_frontmatter(["meta"], created, today, "evergreen").rstrip(),
         "# 研究仪表盘",
         "",
-        "> 本页由 publish_wiki.py 确定性生成：按领域聚合主题页的开放问题、研究空白与待升级 L1 候选。不要手动编辑。",
+        "> 本页由 publish_wiki.py 确定性生成：按领域聚合主题页的开放问题与研究空白。不要手动编辑。",
         "",
     ]
 
@@ -1060,41 +1022,7 @@ def render_research_page(
 
     domain_list("开放问题", questions_by_domain)
     domain_list("研究空白", gaps_by_domain)
-
-    l1_domains = [d for d in ordered_domains(merged) if merged.get(d)]
-    if l1_domains:
-        lines.append("## L1 候选")
-        lines.append("")
-        lines.append(
-            "尚未获得第二独立来源、暂不建页的可复用候选。后续论文独立支持时，linker 可升级为 L2 枢纽页。"
-        )
-        lines.append("")
-        for domain in l1_domains:
-            lines.append(f"### {domain}")
-            lines.append("")
-            lines.append("| id | 名称 | 类型 | 定义 | 来源 |")
-            lines.append("|---|---|---|---|---|")
-            lines.extend(merged[domain])
-            lines.append("")
     return "\n".join(lines).rstrip() + "\n"
-
-
-def legacy_candidate_rows(text: str) -> dict[str, list[str]]:
-    """Migrate legacy candidates.md rows (stem-based source links, no domain
-    information recoverable) under 未分类."""
-    _, _, body = parse_frontmatter(text)
-    rows: list[str] = []
-    for line in body.splitlines():
-        stripped = line.strip()
-        if (
-            stripped.startswith("|")
-            and not stripped.startswith("|---")
-            and not stripped.startswith("| id")
-        ):
-            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-            if cells and cells[0]:
-                rows.append(stripped)
-    return {"未分类": rows} if rows else {}
 
 
 INDEX_ENTRY_RE = re.compile(r"^[-*]\s+\[\[([^\]|]+)(?:\|([^\]]+))?\]\](?:\s*[—-]\s*(.*))?$")
@@ -1170,7 +1098,7 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
     def bucket(domain: str) -> dict[str, list[Any]]:
         return buckets.setdefault(
             domain,
-            {"sources": [], "topics": [], "hubs": [], "questions": [], "gaps": []},
+            {"sources": [], "topics": [], "entities": [], "questions": [], "gaps": []},
         )
 
     for entry in entries:
@@ -1190,7 +1118,7 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
                 bucket(domain)["questions"].append((question, label, path))
             for gap in section_bullets(body, "研究空白与候选方向"):
                 bucket(domain)["gaps"].append((gap, label, path))
-        elif path.startswith(("wiki/concepts/", "wiki/entities/")):
+        elif path.startswith("wiki/entities/"):
             text = ""
             try:
                 text = (wiki_root / path).read_text(encoding="utf-8")
@@ -1199,7 +1127,7 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
             _, lists, _ = parse_frontmatter(text)
             aliases = lists.get("aliases", [])
             domain = page_domains(wiki_root, path)
-            bucket(domain)["hubs"].append((path, label, description, aliases))
+            bucket(domain)["entities"].append((path, label, description, aliases))
     return buckets
 
 
@@ -1228,7 +1156,7 @@ def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
         for kind, title, key in (
             ("sources", "### 论文", "sources"),
             ("topics", "### 主题", "topics"),
-            ("hubs", "### 概念与实体", "hubs"),
+            ("entities", "### 实体", "entities"),
         ):
             items = sorted(data[key], key=lambda row: row[1])
             if not items:
@@ -1238,7 +1166,7 @@ def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
             for row in items:
                 stem = Path(row[0]).stem
                 suffix = f" — {row[2]}" if row[2] else ""
-                if kind == "hubs" and row[3]:
+                if kind == "entities" and row[3]:
                     alias_text = f"（别名：{'、'.join(row[3])}）"
                     lines.append(f"- [[{stem}|{row[1]}]]{alias_text}{suffix}")
                 else:
@@ -1301,7 +1229,7 @@ def main() -> int:
         return 1
 
     today = datetime.date.today().isoformat()
-    for directory in ("wiki", "wiki/entities", "wiki/concepts", "wiki/topics", "wiki/sources"):
+    for directory in ("wiki", "wiki/entities", "wiki/topics", "wiki/sources"):
         (wiki_root / directory).mkdir(parents=True, exist_ok=True)
 
     source_pages = plan.get("batch", {}).get("source_pages", [])
@@ -1321,28 +1249,13 @@ def main() -> int:
     source_log_entries: list[dict[str, Any]] = []
     synthesis_log_entries: list[dict[str, Any]] = []
     index_entries: list[tuple[str, str, str]] = []
-    # Pre-validate hub actions that will be refused, so backlinks and
-    # related-hub lists never reference pages that are not actually written.
-    refused_hub_ids: set[int] = set()
-    for action in plan.get("hub_actions", []):
-        if not isinstance(action, dict):
-            continue
-        existing_path = find_existing_hub(action, wiki_root)
-        if action.get("action") == "update_hub" and existing_path is None:
-            refused_hub_ids.add(id(action))
-            continue
-        if existing_path is None and action.get("action") == "create_hub":
-            variant = find_name_variant(action.get("name", ""), wiki_root)
-            if variant:
-                refused_hub_ids.add(id(action))
-                continue
     backlinks: dict[str, list[tuple[str, str]]] = {}
-    for action in plan.get("hub_actions", []):
-        if not isinstance(action, dict) or id(action) in refused_hub_ids:
-            continue
-        kind = "实体枢纽" if action.get("kind") == "entity" else "概念枢纽"
-        for source_ref in string_list(action.get("source_refs")):
-            backlinks.setdefault(source_ref, []).append((action.get("name", ""), kind))
+    entity_targets = resolve_entity_targets(collect_entity_mentions(source_pages, wiki_root), wiki_root)
+    entity_source_links: dict[str, list[str]] = {}
+    for target in entity_targets:
+        entity_source_links[target["name"]] = target["source_refs"]
+        for source_ref in target["source_refs"]:
+            backlinks.setdefault(source_ref, []).append((target["name"], "实体"))
     for action in plan.get("topic_actions", []):
         if not isinstance(action, dict):
             continue
@@ -1403,40 +1316,36 @@ def main() -> int:
             )
         )
 
-    for action in plan.get("hub_actions", []):
-        if not isinstance(action, dict):
-            continue
-        if id(action) in refused_hub_ids:
-            existing_path = find_existing_hub(action, wiki_root)
-            if action.get("action") == "update_hub":
-                errors.append(f"Unable to locate existing hub for {action.get('name', '')}")
-            else:
-                variant = find_name_variant(action.get("name", ""), wiki_root)
-                errors.append(
-                    f"hub_name_variant: '{action.get('name', '')}' resembles existing page "
-                    f"'{variant}'; use update_hub with existing_page instead of creating a name variant."
-                )
-            continue
-        existing_path = find_existing_hub(action, wiki_root)
-        if existing_path is None:
-            directory = wiki_root / "wiki" / ("entities" if action.get("kind") == "entity" else "concepts")
-            directory.mkdir(parents=True, exist_ok=True)
-            existing_path = directory / f"{safe_filename(action.get('name', ''))}.md"
+    for target in entity_targets:
+        existing_path = target["path"]
         existing_text = existing_path.read_text(encoding="utf-8") if existing_path.is_file() else None
         try:
             if existing_text is None:
-                content = hub_page_text(action, titles, today, today)
+                content = entity_stub_text(
+                    target["name"],
+                    target["aliases"],
+                    target["source_refs"],
+                    titles,
+                    today,
+                    today,
+                )
             else:
-                content = merge_hub_page(existing_text, action, titles, today)
+                content = merge_entity_stub(
+                    existing_text,
+                    target["aliases"],
+                    target["source_refs"],
+                    titles,
+                    today,
+                )
         except (OSError, UnicodeDecodeError, ValueError) as exc:
-            errors.append(f"Failed to prepare hub {action.get('name', '')}: {exc}")
+            errors.append(f"Failed to prepare entity {target['name']}: {exc}")
             continue
         if existing_text != content:
             existing_path.write_text(content, encoding="utf-8")
             created = existing_text is None
             writes.append(
                 {
-                    "kind": "hub",
+                    "kind": "entity",
                     "path": str(existing_path.relative_to(wiki_root)),
                     "action": "create" if created else "update",
                 }
@@ -1449,9 +1358,9 @@ def main() -> int:
             )
         index_entries.append(
             (
-                "实体" if action.get("kind") == "entity" else "概念",
+                "实体",
                 str(existing_path.relative_to(wiki_root)),
-                action.get("definition", ""),
+                "公共数据集 / 基准 / 模型家族 / 指标",
             )
         )
 
@@ -1467,19 +1376,15 @@ def main() -> int:
             directory.mkdir(parents=True, exist_ok=True)
             existing_path = directory / f"{safe_filename(action.get('name', ''))}.md"
         existing_text = existing_path.read_text(encoding="utf-8") if existing_path.is_file() else None
-        related_hubs = related_hub_names(
+        related_entities = related_entity_names(
             set(string_list(action.get("papers"))),
-            [
-                hub_action
-                for hub_action in plan.get("hub_actions", [])
-                if not isinstance(hub_action, dict) or id(hub_action) not in refused_hub_ids
-            ],
+            entity_source_links,
         )
         try:
             if existing_text is None:
-                content = topic_page_text(action, titles, today, today, related_hubs, short_names)
+                content = topic_page_text(action, titles, today, today, related_entities, short_names)
             else:
-                content = merge_topic_page(existing_text, action, titles, today, related_hubs, short_names)
+                content = merge_topic_page(existing_text, action, titles, today, related_entities, short_names)
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             errors.append(f"Failed to prepare topic {action.get('name', '')}: {exc}")
             continue
@@ -1508,32 +1413,18 @@ def main() -> int:
         )
 
     research_path = wiki_root / "wiki" / "meta" / "research.md"
-    l1_candidates = collect_l1_candidates(source_pages, wiki_root)
     research_existing = (
         research_path.read_text(encoding="utf-8") if research_path.is_file() else None
     )
     research_created = today
-    existing_l1: dict[str, list[str]] = {}
     if research_existing is not None:
-        research_fields, _, research_body = parse_frontmatter(research_existing)
+        research_fields, _, _ = parse_frontmatter(research_existing)
         research_created = research_fields.get("created", today)
-        existing_l1 = parse_l1_sections(research_body)
-    elif (wiki_root / "wiki" / "meta" / "candidates.md").is_file():
-        # 迁移旧版候选账本：行内来源为 stem 链接，无法还原领域，归入未分类。
-        try:
-            legacy_text = (
-                wiki_root / "wiki" / "meta" / "candidates.md"
-            ).read_text(encoding="utf-8")
-            legacy_fields, _, _ = parse_frontmatter(legacy_text)
-            research_created = legacy_fields.get("created", today)
-            existing_l1 = legacy_candidate_rows(legacy_text)
-        except (OSError, UnicodeDecodeError):
-            existing_l1 = {}
 
     index_path = wiki_root / "wiki" / "index.md"
     log_path = wiki_root / "wiki" / "log.md"
     if not index_path.is_file():
-        index_path.write_text("# Wiki 索引\n\n## 实体\n## 概念\n## 主题\n## 来源\n## 元页面\n", encoding="utf-8")
+        index_path.write_text("# Wiki 索引\n\n## 实体\n## 主题\n## 来源\n## 元页面\n", encoding="utf-8")
     if not log_path.is_file():
         log_path.write_text("# 操作日志\n", encoding="utf-8")
     try:
@@ -1573,9 +1464,7 @@ def main() -> int:
         errors.append(f"Failed to update knowledge tree: {exc}")
 
     try:
-        research_text = render_research_page(
-            buckets, existing_l1, l1_candidates, titles, today, research_created
-        )
+        research_text = render_research_page(buckets, today, research_created)
         if research_text is not None and research_text != research_existing:
             research_path.parent.mkdir(parents=True, exist_ok=True)
             research_path.write_text(research_text, encoding="utf-8")
@@ -1592,37 +1481,28 @@ def main() -> int:
     for error in errors:
         print(f"ERROR: {error}", file=sys.stderr)
 
-    entity_warnings = missed_entity_promotions(
-        source_pages, plan.get("hub_actions", []), wiki_root
-    )
-    for warning in entity_warnings:
-        print(
-            f"WARNING {warning['code']}: entity candidate '{warning['name']}' "
-            f"has no page or plan action ({warning['source_ref']})"
-        )
-
     report = {
         "schema_version": "1.0",
         "summary": {
             "status": "fail" if errors else "pass",
             "created_sources": sum(item["kind"] == "source" and item["action"] == "create" for item in writes),
             "updated_sources": sum(item["kind"] == "source" and item["action"] == "update" for item in writes),
-            "created_hubs": sum(item["kind"] == "hub" and item["action"] == "create" for item in writes),
-            "updated_hubs": sum(item["kind"] == "hub" and item["action"] == "update" for item in writes),
+            "created_entities": sum(item["kind"] == "entity" and item["action"] == "create" for item in writes),
+            "updated_entities": sum(item["kind"] == "entity" and item["action"] == "update" for item in writes),
             "created_topics": sum(item["kind"] == "topic" and item["action"] == "create" for item in writes),
             "updated_topics": sum(item["kind"] == "topic" and item["action"] == "update" for item in writes),
             "errors": len(errors),
         },
         "writes": writes,
         "errors": errors,
-        "warnings": entity_warnings,
+        "warnings": [],
     }
     print(
         f"Publish status: {report['summary']['status']} "
         f"(sources={report['summary']['created_sources']} new/"
         f"{report['summary']['updated_sources']} updated, "
-        f"hubs={report['summary']['created_hubs']} new/"
-        f"{report['summary']['updated_hubs']} updated, "
+        f"entities={report['summary']['created_entities']} new/"
+        f"{report['summary']['updated_entities']} updated, "
         f"topics={report['summary']['created_topics']} new/"
         f"{report['summary']['updated_topics']} updated)"
     )

@@ -54,9 +54,20 @@ def source_card(title: str, source_ref: str) -> str:
     )
 
 
+def digest(analysis: dict) -> dict:
+    base = {
+        "one_sentence_summary": "Summary.",
+        "datasets": [],
+        "models": [],
+        "metrics": [],
+    }
+    base.update(analysis)
+    return {"analysis": base}
+
+
 def valid_plan() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "batch": {
             "source_pages": [
                 {
@@ -71,35 +82,6 @@ def valid_plan() -> dict:
                 },
             ]
         },
-        "hub_actions": [
-            {
-                "action": "create_hub",
-                "id": "hub-1",
-                "name": "Shared Concept",
-                "kind": "concept",
-                "tier": "L2",
-                "aliases": ["concept"],
-                "definition": "A concept supported by both papers.",
-                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
-                "connect_existing": False,
-                "existing_page": None,
-                "evidence": [
-                    {
-                        "source_ref": "wiki/sources/a.md",
-                        "pointer": "[Paper: PDF p. 3, Fig. 1]",
-                        "claim": "Paper A reports the concept.",
-                    },
-                    {
-                        "source_ref": "wiki/sources/b.md",
-                        "pointer": "[Paper: PDF p. 4, Fig. 2]",
-                        "claim": "Paper B reports the concept.",
-                    },
-                ],
-                "relations": [],
-                "contradictions": [],
-                "open_questions": ["Open question"],
-            }
-        ],
         "topic_actions": [
             {
                 "action": "create_topic",
@@ -120,7 +102,6 @@ def valid_plan() -> dict:
 def prepare_vault(root: Path) -> None:
     for directory in (
         "wiki/entities",
-        "wiki/concepts",
         "wiki/topics",
         "wiki/sources",
         "work/a",
@@ -134,17 +115,20 @@ def prepare_vault(root: Path) -> None:
         )
         (root / "work" / name / "paper-digest.json").write_text(
             json.dumps(
-                {
-                    "analysis": {
+                digest(
+                    {
                         "one_sentence_summary": f"{title} summary.",
+                        "datasets": ["CONFLICTVIS"],
+                        "models": ["LLaVA", "LLaVA 1.5"],
+                        "metrics": ["ROUGE"],
                     }
-                },
+                ),
                 ensure_ascii=False,
             ),
             encoding="utf-8",
         )
     (root / "wiki" / "index.md").write_text(
-        "# Wiki 索引\n\n## 实体\n## 概念\n## 主题\n## 来源\n## 元页面\n",
+        "# Wiki 索引\n\n## 实体\n## 主题\n## 来源\n## 元页面\n",
         encoding="utf-8",
     )
     (root / "wiki" / "log.md").write_text("# 操作日志\n", encoding="utf-8")
@@ -204,15 +188,90 @@ class PublishWikiTests(unittest.TestCase):
         )
         self.assertIn("[[a|Paper A]]", lines[2])
 
-    def test_topic_page_lists_related_hubs(self) -> None:
+    def test_topic_page_lists_related_entities(self) -> None:
         text = PUBLISH.topic_page_text(
             valid_plan()["topic_actions"][0],
             {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
             "2026-08-16",
             "2026-08-16",
-            ["Shared Concept"],
+            ["LLaVA"],
         )
-        self.assertIn("[[Shared Concept|Shared Concept]]", text)
+        self.assertIn("[[LLaVA|LLaVA]]", text)
+        self.assertIn("## 相关实体", text)
+
+    def test_entity_stub_text_shape(self) -> None:
+        text = PUBLISH.entity_stub_text(
+            "LLaVA",
+            ["LLaVA 1.5"],
+            ["wiki/sources/a.md"],
+            {"wiki/sources/a.md": "Paper A"},
+            "2026-08-16",
+            "2026-08-16",
+        )
+        self.assertIn("tags: [entity]", text)
+        self.assertIn("status: \"stub\"", text)
+        self.assertIn("# LLaVA", text)
+        self.assertIn("本页由 publish_wiki.py 确定性生成", text)
+        self.assertIn("- LLaVA 1.5", text)
+        self.assertIn("- [[a|Paper A]]", text)
+        self.assertNotIn("## 证据", text)
+
+    def test_collect_entity_mentions_from_digest_lists(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            pages = [
+                {"source_ref": "wiki/sources/a.md", "work_dir": "work/a"},
+                {"source_ref": "wiki/sources/b.md", "work_dir": "work/b"},
+            ]
+            mentions = PUBLISH.collect_entity_mentions(pages, root)
+            key_llava = PUBLISH.normalize_entity_name("LLaVA")
+            key_variant = PUBLISH.normalize_entity_name("LLaVA 1.5")
+            self.assertIn(key_llava, mentions)
+            self.assertIn(key_variant, mentions)
+            self.assertEqual(
+                {name for name, _ in mentions[key_llava]}, {"LLaVA"}
+            )
+            self.assertEqual(
+                {name for name, _ in mentions[key_variant]}, {"LLaVA 1.5"}
+            )
+            refs = {ref for _, ref in mentions[key_llava]}
+            self.assertEqual(refs, {"wiki/sources/a.md", "wiki/sources/b.md"})
+
+    def test_resolve_entity_targets_merges_variants(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "wiki" / "entities").mkdir(parents=True)
+            mentions = {
+                "llava": [
+                    ("LLaVA", "wiki/sources/a.md"),
+                    ("LLaVA", "wiki/sources/b.md"),
+                ],
+                "llava15": [("LLaVA 1.5", "wiki/sources/a.md")],
+            }
+            targets = PUBLISH.resolve_entity_targets(mentions, root)
+            self.assertEqual(len(targets), 1)
+            target = targets[0]
+            self.assertEqual(target["name"], "LLaVA")
+            self.assertEqual(target["aliases"], ["LLaVA 1.5"])
+            self.assertEqual(
+                target["source_refs"], ["wiki/sources/a.md", "wiki/sources/b.md"]
+            )
+            self.assertEqual(target["path"], root / "wiki" / "entities" / "LLaVA.md")
+
+    def test_resolve_entity_targets_merges_into_existing_variant(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entities = root / "wiki" / "entities"
+            entities.mkdir(parents=True)
+            (entities / "LLaVA.md").write_text("# LLaVA\n", encoding="utf-8")
+            mentions = {
+                "llavanext": [("LLaVA-NeXT", "wiki/sources/a.md")],
+            }
+            targets = PUBLISH.resolve_entity_targets(mentions, root)
+            self.assertEqual(len(targets), 1)
+            self.assertEqual(targets[0]["name"], "LLaVA")
+            self.assertIn("LLaVA-NeXT", targets[0]["aliases"])
 
     def test_cli_publishes_pages_index_and_log(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -235,19 +294,73 @@ class PublishWikiTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue((root / "wiki" / "sources" / "a.md").is_file())
-            self.assertTrue((root / "wiki" / "concepts" / "Shared Concept.md").is_file())
+            self.assertTrue((root / "wiki" / "entities" / "LLaVA.md").is_file())
+            self.assertTrue((root / "wiki" / "entities" / "CONFLICTVIS.md").is_file())
+            self.assertTrue((root / "wiki" / "entities" / "ROUGE.md").is_file())
+            self.assertFalse((root / "wiki" / "entities" / "LLaVA 1.5.md").exists())
             self.assertTrue((root / "wiki" / "topics" / "Shared Topic.md").is_file())
+            self.assertFalse((root / "wiki" / "concepts").exists())
             index = (root / "wiki" / "index.md").read_text(encoding="utf-8")
             log = (root / "wiki" / "log.md").read_text(encoding="utf-8")
             source_a = (root / "wiki" / "sources" / "a.md").read_text(encoding="utf-8")
+            entity = (root / "wiki" / "entities" / "LLaVA.md").read_text(encoding="utf-8")
             topic = (root / "wiki" / "topics" / "Shared Topic.md").read_text(encoding="utf-8")
             self.assertIn("[[wiki/sources/a.md|a]]", index)
-            self.assertIn("[[wiki/concepts/Shared Concept.md|Shared Concept]]", index)
-            self.assertIn("[[Shared Concept|Shared Concept]] - 概念枢纽", source_a)
+            self.assertIn("[[wiki/entities/LLaVA.md|LLaVA]]", index)
+            self.assertIn("[[LLaVA|LLaVA]] - 实体", source_a)
             self.assertIn("[[Shared Topic|Shared Topic]] - 主题", source_a)
-            self.assertIn("[[Shared Concept|Shared Concept]]", topic)
+            self.assertIn("[[LLaVA|LLaVA]]", topic)
+            self.assertIn("- [[a|Paper A]]", entity)
+            self.assertIn("- [[b|Paper B]]", entity)
             self.assertIn("ingest | Paper A", log)
             self.assertIn("batch synthesis | Paper A、Paper B", log)
+
+    def test_entity_stub_appends_to_existing_page(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entities = root / "wiki" / "entities"
+            entities.mkdir(parents=True)
+            existing = (
+                "---\n"
+                "tags: [entity]\n"
+                'created: "2026-01-01"\n'
+                'updated: "2026-01-01"\n'
+                "sources:\n"
+                '  - "wiki/sources/old.md"\n'
+                "aliases:\n"
+                '  - "LLaVA 1.5"\n'
+                'status: "stub"\n'
+                "---\n\n"
+                "# LLaVA\n\n"
+                "> 本页由 publish_wiki.py 确定性生成，只聚合引用本实体的论文；定义与评价见各来源论文页。\n\n"
+                "## 别名\n\n"
+                "- LLaVA 1.5\n\n"
+                "## 引用来源\n\n"
+                "- [[old|Old Paper]]\n"
+            )
+            (entities / "LLaVA.md").write_text(existing, encoding="utf-8")
+            merged = PUBLISH.merge_entity_stub(
+                existing,
+                ["LLaVA 1.5"],
+                ["wiki/sources/a.md"],
+                {"wiki/sources/a.md": "Paper A"},
+                "2026-01-02",
+            )
+            fields, lists, _ = PUBLISH.parse_frontmatter(merged)
+            self.assertEqual(
+                lists["sources"],
+                ["wiki/sources/old.md", "wiki/sources/a.md"],
+            )
+            self.assertEqual(lists["aliases"], ["LLaVA 1.5"])
+            self.assertIn("- [[a|Paper A]]", merged)
+            merged_again = PUBLISH.merge_entity_stub(
+                merged,
+                [],
+                ["wiki/sources/a.md"],
+                {"wiki/sources/a.md": "Paper A"},
+                "2026-01-03",
+            )
+            self.assertEqual(merged_again.count("[[a|Paper A]]"), 1)
 
     def test_second_run_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -268,39 +381,17 @@ class PublishWikiTests(unittest.TestCase):
             first = subprocess.run(command, check=False, capture_output=True, text=True)
             self.assertEqual(first.returncode, 0, first.stderr)
             page = root / "wiki" / "sources" / "a.md"
+            entity = root / "wiki" / "entities" / "LLaVA.md"
             original = page.read_text(encoding="utf-8")
+            original_entity = entity.read_text(encoding="utf-8")
             original_index = (root / "wiki" / "index.md").read_text(encoding="utf-8")
             second = subprocess.run(command, check=False, capture_output=True, text=True)
             self.assertEqual(second.returncode, 0, second.stderr)
             report = json.loads((root / "publish-report.json").read_text(encoding="utf-8"))
             self.assertEqual(report["writes"], [])
             self.assertEqual(page.read_text(encoding="utf-8"), original)
+            self.assertEqual(entity.read_text(encoding="utf-8"), original_entity)
             self.assertEqual((root / "wiki" / "index.md").read_text(encoding="utf-8"), original_index)
-
-    def test_update_hub_requires_existing_page(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            prepare_vault(root)
-            plan = valid_plan()
-            plan["hub_actions"][0]["action"] = "update_hub"
-            plan["hub_actions"][0]["connect_existing"] = True
-            plan_path = root / "link-plan.json"
-            plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(SCRIPT_PATH),
-                    "--plan",
-                    str(plan_path),
-                    "--wiki-root",
-                    str(root),
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(result.returncode, 1)
-            self.assertIn("Unable to locate existing hub", result.stderr)
 
     def test_flat_comparisons_render_intervention_granularity(self) -> None:
         lines = PUBLISH.render_flat_comparisons(
@@ -429,7 +520,7 @@ class PublishWikiTests(unittest.TestCase):
             "| [[a|Paper A]] | Method A | token | result | boundary | [Paper: PDF p. 1] |\n"
             "## 关键发现\n\n"
             "## 争议与不确定\n\n"
-            "## 相关实体与概念\n\n"
+            "## 相关实体\n\n"
             "## 开放问题\n\n"
             "## 研究空白与候选方向\n"
         )
@@ -493,7 +584,7 @@ class PublishWikiTests(unittest.TestCase):
             "## 争议与不确定\n\n"
             "- 位置 A：A claims X.\n"
             "- 位置 B：B claims Y.\n"
-            "## 相关实体与概念\n\n"
+            "## 相关实体\n\n"
             "## 开放问题\n\n"
             "## 研究空白与候选方向\n"
         )
@@ -528,25 +619,6 @@ class PublishWikiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             prepare_vault(root)
-            (root / "work" / "a" / "paper-digest.json").write_text(
-                json.dumps(
-                    {
-                        "analysis": {"one_sentence_summary": "Paper A summary."},
-                        "candidates": [
-                            {
-                                "id": "reusable-concept",
-                                "name": "可复用概念",
-                                "kind": "concept",
-                                "tier": "L1",
-                                "definition": "A reusable definition.",
-                                "source_refs": ["wiki/sources/a.md"],
-                            }
-                        ],
-                    },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
-            )
             plan_path = root / "link-plan.json"
             plan_path.write_text(json.dumps(valid_plan(), ensure_ascii=False), encoding="utf-8")
             result = subprocess.run(
@@ -562,8 +634,7 @@ class PublishWikiTests(unittest.TestCase):
             self.assertIn("# 研究仪表盘", text)
             self.assertIn("Topic question", text)
             self.assertIn("Missing benchmark", text)
-            self.assertIn("reusable-concept", text)
-            self.assertIn("可复用概念", text)
+            self.assertNotIn("## L1 候选", text)
             self.assertFalse((root / "wiki" / "meta" / "candidates.md").exists())
 
     def test_research_page_groups_by_domain(self) -> None:
@@ -571,23 +642,12 @@ class PublishWikiTests(unittest.TestCase):
             "rag": {
                 "sources": [],
                 "topics": [],
-                "hubs": [],
+                "entities": [],
                 "questions": [("Q1", "T", "wiki/topics/t.md")],
                 "gaps": [("gap1", "T", "wiki/topics/t.md")],
             }
         }
-        candidates = [
-            {
-                "id": "c1",
-                "name": "候选",
-                "kind": "concept",
-                "definition": "def",
-                "source_refs": ["wiki/sources/papers/rag/x.md"],
-            }
-        ]
-        text = PUBLISH.render_research_page(
-            buckets, {}, candidates, {}, "2026-08-22", "2026-08-22"
-        )
+        text = PUBLISH.render_research_page(buckets, "2026-08-22", "2026-08-22")
         self.assertIsNotNone(text)
         assert text is not None
         self.assertIn("## 开放问题", text)
@@ -595,44 +655,11 @@ class PublishWikiTests(unittest.TestCase):
         self.assertIn("Q1 — 来源：[[t|T]]", text)
         self.assertIn("## 研究空白", text)
         self.assertIn("gap1 — 来源：[[t|T]]", text)
-        self.assertIn("## L1 候选", text)
-        self.assertIn("| c1 | 候选 | concept | def | [[x|x]] |", text)
+        self.assertNotIn("## L1 候选", text)
 
-    def test_legacy_candidates_migrate_into_research_dashboard(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            prepare_vault(root)
-            meta = root / "wiki" / "meta"
-            meta.mkdir(parents=True, exist_ok=True)
-            (meta / "candidates.md").write_text(
-                "---\n"
-                "tags: [meta]\n"
-                'created: "2026-01-01"\n'
-                'updated: "2026-01-01"\n'
-                'status: "evergreen"\n'
-                "---\n\n"
-                "# L1 候选账本\n\n"
-                "| id | 名称 | 类型 | 定义 | 来源 |\n"
-                "|---|---|---|---|---|\n"
-                "| legacy-1 | 旧候选 | concept | 旧定义 | [[a|A]] |\n",
-                encoding="utf-8",
-            )
-            plan_path = root / "link-plan.json"
-            plan_path.write_text(json.dumps(valid_plan(), ensure_ascii=False), encoding="utf-8")
-            result = subprocess.run(
-                [sys.executable, str(SCRIPT_PATH), "--plan", str(plan_path), "--wiki-root", str(root)],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            dashboard = root / "wiki" / "meta" / "research.md"
-            text = dashboard.read_text(encoding="utf-8")
-            self.assertIn("legacy-1", text)
-            self.assertIn("旧候选", text)
-            self.assertIn("## L1 候选", text)
-            # legacy file is left in place, not deleted or rewritten
-            self.assertIn("legacy-1", (meta / "candidates.md").read_text(encoding="utf-8"))
+    def test_research_page_empty_when_no_content(self) -> None:
+        buckets: dict = {}
+        self.assertIsNone(PUBLISH.render_research_page(buckets, "2026-08-22", "2026-08-22"))
 
     def test_cli_writes_knowledge_tree(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -653,7 +680,8 @@ class PublishWikiTests(unittest.TestCase):
             self.assertIn("# 知识树", text)
             self.assertIn("[[a|a]]", text)
             self.assertIn("[[Shared Topic|Shared Topic]]", text)
-            self.assertIn("（别名：concept）", text)
+            self.assertIn("### 实体", text)
+            self.assertIn("（别名：LLaVA 1.5）", text)
             self.assertIn("Topic question — 来源：[[Shared Topic|Shared Topic]]", text)
             self.assertIn("Missing benchmark — 来源：[[Shared Topic|Shared Topic]]", text)
 
@@ -661,7 +689,7 @@ class PublishWikiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             wiki = root / "wiki"
-            for sub in ("sources/papers/rag", "sources/papers/llm-opt", "topics", "concepts"):
+            for sub in ("sources/papers/rag", "sources/papers/llm-opt", "topics", "entities"):
                 (wiki / sub).mkdir(parents=True)
             (wiki / "sources" / "papers" / "rag" / "x.md").write_text(
                 "# Paper X\n", encoding="utf-8"
@@ -681,15 +709,15 @@ class PublishWikiTests(unittest.TestCase):
                 "## 研究空白与候选方向\n\n- gap1\n",
                 encoding="utf-8",
             )
-            (wiki / "concepts" / "h.md").write_text(
+            (wiki / "entities" / "h.md").write_text(
                 "---\n"
-                "tags: [concept]\n"
+                "tags: [entity]\n"
                 'sources:\n  - "wiki/sources/papers/rag/x.md"\n  - "wiki/sources/papers/llm-opt/y.md"\n'
                 'aliases:\n  - "foo"\n  - "bar"\n'
                 "status: stub\n"
                 "---\n\n"
                 "# H\n\n"
-                "definition.\n",
+                "> 本页由 publish_wiki.py 确定性生成。\n",
                 encoding="utf-8",
             )
             (wiki / "index.md").write_text(
@@ -699,8 +727,8 @@ class PublishWikiTests(unittest.TestCase):
                 "- [[wiki/sources/papers/llm-opt/y.md|y]] - paper y\n"
                 "## 主题\n"
                 "- [[wiki/topics/t.md|T]] - topic t\n"
-                "## 概念\n"
-                "- [[wiki/concepts/h.md|H]] - hub h\n",
+                "## 实体\n"
+                "- [[wiki/entities/h.md|H]] - entity h\n",
                 encoding="utf-8",
             )
             tree = PUBLISH.build_knowledge_tree(root)
@@ -713,230 +741,21 @@ class PublishWikiTests(unittest.TestCase):
             self.assertIn("gap1 — 来源：[[t|T]]", tree)
             self.assertLess(tree.index("## rag"), tree.index("## 跨领域"))
 
-    def test_merge_hub_preserves_existing_sources_list(self) -> None:
-        existing = (
-            "---\n"
-            "tags: [concept]\n"
-            'created: "2026-01-01"\n'
-            'updated: "2026-01-01"\n'
-            "sources:\n"
-            '  - "wiki/sources/a.md"\n'
-            '  - "wiki/sources/b.md"\n'
-            "aliases:\n"
-            '  - "old alias"\n'
-            'status: "stub"\n'
-            "---\n\n"
-            "# Hub\n\n"
-            "## 证据\n\n"
-            "| 来源 | 断言 | 证据 | confidence |\n"
-            "|---|---|---|---|\n"
-            "## 关系\n\n"
-            "## 争议与矛盾\n\n"
-            "## 开放问题\n\n"
-            "## 引用来源\n"
-        )
-        action = {
-            "action": "update_hub",
-            "id": "hub-1",
-            "name": "Hub",
-            "kind": "concept",
-            "tier": "L2",
-            "aliases": ["new alias"],
-            "definition": "",
-            "source_refs": ["wiki/sources/c.md"],
-            "connect_existing": True,
-            "existing_page": "wiki/concepts/Hub.md",
-            "evidence": [],
-            "relations": [],
-            "contradictions": [],
-            "open_questions": [],
-        }
-        merged = PUBLISH.merge_hub_page(existing, action, {}, "2026-01-02")
-        fields, lists, _ = PUBLISH.parse_frontmatter(merged)
-        self.assertEqual(
-            lists["sources"],
-            ["wiki/sources/a.md", "wiki/sources/b.md", "wiki/sources/c.md"],
-        )
-        self.assertEqual(lists["aliases"], ["old alias", "new alias"])
-
-    def test_hub_page_has_no_evidence_relations_or_open_questions(self) -> None:
-        action = valid_plan()["hub_actions"][0]
-        text = PUBLISH.hub_page_text(
-            action, {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"}, "2026-01-01", "2026-01-01"
-        )
-        self.assertNotIn("## 证据", text)
-        self.assertNotIn("## 关系", text)
-        self.assertNotIn("## 开放问题", text)
-        self.assertIn("## 别名", text)
-        self.assertIn("## 争议与矛盾", text)
-        self.assertIn("## 引用来源", text)
-
-    def test_merge_hub_ignores_relations_field(self) -> None:
-        existing = (
-            "---\n"
-            "tags: [concept]\n"
-            'created: "2026-01-01"\n'
-            'updated: "2026-01-01"\n'
-            "sources:\n"
-            '  - "wiki/sources/a.md"\n'
-            "aliases:\n"
-            'status: "stub"\n'
-            "---\n\n"
-            "# Hub\n\n"
-            "A definition.\n\n"
-            "## 别名\n\n"
-            "## 争议与矛盾\n\n"
-            "## 引用来源\n"
-        )
-        action = {
-            "action": "update_hub",
-            "id": "hub-1",
-            "name": "Hub",
-            "kind": "concept",
-            "tier": "L2",
-            "aliases": [],
-            "definition": "",
-            "source_refs": ["wiki/sources/c.md"],
-            "connect_existing": True,
-            "existing_page": "wiki/concepts/Hub.md",
-            "evidence": [],
-            "relations": [
-                {
-                    "type": "applied_to",
-                    "target": "Task",
-                    "pointer": "[Paper: PDF p. 2]",
-                    "provenance": "Paper",
-                    "confidence": "high",
-                }
-            ],
-            "contradictions": [],
-            "open_questions": [],
-        }
-        merged = PUBLISH.merge_hub_page(existing, action, {}, "2026-01-02")
-        self.assertNotIn("applied_to", merged)
-        self.assertNotIn("## 关系", merged)
-
-    def test_merge_hub_replaces_definition_when_provided(self) -> None:
-        existing = (
-            "---\n"
-            "tags: [concept]\n"
-            'created: "2026-01-01"\n'
-            'updated: "2026-01-01"\n'
-            "sources:\n"
-            '  - "wiki/sources/a.md"\n'
-            "aliases:\n"
-            'status: "stub"\n'
-            "---\n\n"
-            "# Hub\n\n"
-            "Old definition.\n\n"
-            "## 证据\n\n"
-            "| 来源 | 断言 | 证据 | confidence |\n"
-            "|---|---|---|---|\n"
-            "## 关系\n\n"
-            "## 争议与矛盾\n\n"
-            "## 开放问题\n\n"
-            "## 引用来源\n"
-        )
-        action = {
-            "action": "update_hub",
-            "id": "hub-1",
-            "name": "Hub",
-            "kind": "concept",
-            "tier": "L2",
-            "aliases": [],
-            "definition": "New definition.",
-            "source_refs": ["wiki/sources/c.md"],
-            "connect_existing": True,
-            "existing_page": "wiki/concepts/Hub.md",
-            "evidence": [],
-            "relations": [],
-            "contradictions": [],
-            "open_questions": [],
-        }
-        merged = PUBLISH.merge_hub_page(existing, action, {}, "2026-01-02")
-        self.assertIn("# Hub\n\nNew definition.\n\n## 证据", merged)
-        self.assertNotIn("Old definition.", merged)
-
-    def test_missed_entity_promotions_warns_without_action(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            work = root / "work" / "a"
-            work.mkdir(parents=True)
-            (work / "paper-digest.json").write_text(
-                json.dumps(
-                    {
-                        "candidates": [
-                            {
-                                "tier": "L1",
-                                "kind": "entity",
-                                "name": "Public Benchmark",
-                                "definition": "A public benchmark.",
-                            }
-                        ]
-                    },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
-            )
-            pages = [{"source_ref": "wiki/sources/a.md", "work_dir": "work/a"}]
-            warnings = PUBLISH.missed_entity_promotions(pages, [], root)
-            self.assertEqual(len(warnings), 1)
-            self.assertEqual(warnings[0]["name"], "Public Benchmark")
-
-    def test_missed_entity_promotions_silent_when_planned_or_existing(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            work = root / "work" / "a"
-            work.mkdir(parents=True)
-            (work / "paper-digest.json").write_text(
-                json.dumps(
-                    {
-                        "candidates": [
-                            {
-                                "tier": "L1",
-                                "kind": "entity",
-                                "name": "Public Benchmark",
-                                "definition": "A public benchmark.",
-                            }
-                        ]
-                    },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
-            )
-            pages = [{"source_ref": "wiki/sources/a.md", "work_dir": "work/a"}]
-            planned = [
-                {
-                    "action": "create_hub",
-                    "kind": "entity",
-                    "name": "Public Benchmark",
-                }
-            ]
-            self.assertEqual(
-                PUBLISH.missed_entity_promotions(pages, planned, root), []
-            )
-            entities = root / "wiki" / "entities"
-            entities.mkdir(parents=True)
-            (entities / "Public Benchmark.md").write_text("# Public Benchmark\n", encoding="utf-8")
-            self.assertEqual(
-                PUBLISH.missed_entity_promotions(pages, [], root), []
-            )
-
     def test_find_name_variant_matches_alias_and_prefix(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            concepts = root / "wiki" / "concepts"
-            concepts.mkdir(parents=True)
+            entities = root / "wiki" / "entities"
+            entities.mkdir(parents=True)
             page = (
                 "---\n"
-                "tags: [concept]\n"
+                "tags: [entity]\n"
                 "aliases:\n"
                 '  - "Knowledge Conflict"\n'
                 "---\n\n"
                 "# 知识冲突\n"
             )
-            (concepts / "知识冲突.md").write_text(page, encoding="utf-8")
-            (concepts / "LLaVA.md").write_text("# LLaVA\n", encoding="utf-8")
+            (entities / "知识冲突.md").write_text(page, encoding="utf-8")
+            (entities / "LLaVA.md").write_text("# LLaVA\n", encoding="utf-8")
             self.assertEqual(
                 PUBLISH.find_name_variant("知识冲突（Knowledge Conflict）", root),
                 "知识冲突",
@@ -951,52 +770,27 @@ class PublishWikiTests(unittest.TestCase):
             # short names are too ambiguous to flag
             self.assertIsNone(PUBLISH.find_name_variant("MR", root))
 
-    def test_refused_variant_action_does_not_leak_backlinks(self) -> None:
+    def test_legacy_concepts_dir_is_not_written_or_listed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             prepare_vault(root)
-            (root / "wiki" / "concepts" / "Shared Concept.md").write_text(
+            concepts = root / "wiki" / "concepts"
+            concepts.mkdir(parents=True)
+            (concepts / "Legacy.md").write_text(
                 "---\n"
                 "tags: [concept]\n"
                 'created: "2026-01-01"\n'
                 'updated: "2026-01-01"\n'
                 "sources:\n"
+                '  - "wiki/sources/a.md"\n'
                 "aliases:\n"
-                'status: "stub"\n'
+                'status: "archived"\n'
                 "---\n\n"
-                "# Shared Concept\n\n"
-                "A definition.\n\n"
-                "## 别名\n\n"
-                "## 争议与矛盾\n\n"
-                "## 引用来源\n",
+                "# Legacy\n",
                 encoding="utf-8",
             )
-            plan = valid_plan()
-            plan["hub_actions"].append(
-                {
-                    "action": "create_hub",
-                    "id": "hub-2",
-                    "name": "Shared Concept（扩展名）",
-                    "kind": "concept",
-                    "tier": "L2",
-                    "aliases": [],
-                    "definition": "A variant name.",
-                    "source_refs": ["wiki/sources/a.md"],
-                    "connect_existing": True,
-                    "existing_page": None,
-                    "evidence": [
-                        {
-                            "source_ref": "wiki/sources/a.md",
-                            "pointer": "[Paper: PDF p. 1]",
-                            "claim": "Paper A reports it.",
-                        }
-                    ],
-                    "contradictions": [],
-                    "open_questions": [],
-                }
-            )
             plan_path = root / "link-plan.json"
-            plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+            plan_path.write_text(json.dumps(valid_plan(), ensure_ascii=False), encoding="utf-8")
             result = subprocess.run(
                 [
                     sys.executable,
@@ -1005,25 +799,17 @@ class PublishWikiTests(unittest.TestCase):
                     str(plan_path),
                     "--wiki-root",
                     str(root),
-                    "--report",
-                    str(root / "publish-report.json"),
                 ],
                 check=False,
                 capture_output=True,
                 text=True,
             )
-            self.assertEqual(result.returncode, 1, result.stderr)
-            report = json.loads(
-                (root / "publish-report.json").read_text(encoding="utf-8")
-            )
-            self.assertTrue(
-                any("hub_name_variant" in error for error in report["errors"])
-            )
-            source_a = (root / "wiki" / "sources" / "a.md").read_text(encoding="utf-8")
-            topic = (root / "wiki" / "topics" / "Shared Topic.md").read_text(encoding="utf-8")
-            self.assertNotIn("Shared Concept（扩展名）", source_a)
-            self.assertNotIn("Shared Concept（扩展名）", topic)
-            self.assertIn("[[Shared Concept|Shared Concept]] - 概念枢纽", source_a)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            # legacy page file is left untouched
+            self.assertIn("# Legacy", (concepts / "Legacy.md").read_text(encoding="utf-8"))
+            # the regenerated tree does not list concepts
+            tree = (root / "wiki" / "meta" / "knowledge-tree.md").read_text(encoding="utf-8")
+            self.assertNotIn("Legacy", tree)
 
     def test_knowledge_tree_is_stable_between_publishes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

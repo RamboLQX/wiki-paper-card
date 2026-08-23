@@ -1,12 +1,12 @@
 # Paper Digest Schema
 
-`wiki-processor` writes one `paper-digest.json` per paper. The digest is a compact paper-local record used by the batch linker. It must not contain wiki actions.
+`wiki-processor` writes one `paper-digest.json` per paper. The digest is a compact paper-local record used by the batch linker and the deterministic publisher. It must not contain wiki actions.
 
 ## Top-Level Fields
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "paper": {
     "title": "Paper title",
     "source_sha256": "hex digest",
@@ -26,7 +26,6 @@
     "critical_observations": [],
     "open_questions": []
   },
-  "candidates": [],
   "topic_seeds": []
 }
 ```
@@ -34,7 +33,7 @@
 ## Analysis
 
 - `one_sentence_summary`, `problem`, and `method` are required strings.
-- `datasets`, `models`, and `metrics` are compact string lists.
+- `datasets`, `models`, and `metrics` are compact string lists of **public reusable artifacts** the paper uses: datasets, benchmarks, model families, and metrics whose identity is guaranteed by their publisher (for example CONFLICTVIS, LLaVA, GPT-4o, ROUGE). The deterministic publisher generates entity stubs from these three lists, so list only artifacts with a public identity. Paper-private methods, components, one-off checkpoints, and local names must not be listed here.
 - `key_results` records the main bounded results:
 
 ```json
@@ -46,48 +45,7 @@
 ```
 
 - `limitations` and `critical_observations` use `statement` or `observation` plus `pointer`.
-- Keep the complete detail in `paper-card.md`. The digest supports linking, not replacement of the card.
-
-## Candidate
-
-```json
-{
-  "id": "stable-id",
-  "name": "Canonical name",
-  "kind": "concept|entity",
-  "tier": "L0|L1|L2",
-  "aliases": [],
-  "definition": "One or two sentences.",
-  "passed_gates": [1, 3, 4, 5],
-  "source_refs": ["wiki/sources/current/paper.md"],
-  "evidence": [
-    {
-      "pointer": "[Paper: PDF p. 3, Fig. 2]",
-      "claim": "What the source reports."
-    }
-  ],
-  "relations": []
-}
-```
-
-- Candidate records do not have `action`. Promotion is decided by `wiki-linker` after the batch.
-- `tier` is a provisional local classification.
-- `passed_gates` must contain at least three values from `1` through `5`.
-- Every evidence row needs `pointer` and `claim`.
-
-## Relation
-
-```json
-{
-  "type": "supports",
-  "target": "Canonical target name",
-  "pointer": "[Paper: PDF p. 5]",
-  "provenance": "Paper|External|Analysis|Hypothesis|User",
-  "confidence": "high|medium|low"
-}
-```
-
-`type` must come from the knowledge model relationship list.
+- Keep the complete detail in `paper-card.md`. The digest supports linking and entity extraction, not replacement of the card.
 
 ## Topic Seed
 
@@ -106,4 +64,4 @@ A topic seed is a proposal for the linker, not a publish action.
 
 ## Return Protocol
 
-The processor returns only status, output paths, paper type, locator mode, candidate counts, and topic-seed count.
+The processor returns only status, output paths, paper type, locator mode, and topic-seed count.

@@ -5,8 +5,7 @@
 ```text
 raw/            # User-owned source material, read only
 wiki/
-  entities/     # Long-lived organizations, products, methods, resources
-  concepts/     # Transferable theories, frameworks, mechanisms, terms
+  entities/     # Deterministic stubs for public datasets, benchmarks, model families, metrics
   topics/       # Cross-paper synthesis, comparisons, open questions
   sources/      # Source reports, mirroring raw/ subdirectories
   meta/         # Indexes, logs, dashboards, conventions
@@ -16,9 +15,9 @@ wiki/
 
 The agent never modifies `raw/`.
 
-`wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, plus the pending L1 candidate ledger, all grouped by domain (first directory under `wiki/sources/papers/`). A legacy `wiki/meta/candidates.md` (stem-based L1 ledger) is migrated into `research.md` on the first publish with the current publisher and is no longer written afterwards; `build_kb_context.py` reads `research.md` first and falls back to the legacy file.
+`wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, grouped by domain (first directory under `wiki/sources/papers/`).
 
-`wiki/meta/knowledge-tree.md` is the machine-maintained navigation tree for LLM retrieval. The publisher rebuilds it deterministically after each publish, grouped by domain (first directory under `wiki/sources/papers/`), with per-node summaries, hub aliases, and per-domain open questions and research gaps aggregated from topic pages. Retrieval follows the two-mode protocol in `retrieval-protocol.md` (lookup pruning / survey expansion).
+`wiki/meta/knowledge-tree.md` is the machine-maintained navigation tree for LLM retrieval. The publisher rebuilds it deterministically after each publish, grouped by domain (first directory under `wiki/sources/papers/`), with per-node summaries, entity aliases, and per-domain open questions and research gaps aggregated from topic pages. Retrieval follows the two-mode protocol in `retrieval-protocol.md` (lookup pruning / survey expansion).
 
 ## Frontmatter
 
@@ -39,11 +38,12 @@ Valid page tags:
 
 ```text
 entity
-concept
 topic
 source
 meta
 ```
+
+Legacy `concept` pages from older installs are no longer written or updated; the publisher leaves them untouched.
 
 Paper source pages use:
 
@@ -76,20 +76,20 @@ The source page is the primary paper entry and contains all Sections 01-16 in or
 
 Formulas are written outside Markdown tables. Use `$$...$$` for a displayed formula and `$...$` only for a short inline reference outside a table. Escape a literal pipe inside table math as `\|`.
 
-Sections 14-16 keep local and reusable candidates. They use wiki-links to cross-paper hubs when a hub page exists:
+Sections 14-16 keep local and reusable candidates. They use wiki-links to topic and entity pages when such a page exists:
 
 ```markdown
 ## 14. 学到的知识
 
-- [[某概念|某概念]] — 本文提供的一个增量证据
-- L1 候选：另一个可复用但尚未被第二篇论文印证的术语
+- [[某实体|某实体]] — 本文提供的一个增量证据
+- 本地候选：另一个可复用但尚未跨论文印证的术语
 
 ## 15. 与已有知识连接
 
 | 类型 | 对象 | 证据 | 结论 |
 |---|---|---|---|
-| supports | [[某概念]] | [Paper: Figure 3] | 本文结果与已有结论一致 |
-| proposed | 候选对象 | [Paper: PDF p. 5] | 尚未建立跨论文页面，暂留本地 |
+| supports | [[某实体]] | [Paper: Figure 3] | 本文结果与已有结论一致 |
+| proposed | 候选对象 | [Paper: PDF p. 5] | 暂留本地，不建独立页面 |
 
 ## 16. 研究想法
 
@@ -100,61 +100,24 @@ Sections 14-16 keep local and reusable candidates. They use wiki-links to cross-
 ```
 
 The deterministic publisher appends a trailing `## 关联页面` section to each
-source page, listing basename wikilinks to every hub and topic that cites the
+source page, listing basename wikilinks to every topic and entity that cites the
 page. This keeps the graph bidirectional after batch linking.
 
 ## Entity Page
 
-Entity and concept pages are thin cross-paper hubs. Do not copy a Paper Card into them.
+Entity pages are thin deterministic stubs written only by `publish_wiki.py`. They aggregate which source pages use a public artifact. Do not copy a Paper Card into them, and do not create them by hand.
 
 ```markdown
 # 页面名
 
-一句话定义。
+> 本页由 publish_wiki.py 确定性生成，只聚合引用本实体的论文；定义与评价见各来源论文页。
 
 ## 别名
 
-## 证据
-
-| 来源 | 断言 | 证据 | confidence |
-|---|---|---|---|
-
-## 关系
-
-| 类型 | 对象 | 证据 | 说明 |
-|---|---|---|---|
-
-## 争议与矛盾
-
-## 开放问题
-
 ## 引用来源
-```
 
-## Concept Page
-
-```markdown
-# 页面名
-
-一句话定义。
-
-## 别名
-
-## 证据
-
-| 来源 | 断言 | 证据 | confidence |
-|---|---|---|---|
-
-## 关系
-
-| 类型 | 对象 | 证据 | 说明 |
-|---|---|---|---|
-
-## 争议与矛盾
-
-## 开放问题
-
-## 引用来源
+- [[论文A|论文标题A]]
+- [[论文B|论文标题B]]
 ```
 
 ## Topic Page
@@ -175,7 +138,7 @@ Topic pages are the primary synthesis surface. They compare sources and record o
 
 ## 争议与不确定
 
-## 相关实体与概念
+## 相关实体
 
 ## 开放问题
 
@@ -204,4 +167,4 @@ The deterministic publisher does not rewrite historical log entries.
 - Use the source's most common canonical name.
 - Put variants in `aliases`, not separate pages.
 - Do not create a page for every named model, dataset, metric, or module.
-- A paper-specific internal name remains local unless it becomes an L2 cross-paper hub.
+- A paper-specific internal name remains local in the Paper Card.

@@ -1,6 +1,6 @@
 ---
 name: wiki-paper-card
-description: Build a source-grounded 01-16 paper card and integrate it into an Obsidian LLM Wiki. Use when the user asks to read, analyze, ingest, or batch-process academic papers, and when the result should update wiki sources, entities, concepts, topics, index, and log. Do not use for full-text translation, peer review, slide generation, or standalone paper cards that should not modify a wiki.
+description: Build a source-grounded 01-16 paper card and integrate it into an Obsidian LLM Wiki. Use when the user asks to read, analyze, ingest, or batch-process academic papers, and when the result should update wiki sources, entities, topics, index, and log. Do not use for full-text translation, peer review, slide generation, or standalone paper cards that should not modify a wiki.
 ---
 
 # Wiki Paper Card Router
@@ -8,7 +8,7 @@ description: Build a source-grounded 01-16 paper card and integrate it into an O
 Turn one paper into:
 
 1. a source-grounded Sections 01-16 Paper Card;
-2. a minimal set of cross-paper concept and entity hubs;
+2. deterministic entity stubs for public datasets, benchmarks, model families, and metrics;
 3. topic pages that compare papers and expose research gaps;
 4. updated index and log entries.
 
@@ -66,7 +66,7 @@ Follow [references/workflow-contract.md](references/workflow-contract.md):
 2. Generate every paper card and paper digest independently, with bounded concurrency.
 3. Run deterministic packaging, evidence, formula, structural, wiki, and digest audits.
 4. Link all approved digests only after the whole batch passes.
-5. Apply only approved hub and topic actions.
+5. Apply only approved topic actions; entity stubs are generated deterministically by the publisher.
 
 For batch input, read [references/batch-mode.md](references/batch-mode.md). For single input, do not load batch-mode. When running under DeepSeek Harness, also read [the DSH adapter reference](../../adapters/dsh/dsh-mode.md).
 
@@ -80,11 +80,10 @@ Match the user's language. Preserve canonical technical terms, formulas, model n
 
 Before creating a page, apply [../wiki-shared/references/knowledge-model.md](../wiki-shared/references/knowledge-model.md):
 
-- keep L0 candidates local;
-- keep L1 reusable candidates local until a second source or direct connection requirement exists;
-- promote only L2 cross-paper hubs;
+- keep paper-local terms and candidates inside the Paper Card (Sections 14-15);
+- there are no concept pages and no promotion ladder;
+- entity pages are deterministic stubs written only by `publish_wiki.py` from the digest's public artifacts;
 - never use mention frequency as a promotion signal;
-- record explicit relationship types;
 - preserve contradictions instead of overwriting them;
 - treat topic pages as the primary synthesis surface for research gaps.
 

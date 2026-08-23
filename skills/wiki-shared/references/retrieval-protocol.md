@@ -5,11 +5,11 @@
 ```text
 wiki/index.md                   扁平目录（人读入口）
 wiki/meta/knowledge-tree.md     按领域分组的导航树（publish_wiki.py 确定性生成）
-wiki/topics|concepts|entities|sources/   分支页面与叶子小节
+wiki/topics|entities|sources/   分支页面与叶子小节
 ```
 
 `knowledge-tree.md` 按 `raw/papers/` 一级目录分域，每个节点带一句话摘要，
-概念/实体节点附带别名，每个领域聚合了来自 topic 页的开放问题与研究空白。
+实体节点附带别名，每个领域聚合了来自 topic 页的开放问题与研究空白。
 检索从树开始，逐层下降；这是 PageIndex 式"树索引 + LLM 树搜索"在本知识库
 的落地：索引由确定性脚本维护（零 LLM 成本），检索时才消耗 LLM 判断。
 
@@ -27,7 +27,7 @@ wiki/topics|concepts|entities|sources/   分支页面与叶子小节
 
 1. 读树，选不超过 3 个候选分支；
 2. 只读候选页面的相关小节：topic → 概述 / 关键发现 / 开放问题；
-   hub → 定义 / 证据 / 争议与矛盾；source → 对应编号小节；
+   entity → 别名 / 引用来源（定义与证据沿链接进入 source 页）；source → 对应编号小节；
 3. 需要证据细节时，沿 `[Paper: PDF p.X]` 指针进入 source 页对应小节；
 4. 回答必须带来源（页面 wikilink + 证据指针）。
 

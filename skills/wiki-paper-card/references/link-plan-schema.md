@@ -6,7 +6,7 @@
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "batch": {
     "source_pages": [
       {
@@ -17,52 +17,13 @@
       }
     ]
   },
-  "hub_actions": [],
   "topic_actions": []
 }
 ```
 
 `source_pages` contains the current batch only.
 
-## Hub Action
-
-```json
-{
-  "action": "create_hub|update_hub",
-  "id": "stable-id",
-  "name": "Canonical name",
-  "kind": "concept|entity",
-  "tier": "L2",
-  "aliases": [],
-  "definition": "One or two sentences.",
-  "source_refs": [
-    "wiki/sources/paper-a.md",
-    "wiki/sources/paper-b.md"
-  ],
-  "connect_existing": false,
-  "existing_page": null,
-  "evidence": [
-    {
-      "source_ref": "wiki/sources/paper-a.md",
-      "pointer": "[Paper: PDF p. 3, Fig. 2]",
-      "claim": "What the source reports."
-    }
-  ],
-  "contradictions": [],
-  "open_questions": []
-}
-```
-
-Rules:
-
-- Hub actions must use `L2`.
-- `create_hub` requires at least two distinct batch `source_refs` or `connect_existing: true`.
-- `update_hub` requires `connect_existing: true` or a non-empty `existing_page`.
-- `update_hub` may carry a refreshed `definition`; the publisher replaces the page's definition paragraph with it. Leave `definition` empty to keep the existing definition.
-- Every evidence row needs `source_ref`, `pointer`, and `claim`. Evidence rows are admission proof only: the audit validates them, but hub pages do not render a per-source evidence table (evidence lives in Paper Cards and topic pages).
-- Hub `open_questions` are not rendered on hub pages; record questions on a topic page (the audit warns when a hub action carries them).
-- The `relations` field is removed: hub pages have no typed relation table. Express connectivity with wikilinks inside `definition` (the audit warns when a plan still carries `relations`, and the publisher ignores the field).
-- `contradictions` must preserve both positions with their source pointers.
+There are no hub actions: entity pages are generated deterministically by the publisher from the digests' `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists. The linker writes topic actions only.
 
 ## Topic Action
 
@@ -111,4 +72,4 @@ Rules:
 
 ## Publisher Boundary
 
-`publish_wiki.py` applies only the actions in this plan. It does not invent promotions, duplicate aliases, or rewrite unrelated prose.
+`publish_wiki.py` applies only the actions in this plan. It does not invent topic promotions, duplicate aliases, or rewrite unrelated prose. Entity stubs are generated deterministically from the batch digests, not from this plan.

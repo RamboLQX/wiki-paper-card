@@ -66,7 +66,7 @@ Force regeneration of an unchanged PDF:
 Use wiki-paper-card to reprocess raw/papers/example.pdf.
 ```
 
-A single paper creates its source page under `wiki/sources/`. New concept, entity, and topic pages require the cross-paper knowledge gates described in the main README. Batch processing runs up to three `wiki-processor` agents concurrently and starts the link and publish phase only after every card and digest passes.
+A single paper creates its source page under `wiki/sources/`, and `publish_wiki.py` deterministically generates or updates entity stubs under `wiki/entities/` from the digest's public datasets, benchmarks, model families, and metrics. New topic pages require the cross-paper knowledge gates described in the main README. Batch processing runs up to three `wiki-processor` agents concurrently and starts the link and publish phase only after every card and digest passes.
 
 ## Optional: Anthropic-compatible model endpoint
 

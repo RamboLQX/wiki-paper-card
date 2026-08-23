@@ -176,9 +176,9 @@ Appendix-only or supporting items should appear only when they materially suppor
 
 Keep detailed paper-local knowledge in Sections 14-16.
 
-- L0: paper-local, no wiki page.
-- L1: stable and reusable, but not yet supported by a second independent source, no wiki page.
-- L2: at least two independent source pages, or required to connect existing pages, may create or update a thin hub page.
+- Paper-local terms, components, and one-off names stay in the Paper Card.
+- Reusable but not yet cross-paper verified terms stay in the Paper Card; there are no concept pages and no promotion ladder.
+- Public datasets, benchmarks, model families, and metrics go into the digest's `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists (the deterministic publisher generates entity stubs from them).
 
 Proposed topic comparisons and open questions belong in the topic plan.
 
@@ -188,9 +188,9 @@ Section 16 ideas must each trace to a concrete observation or limitation; if non
 
 Follow [paper-digest-schema.md](paper-digest-schema.md).
 
-Write only paper-local analysis and candidate records. Do not include `action`, `create_hub`, `update_hub`, `create_topic`, or `update_topic` fields. `wiki-linker` decides all cross-paper actions after the batch.
+Write only paper-local analysis and topic seeds. Do not include `action`, `create_topic`, or `update_topic` fields. `wiki-linker` decides all cross-paper topic actions after the batch.
 
-Do not put full Paper Card content in the digest. Keep definitions, evidence rows, relations, topic seeds, and open questions compact.
+Do not put full Paper Card content in the digest. Keep definitions, topic seeds, and open questions compact.
 
 ## Return Protocol
 
@@ -201,6 +201,5 @@ status
 output paths
 paper type
 locator mode
-number of candidates
 number of topic seeds
 ```

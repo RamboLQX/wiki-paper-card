@@ -5,16 +5,15 @@
 | Artifact | Destination |
 |---|---|
 | Full Sections 01-16 | `wiki/sources/<raw-relative-path>.md` |
-| L2 concept hub | `wiki/concepts/<canonical-name>.md` |
-| L2 entity hub | `wiki/entities/<canonical-name>.md` |
+| Entity stub (deterministic) | `wiki/entities/<canonical-name>.md` |
 | Cross-paper synthesis | `wiki/topics/<topic-name>.md` |
+
+Entity stubs are not link-plan actions: `publish_wiki.py` generates them from the batch digests' `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists. The linker never writes hub actions.
 
 ## Plan Boundary
 
 The deterministic publisher reads `link-plan.json` and applies only actions already recorded there.
 
-- `create_hub`: create a thin L2 page.
-- `update_hub`: read the existing page and add only missing evidence, relations, or contradictions.
 - `create_topic` / `update_topic`: create or update a cross-paper synthesis page.
 
 Do not invent additional promotions, duplicate aliases, or change unrelated prose.
@@ -29,39 +28,25 @@ Do not invent additional promotions, duplicate aliases, or change unrelated pros
 6. Do not include internal protocol markers, formula reports, evidence coverage lists, or audit artifacts.
 7. Keep formulas in the finalized format.
 
-## Hub Page Write
+## Entity Stub Write
 
-Hub pages stay short:
+Entity stubs are generated only by the deterministic publisher:
 
-```markdown
-# 页面名
+1. Collect every name from the batch digests' `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists.
+2. Normalize each name; merge variants under one page: the shorter raw name becomes the page title, other spellings become aliases. A name resembling an existing page's name or alias appends to that page instead of creating a variant.
+3. A new page contains only: frontmatter (`tags: [entity]`, `status: stub`, `sources`, `aliases`), the page title, a fixed note that the page is machine-generated, an `## 别名` section, and an `## 引用来源` section listing the source Paper Cards.
+4. An existing page only gains missing aliases and missing source links; its other content is preserved.
+5. Re-running the same batch is idempotent: unchanged pages are not rewritten.
 
-一句话定义。
+Definitions, evidence, and evaluations live in the source Paper Cards; entity stubs do not carry them.
 
-## 别名
-
-## 证据
-
-## 关系
-
-## 争议与矛盾
-
-## 开放问题
-
-## 引用来源
-```
-
-Use `status: stub` for a new page. Include the current source report in `sources`. Link back to the source Paper Card instead of copying its module tables or ablations.
-
-The publisher renders the evidence, relation, contradiction, open-question, and source sections directly from the audited action. It preserves existing page content and only appends missing rows.
-
-## Existing Hub Page Rules
+## Existing Entity Page Rules
 
 1. Read the target page before editing.
 2. Compare aliases and canonical names.
-3. Add only missing evidence and relations.
+3. Add only missing aliases and source links.
 4. Add the current source report link once.
-5. If a conflict exists, preserve the old position and add a contradiction entry.
+5. Do not replace or restate existing content.
 
 ## Topic Page Write
 
@@ -98,7 +83,7 @@ The publisher renders grouped or flat comparison records, key findings (共识/�
 
 `wiki/log.md`:
 
-- append one operation entry for source and hub writes;
+- append one operation entry for source and entity writes;
 - append one batch synthesis entry after topic pages are published;
 - do not change earlier entries.
 
@@ -107,4 +92,4 @@ The publisher renders grouped or flat comparison records, key findings (共识/�
 - Same PDF SHA-256 and unchanged target: no writes.
 - Changed PDF: update report while preserving `created`.
 - Legacy report without SHA-256: treat as changed and add the fingerprint.
-- Re-running the same link plan and cards must not rewrite unchanged pages, index entries, or log entries.
+- Re-running the same link plan and cards must not rewrite unchanged pages, entity stubs, index entries, or log entries.

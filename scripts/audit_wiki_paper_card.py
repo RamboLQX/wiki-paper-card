@@ -184,7 +184,6 @@ def audit(card_text: str, wiki_root: Path | None) -> dict[str, Any]:
             "index": wiki_root / "wiki" / "index.md",
             "log": wiki_root / "wiki" / "log.md",
             "entities": wiki_root / "wiki" / "entities",
-            "concepts": wiki_root / "wiki" / "concepts",
             "topics": wiki_root / "wiki" / "topics",
             "sources": wiki_root / "wiki" / "sources",
         }

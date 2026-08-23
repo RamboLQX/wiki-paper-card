@@ -22,7 +22,7 @@ SPEC.loader.exec_module(DIGEST_AUDIT)
 
 def valid_digest() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "paper": {
             "title": "Test Paper",
             "source_sha256": "a" * 64,
@@ -58,25 +58,6 @@ def valid_digest() -> dict:
             ],
             "open_questions": ["Would the method transfer?"],
         },
-        "candidates": [
-            {
-                "id": "candidate-1",
-                "name": "Test Candidate",
-                "kind": "concept",
-                "tier": "L1",
-                "aliases": [],
-                "definition": "A reusable concept.",
-                "passed_gates": [1, 3, 4, 5],
-                "source_refs": ["wiki/sources/current.md"],
-                "evidence": [
-                    {
-                        "pointer": "[Paper: PDF p. 3, Fig. 1]",
-                        "claim": "The source reports the concept.",
-                    }
-                ],
-                "relations": [],
-            }
-        ],
         "topic_seeds": [
             {
                 "id": "topic-1",
@@ -96,17 +77,18 @@ class PaperDigestAuditTests(unittest.TestCase):
         self.assertEqual(report["summary"]["errors"], 0)
         self.assertEqual(report["summary"]["status"], "pass")
 
-    def test_candidate_must_include_current_source(self) -> None:
+    def test_candidates_field_is_rejected(self) -> None:
         digest = valid_digest()
-        digest["candidates"][0]["source_refs"] = ["wiki/sources/other.md"]
+        digest["candidates"] = [
+            {
+                "id": "candidate-1",
+                "name": "Test Candidate",
+                "kind": "concept",
+                "tier": "L1",
+            }
+        ]
         report = DIGEST_AUDIT.audit(digest)
-        self.assertTrue(any(item["code"] == "current_source_missing" for item in report["findings"]))
-
-    def test_invalid_evidence_pointer_fails(self) -> None:
-        digest = valid_digest()
-        digest["candidates"][0]["evidence"][0]["pointer"] = "Paper: p. 3"
-        report = DIGEST_AUDIT.audit(digest)
-        self.assertTrue(any(item["code"] == "evidence_pointer" for item in report["findings"]))
+        self.assertTrue(any(item["code"] == "candidates_removed" for item in report["findings"]))
 
     def test_topic_seed_must_include_current_source(self) -> None:
         digest = valid_digest()

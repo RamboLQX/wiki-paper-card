@@ -35,7 +35,7 @@ def publish_report(root: Path, status: str = "pass") -> Path:
                         "path": "wiki/sources/papers/a.md",
                         "action": "create",
                     },
-                    {"kind": "hub", "path": "wiki/concepts/C.md", "action": "create"},
+                    {"kind": "entity", "path": "wiki/entities/C.md", "action": "create"},
                 ],
                 "errors": [],
             },
@@ -79,14 +79,14 @@ class SmokeObsidianTests(unittest.TestCase):
     def test_read_publish_report_collects_pages(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             pages, status = SMOKE.read_publish_report(publish_report(Path(directory)))
-        self.assertEqual(pages, ["wiki/sources/papers/a.md", "wiki/concepts/C.md"])
+        self.assertEqual(pages, ["wiki/sources/papers/a.md", "wiki/entities/C.md"])
         self.assertEqual(status, "pass")
 
     def test_check_page_passes_when_decorations_render(self) -> None:
         check = FakeCheck(
             {"check": (0, "=> " + json.dumps({"headers": 3, "rawLinks": 0, "rawBold": 0}))}
         )
-        result = check.check_page("wiki/concepts/C.md")
+        result = check.check_page("wiki/entities/C.md")
         self.assertEqual(result["status"], "pass")
         self.assertIn("eval", check.calls)
 
@@ -94,7 +94,7 @@ class SmokeObsidianTests(unittest.TestCase):
         check = FakeCheck(
             {"check": (0, "=> " + json.dumps({"headers": 0, "rawLinks": 5, "rawBold": 2}))}
         )
-        result = check.check_page("wiki/concepts/C.md")
+        result = check.check_page("wiki/entities/C.md")
         self.assertEqual(result["status"], "fail")
         self.assertTrue(result["problems"])
 
