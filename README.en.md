@@ -1,20 +1,56 @@
-# wiki-paper-card
+<div align="center">
+  <p>
+    <img src="assets/readme-banner-en.svg" alt="wiki-paper-card —— Turn papers into a searchable, comparable, traceable research Wiki" width="100%">
+  </p>
+  <p>
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.2.0-f59e0b"></a>
+    <a href="#runtime-and-entry-points"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
+    <a href="#quick-start"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
+    <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
+  </p>
+  <p>
+    <a href="#what-it-does">What It Does</a>
+    · <a href="#core-capabilities">Capabilities</a>
+    · <a href="#quick-start">Quick Start</a>
+    · <a href="#usage">Usage</a>
+    · <a href="#workflow">Workflow</a>
+    · <a href="#project-layout">Project Layout</a>
+    · <a href="README.md">中文</a>
+  </p>
+</div>
 
-`wiki-paper-card` is a paper-reading and knowledge-crystallization workflow for Obsidian that turns a growing collection of papers into a traceable, comparable, and extensible personal research Wiki.
+---
 
-It first turns each paper into a Paper Card grounded to pages, figures, tables, and equations, then connects evidence supported by multiple papers into concept, entity, and topic pages during batch processing.
-
-[中文](README.md)
-
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
-![Version: 0.2.0](https://img.shields.io/badge/version-0.2.0-orange)
-![Runtime: Claude Code](https://img.shields.io/badge/runtime-Claude%20Code%20%2B%20Claudian-2f4f4f)
+**`wiki-paper-card` turns your paper collection into a research knowledge base that keeps growing.** The hard part of reading isn't finishing papers — it's remembering what you read and finding it again when you write a survey or start something new. wiki-paper-card reads each paper into a source-grounded "Paper Card", then automatically connects evidence that multiple papers corroborate into concept, entity, and topic pages. Keep adding papers and a traceable, comparable, ever-growing research Wiki builds itself — ready whenever you need it.
 
 > Status: the core workflow is runnable, while workflow contracts, knowledge rules, and output formats will continue to evolve.
 
+## Table Of Contents
+
+- [Runtime And Entry Points](#runtime-and-entry-points)
+- [What It Does](#what-it-does)
+- [Core Capabilities](#core-capabilities)
+- [Relationship To Upstream nature-skills](#relationship-to-upstream-nature-skills)
+- [Design Reference](#design-reference)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Agent Quick Setup](#agent-quick-setup)
+- [Workflow](#workflow)
+- [Output Layout](#output-layout)
+- [Supported Scope](#supported-scope)
+- [Project Layout](#project-layout)
+- [Documentation](#documentation)
+- [Verification](#verification)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Runtime And Entry Points
 
-This project runs through [Claude Code](https://code.claude.com/docs/en/overview) inside [Obsidian](https://obsidian.md/download), using the [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin. The official Claudian repository is on [GitHub](https://github.com/YishenTu/claudian).
+This project supports two runtime hosts:
+
+- 🖥️ [Claude Code](https://code.claude.com/docs/en/overview): used inside [Obsidian](https://obsidian.md/download) with the [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin. The official Claudian repository is on [GitHub](https://github.com/YishenTu/claudian).
+- 🤖 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness): start a DSH session inside the vault directory — no Obsidian plugin required. See [adapters/dsh/](adapters/dsh/) for the adapter and orchestration mapping.
 
 Open a standalone vault initialized from `template/` in Obsidian, not this repository's root directory. The repository root also contains implementation files such as `vendor/`, `scripts/`, and `tests/`.
 
@@ -22,21 +58,24 @@ Open a standalone vault initialized from `template/` in Obsidian, not this repos
 
 `wiki-paper-card` is designed for researchers who maintain a personal research Wiki over time. It separates the workflow into two stages: close reading of each paper, followed by cross-paper selection and connection of knowledge worth promoting.
 
-1. **Read papers**: each paper is processed independently into a complete Sections 01-16 Paper Card, with key claims grounded to pages, figures, tables, and equations so they can be checked against the original.
-2. **Crystallize knowledge**: after a batch completes, the project compares candidate concepts and entities across papers. A concept or entity hub page is created only when the same object is supported by at least two independent sources, or when it is directly needed to connect existing Wiki pages or answer an existing open question. Candidates seen in only one paper remain in that paper's Card.
+1. 📖 **Read papers**: each paper is independently read into a structured card — from bibliographic info, the research question, the core idea, method modules, and the experiment-to-claim evidence chain, through to conclusion boundaries, author-stated limitations, critical analysis, and testable research ideas; every key claim is anchored to a page, figure, table, or equation so it can be checked against the original.
+2. 🧠 **Crystallize knowledge**: after a batch completes, the project compares candidate concepts and entities across papers. A concept or entity hub page is created only when the same object is supported by at least two independent sources, or when it is directly needed to connect existing Wiki pages or answer an existing open question. Candidates seen in only one paper remain in that paper's Card.
 
 To keep detailed arguments available while making cross-paper comparison and retrieval easier, the project separates paper-level detail from cross-paper knowledge: Paper Cards keep the full record; concept and entity pages keep only stable definitions, source evidence, relations, and contradictions as thin hubs; topic pages carry comparison and synthesis. This keeps the Wiki searchable, comparable, and traceable as it grows.
 
 ## Core Capabilities
 
-- Generates Sections 01-16 Paper Cards with page, figure, table, and equation grounding.
-- Processes papers in isolated batches so individual analyses do not contaminate each other.
-- Uses L0, L1, and L2 knowledge gates to control page creation: paper-local concepts and unverified candidates stay in the Paper Card, and only nodes with sufficient cross-paper evidence become concept or entity hubs.
-- Uses topic pages to compare methods, evidence, models, datasets, and results across papers; distinguishes consensus / single-paper claims / conflicts, keeps both sides of a contradiction with resolving evidence, and records research gaps with a source anchor, testable direction, and continuity.
-- Grows incrementally: a new paper can promote an existing L1 candidate to an L2 hub, merge into an existing topic comparison table, and answer an existing open question; pending candidates, open questions, and research gaps accumulate by domain in the `wiki/meta/research.md` dashboard.
-- Writes only content that changes a reader's judgment; leaves a section empty when there is no genuine finding (no padding).
-- Uses deterministic prepare, finalize, audit, and publish scripts; repeated updates do not create duplicate content and include structured verification.
-- Maintains `wiki/index.md`, `wiki/log.md`, and source-page links without returning full paper text to the main session, keeping context use bounded.
+In short: **it turns papers you have "read" into knowledge you actually own and can reuse.** It solves the problems every long-term researcher runs into:
+
+| The problem you hit | How wiki-paper-card solves it |
+|---|---|
+| You finish a paper, then forget it and can't find it when writing a survey | Each paper becomes a structured card whose claims, formulas, and figures point back to the source for one-click verification |
+| Papers pile up and knowledge stays scattered and disconnected | It automatically connects corroborated evidence across papers into concept, entity, and topic pages — a growing knowledge graph |
+| You read a lot but never form your own judgment | Topic pages compare methods, evidence, and results across papers, marking consensus / conflict and keeping both sides of a disagreement |
+| You worry AI output is padded or unreliable | Every claim must land on a page / figure / table / equation anchor, enforced by deterministic audits; sections stay empty when there is nothing of value |
+| The knowledge base gets messy and tedious to maintain | Deterministic scripts write incrementally, repeated runs create no duplicates, and index / log stay maintained automatically |
+
+To keep only what survives repeated verification, page creation is gated by three tiers:
 
 | Tier | Meaning | Handling |
 |---|---|---|
@@ -44,7 +83,7 @@ To keep detailed arguments available while making cross-paper comparison and ret
 | L1 | Independently definable, but not yet supported by a second independent source | Kept in the Paper Card as a candidate |
 | L2 | Supported by at least two independent sources, or directly needed to connect existing Wiki pages or answer an existing open question | Creates or updates a concept/entity hub page |
 
-## Relationship To Upstream `nature-skills`
+## Relationship To Upstream nature-skills
 
 The analysis core and shared rules come from the [nature-skills](https://github.com/Yuan1z0825/nature-skills) project. The upstream directories are pinned in `vendor/nature-paper-card` and `vendor/nature-shared`.
 
@@ -61,14 +100,22 @@ This project follows Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a
 
 ## Quick Start
 
+Once installed, copy these prompts straight to your Agent:
+
+| What you want | What to say |
+|---|---|
+| Process one paper | `Use wiki-paper-card to process raw/papers/example.pdf.` |
+| Batch-process a directory | `Use wiki-paper-card to batch-process raw/papers/knowledge-conflict/.` |
+| Regenerate an existing card | `Use wiki-paper-card to reprocess raw/papers/example.pdf.` |
+
 Prerequisites:
 
-- [Claude Code](https://code.claude.com/docs/en/overview)
-- [Obsidian](https://obsidian.md/download) with the [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin
+- [Claude Code](https://code.claude.com/docs/en/overview) or [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (one or both)
+- [Obsidian](https://obsidian.md/download) (the Claude Code host also needs the [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin)
 - Python 3
 - PyMuPDF when processing PDF files
 
-Create or select a standalone vault, copy the contents of `template/` into it, then link this repository's skills and agents into that vault:
+Create or select a standalone vault and link it with the install script:
 
 ```bash
 git clone <repository-url> wiki-paper-card
@@ -76,22 +123,20 @@ cd wiki-paper-card
 
 VAULT=/path/to/vault
 mkdir -p "$VAULT"
-cp -R -n template/* "$VAULT/"
 
-mkdir -p "$VAULT/.claude/skills" "$VAULT/.claude/agents"
-ln -s "$PWD/skills/wiki-paper-card" "$VAULT/.claude/skills/wiki-paper-card"
-ln -s "$PWD/skills/wiki-shared" "$VAULT/.claude/skills/wiki-shared"
-cp adapters/claude-code/agents/*.md "$VAULT/.claude/agents/"
-cp template/CLAUDE.md "$VAULT/CLAUDE.md"
+# --host can be claude | dsh | both (default: both)
+scripts/install.sh --host dsh "$VAULT"
+# or connect both hosts at once:
+scripts/install.sh --host both "$VAULT"
 
 export WIKI_PAPER_CARD_ROOT="$PWD"
 ```
 
-Open `$VAULT` in Obsidian, not this repository's root directory. The `-n` flag preserves files that already exist in the target vault. If it already has a `CLAUDE.md`, merge the relevant sections instead of overwriting it.
+The install script is idempotent: it only creates missing directories, templates, and skill links, and never overwrites an existing `CLAUDE.md`, knowledge pages, or `raw/` files in the vault. The Claude Code host links skills into `$VAULT/.claude/skills/` and copies subagents; the DSH host links skills into `$VAULT/.dsh/skills/` (DSH auto-discovers that directory and the vault-root `CLAUDE.md`).
 
-`template/` only provides the vault layout. After creating these links and setting `WIKI_PAPER_CARD_ROOT`, Claudian can discover `wiki-paper-card`, `wiki-shared`, and the subagents from the vault, and resolve the repository scripts and pinned upstream files through that environment variable. Copying the template alone does not make the skills appear.
+Open `$VAULT` in Obsidian (for the DSH host, start a DSH session in the vault directory), not this repository's root directory. After setting `WIKI_PAPER_CARD_ROOT`, the host can discover `wiki-paper-card`, `wiki-shared`, and the subagents from the vault, and resolve the repository scripts and pinned upstream files through that environment variable. Copying the template alone does not make the skills appear.
 
-Place a paper under `raw/papers/` in the vault and invoke the skill from a Claudian session:
+Place a paper under `raw/papers/` in the vault and invoke the skill:
 
 ```text
 Use wiki-paper-card to process raw/papers/example.pdf.
@@ -193,21 +238,9 @@ The Agent creates missing vault directories, links the skills, merges `CLAUDE.md
 
 ## Workflow
 
-```mermaid
-flowchart TD
-    A["Input: PDF / text / source map"] --> B["prepare_paper.py<br/>build source bundle"]
-    B --> C["build_kb_context.py<br/>compress existing wiki context"]
-    C --> D["run an independent wiki-processor per paper"]
-    U["Pinned upstream snapshot<br/>nature-paper-card / nature-shared"] -.-> D
-    D --> E["paper-card.md<br/>Sections 01-16 + paper-digest.json"]
-    E --> F["finalize_paper_card.py<br/>structure and evidence audits"]
-    F --> G{"All papers pass?"}
-    G -->|No| E
-    G -->|Yes| H["wiki-linker<br/>build cross-paper link-plan.json"]
-    H --> I["audit_link_plan.py"]
-    I --> J["publish_wiki.py<br/>deterministic wiki writes"]
-    J --> K["source / concept / entity / topic<br/>index / log"]
-```
+![Four-step workflow from papers to a research Wiki](assets/readme-workflow-en.svg)
+
+From dropping in papers and reading them closely, to connecting evidence across papers and crystallizing a growing research Wiki. For the deterministic pipeline behind the scenes (prepare → finalize → audit → publish) and per-script details, see [docs/architecture.md](docs/architecture.md).
 
 ## Output Layout
 
@@ -234,13 +267,11 @@ Paper Cards keep the detailed record, concept and entity pages stay thin hubs, a
 
 | Area | Current support |
 |---|---|
-| Runtime host | Claude Code |
-| Obsidian entry point | Claudian |
+| Runtime host | Claude Code, DeepSeek Harness (DSH) |
+| Obsidian entry point | Claudian (Claude Code host) |
 | Primary inputs | PDF and `nature-reader` source maps |
 | Wiki writes | Local vault only |
 | Output language | Follows the user's language |
-
-Other LLM runtime adapters are not yet part of the supported scope.
 
 ## Project Layout
 
@@ -248,10 +279,11 @@ Other LLM runtime adapters are not yet part of the supported scope.
 skills/wiki-paper-card/    Workflow entry point, contracts, and subagent briefs
 skills/wiki-shared/        Wiki schema, templates, and knowledge rules
 adapters/claude-code/      Claude Code subagent wrappers
+adapters/dsh/              DeepSeek Harness adapter and orchestration mapping
 vendor/nature-paper-card/  Pinned upstream analysis core
 vendor/nature-shared/      Pinned upstream shared rules
 template/                  Minimal Obsidian vault example
-scripts/                   Local deterministic checks, packaging, and publishing
+scripts/                   Local deterministic checks, packaging, install, and publishing
 docs/                      Installation and architecture documentation
 tests/                     Tests for local scripts
 ```
@@ -263,6 +295,9 @@ tests/                     Tests for local scripts
 - [Workflow contract](skills/wiki-paper-card/references/workflow-contract.md)
 - [Wiki integration](skills/wiki-paper-card/references/wiki-integration.md)
 - [Knowledge model](skills/wiki-shared/references/knowledge-model.md)
+- [Retrieval protocol](skills/wiki-shared/references/retrieval-protocol.md)
+- [DSH adapter](adapters/dsh/dsh-mode.md)
+- [Changelog](CHANGELOG.md)
 
 ## Verification
 

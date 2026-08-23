@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-label="Four-step workflow from papers to a research Wiki">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="52%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.82" cy="0.12" r="0.6">
+      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.22"/>
+      <stop offset="55%" stop-color="#6366f1" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#94a3b8" opacity="0.08"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="320" fill="url(#bg)"/>
+  <rect width="1200" height="320" fill="url(#dots)"/>
+  <rect width="1200" height="320" fill="url(#glowA)"/>
+
+  <!-- heading -->
+  <text x="600" y="52" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="700" fill="#f8fafc">From papers to a research Wiki</text>
+  <text x="600" y="80" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#64748b">Four steps from a pile of papers to a living knowledge base</text>
+
+  <!-- arrows -->
+  <g stroke="#475569" stroke-width="2.5" fill="none" stroke-linecap="round">
+    <line x1="308" y1="192" x2="326" y2="192"/>
+    <line x1="588" y1="192" x2="606" y2="192"/>
+    <line x1="868" y1="192" x2="886" y2="192"/>
+  </g>
+  <g fill="#475569">
+    <polygon points="330,192 321,186 321,198"/>
+    <polygon points="610,192 601,186 601,198"/>
+    <polygon points="890,192 881,186 881,198"/>
+  </g>
+
+  <!-- step 1 -->
+  <rect x="60" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <circle cx="92" cy="134" r="16" fill="#2dd4bf"/>
+  <text x="92" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">1</text>
+  <text x="82" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Drop in papers</text>
+  <text x="82" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">PDF or source map</text>
+  <text x="82" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">into raw/papers/</text>
+
+  <!-- step 2 -->
+  <rect x="340" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <circle cx="372" cy="134" r="16" fill="#38bdf8"/>
+  <text x="372" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">2</text>
+  <text x="362" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Read closely</text>
+  <text x="362" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">structured Paper Card</text>
+  <text x="362" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">anchored to the source</text>
+
+  <!-- step 3 -->
+  <rect x="620" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <circle cx="652" cy="134" r="16" fill="#818cf8"/>
+  <text x="652" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">3</text>
+  <text x="642" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Connect evidence</text>
+  <text x="642" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">corroborate across papers</text>
+  <text x="642" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">crystallize concepts &amp; topics</text>
+
+  <!-- step 4 -->
+  <rect x="900" y="102" width="240" height="182" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <circle cx="932" cy="134" r="16" fill="#a78bfa"/>
+  <text x="932" y="139" text-anchor="middle" font-family="SFMono-Regular, Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#0b1220">4</text>
+  <text x="922" y="192" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">A living Wiki</text>
+  <text x="922" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">searchable, comparable</text>
+  <text x="922" y="244" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#94a3b8">traceable, keeps growing</text>
+</svg>

@@ -1,23 +1,56 @@
-# wiki-paper-card
+<div align="center">
+  <p>
+    <img src="assets/readme-banner-cn.svg" alt="wiki-paper-card —— 把论文变成可检索、可对比、可追溯的个人研究 Wiki" width="100%">
+  </p>
+  <p>
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.2.0-f59e0b"></a>
+    <a href="#运行环境与入口"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
+    <a href="#快速开始"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
+    <a href="README.en.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
+  </p>
+  <p>
+    <a href="#项目定位">项目定位</a>
+    · <a href="#核心能力">核心能力</a>
+    · <a href="#快速开始">快速开始</a>
+    · <a href="#使用方式">使用方式</a>
+    · <a href="#工作流程">工作流程</a>
+    · <a href="#项目结构">项目结构</a>
+    · <a href="README.en.md">English</a>
+  </p>
+</div>
 
-`wiki-paper-card` 是在 Obsidian 中运行的论文阅读与知识沉淀工作流，用于把持续积累的论文转化为可以追溯、对比和持续扩展的个人研究 Wiki。
+---
 
-它先为每篇论文生成一张带页码、图、表和公式定位的 Paper Card，再在批量处理时把得到多篇论文支持的证据连接成概念、实体和 topic 页面。
+**`wiki-paper-card` 把你的论文收藏变成一座会生长的研究知识库。** 论文越攒越多，真正的难题不是「读不完」，而是读完之后能记住多少、要用时能不能立刻找到。wiki-paper-card 把每一篇论文精读成一张带原文定位的「Paper Card」，再自动把多篇论文之间相互印证的证据连成概念、实体与主题页面——你只管持续往里放论文，一个可追溯、可对比、可持续生长的个人研究 Wiki 会自己长出来，写综述、开新题时随取随用。
 
-[English](README.en.md)
+> 状态：核心流程已可运行，流程契约、知识规则与输出格式仍在持续迭代。
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
-![Version: 0.2.0](https://img.shields.io/badge/version-0.2.0-orange)
-![Runtime: Claude Code](https://img.shields.io/badge/runtime-Claude%20Code%20%2B%20Claudian-2f4f4f)
+## 目录
 
-> 状态：核心流程已经可以运行，项目仍会继续迭代流程契约、知识规则和输出格式。
+- [运行环境与入口](#运行环境与入口)
+- [项目定位](#项目定位)
+- [核心能力](#核心能力)
+- [与上游 nature-skills 的关系](#与上游-nature-skills-的关系)
+- [设计参考](#设计参考)
+- [快速开始](#快速开始)
+- [使用方式](#使用方式)
+- [Agent 快速安装](#agent-快速安装)
+- [工作流程](#工作流程)
+- [输出结构](#输出结构)
+- [支持范围](#支持范围)
+- [项目结构](#项目结构)
+- [文档](#文档)
+- [验证](#验证)
+- [贡献](#贡献)
+- [许可证](#许可证)
 
 ## 运行环境与入口
 
 本项目支持两个运行宿主：
 
-- [Claude Code](https://code.claude.com/docs/en/overview)：在 [Obsidian](https://obsidian.md/download) 中通过 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件使用。Claudian 的官方仓库见 [GitHub](https://github.com/YishenTu/claudian)。
-- DeepSeek Harness（DSH）：在 Vault 目录中启动 DSH 会话即可，无需 Obsidian 插件。适配与编排映射见 [adapters/dsh/](adapters/dsh/)。
+- 🖥️ [Claude Code](https://code.claude.com/docs/en/overview)：在 [Obsidian](https://obsidian.md/download) 中通过 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件使用。Claudian 的官方仓库见 [GitHub](https://github.com/YishenTu/claudian)。
+- 🤖 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness)：在 Vault 目录中启动 DSH 会话即可，无需 Obsidian 插件。适配与编排映射见 [adapters/dsh/](adapters/dsh/)。
 
 推荐在 Obsidian 中打开一个由 `template/` 初始化的独立 Vault，不要直接打开本仓库根目录。仓库根目录还包含 `vendor/`、`scripts/`、`tests/` 等实现文件。
 
@@ -25,21 +58,24 @@
 
 `wiki-paper-card` 面向需要长期维护个人研究 Wiki 的研究人员。它将工作分成两个阶段：先独立精读每篇论文，再跨论文筛选和连接值得沉淀的知识。
 
-1. **读论文**：每篇论文独立生成一份完整的 Sections 01-16 Paper Card，关键结论都带页码、图、表和公式定位，便于回到原文核对。
-2. **沉淀知识**：批量处理完成后，项目会跨论文核对候选概念与实体。只有同一对象至少有两篇独立来源提供证据支持，或者直接用于连接已有 Wiki 页面、回答已有开放问题时，才会创建概念或实体枢纽页；仅在单篇论文中出现、尚未被其他来源印证的候选仍留在 Paper Card。
+1. 📖 **读论文**：每篇论文独立精读成一张结构化卡片——从基本信息、研究问题、核心思想、方法模块与实验证据链，一路覆盖到结论边界、作者局限、批判性分析与可验证的研究想法；每个关键结论都标注页码、图、表和公式位置，随时能跳回原文核对。
+2. 🧠 **沉淀知识**：批量处理完成后，项目会跨论文核对候选概念与实体。只有同一对象至少有两篇独立来源提供证据支持，或者直接用于连接已有 Wiki 页面、回答已有开放问题时，才会创建概念或实体枢纽页；仅在单篇论文中出现、尚未被其他来源印证的候选仍留在 Paper Card。
 
 为了在保留完整论证的同时，让跨论文比较和检索更容易，项目把论文细节与跨论文知识放在不同层次：Paper Card 保存完整细节；概念和实体页只保存稳定定义、来源证据、关系和矛盾，形成薄枢纽；topic 页负责跨论文比较和综合。这样，Wiki 在持续增长时仍能保持可检索、可对比、可追溯。
 
 ## 核心能力
 
-- 生成带页码、图、表和公式定位的 Sections 01-16 Paper Card。
-- 批量独立处理论文，避免单篇论文之间相互污染上下文。
-- 通过 L0、L1、L2 三级知识门槛控制建页：论文内局部概念和待验证候选先留在 Paper Card，只有跨论文证据充分的节点才提升为概念或实体枢纽页。
-- 在 topic 页中跨论文对比方法、证据、模型、数据集和结果，区分共识 / 单篇主张 / 分歧，矛盾保留双方并给出裁决证据，研究空白带来源锚点、可检验方向与承接性。
-- 增量沉淀：新论文可把既有 L1 候选升级为 L2 枢纽、并入既有 topic 对照表、回答既有开放问题；待升级候选、开放问题与研究空白按领域沉淀在 `wiki/meta/research.md` 研究仪表盘。
-- 只写能改变读者判断的内容，没有真实价值就留空（宁缺毋滥），避免注水。
-- 使用确定性脚本执行 prepare、finalize、audit、publish，重复更新不会制造重复内容，并提供结构化验收。
-- 自动维护 `wiki/index.md`、`wiki/log.md` 和来源页关联；处理过程不把完整论文文本送回主会话，以控制上下文开销。
+一句话：**把你「读过」的论文，变成你「真正拥有」的、能被反复调用的知识资产。** 它解决的是每个长期做研究的人都会遇到的几个问题：
+
+| 你遇到的问题 | wiki-paper-card 的解法 |
+|---|---|
+| 论文读完就忘，写综述、开新题时想不起也找不到 | 每篇论文精读成一张结构化卡片，结论、公式、图表都带原文定位，随时跳回 PDF 核对 |
+| 论文越攒越多，知识散落各处、彼此割裂 | 自动把多篇论文相互印证的证据连成概念、实体与主题页面，形成一张会增长的知识网络 |
+| 读了很多，却形不成自己的判断 | topic 页跨论文对比方法、证据与结果，明确标注共识 / 分歧，矛盾双方各留证据 |
+| 担心 AI 生成的内容注水、不可信 | 每条结论必须落到页码 / 图 / 表 / 公式证据，审计脚本强制校验，没有价值的就留空 |
+| 知识库越用越乱、越维护越累 | 确定性脚本增量写入，重复处理不产生重复内容，index 与 log 自动维护 |
+
+为保证只沉淀「经得起反复验证」的部分，建页由三级门槛控制：
 
 | 等级 | 含义 | 处理方式 |
 |---|---|---|
@@ -47,7 +83,7 @@
 | L1 | 可以独立定义，但尚未获得第二篇独立来源支持 | 保留在 Paper Card，作为候选 |
 | L2 | 至少两篇独立来源支持，或直接用于连接已有 Wiki 页面、回答已有开放问题 | 创建或更新 concept/entity 枢纽页 |
 
-## 与上游 `nature-skills` 的关系
+## 与上游 nature-skills 的关系
 
 本项目的分析内核和共享规则来自 [nature-skills](https://github.com/Yuan1z0825/nature-skills) 项目。上游目录以固定快照形式保存在 `vendor/nature-paper-card` 和 `vendor/nature-shared` 下。
 
@@ -64,9 +100,17 @@
 
 ## 快速开始
 
+安装完成后，直接复制这些话给 Agent：
+
+| 想做什么 | 直接这样说 |
+|---|---|
+| 处理一篇论文 | `Use wiki-paper-card to process raw/papers/example.pdf.` |
+| 批量处理一个目录 | `Use wiki-paper-card to batch-process raw/papers/knowledge-conflict/.` |
+| 重新生成已有卡片 | `Use wiki-paper-card to reprocess raw/papers/example.pdf.` |
+
 前置条件：
 
-- [Claude Code](https://code.claude.com/docs/en/overview) 或 DeepSeek Harness（二选一或都要）
+- [Claude Code](https://code.claude.com/docs/en/overview) 或 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（二选一或都要）
 - [Obsidian](https://obsidian.md/download)（Claude Code 宿主需安装 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件）
 - Python 3
 - 处理 PDF 时安装 PyMuPDF
@@ -194,21 +238,9 @@ Agent 会补齐 Vault 目录、链接 skill、合并 `CLAUDE.md`、设置环境�
 
 ## 工作流程
 
-```mermaid
-flowchart TD
-    A["输入：PDF / 文本 / source map"] --> B["prepare_paper.py<br/>生成 source bundle"]
-    B --> C["build_kb_context.py<br/>压缩已有 wiki 上下文"]
-    C --> D["每个论文独立运行 wiki-processor"]
-    U["固定上游快照<br/>nature-paper-card / nature-shared"] -.-> D
-    D --> E["paper-card.md<br/>Sections 01-16 + paper-digest.json"]
-    E --> F["finalize_paper_card.py<br/>结构与证据审计"]
-    F --> G{"本批全部通过？"}
-    G -->|未通过| E
-    G -->|通过| H["wiki-linker<br/>生成跨论文 link-plan.json"]
-    H --> I["audit_link_plan.py"]
-    I --> J["publish_wiki.py<br/>确定性写入 wiki"]
-    J --> K["source / concept / entity / topic<br/>index / log"]
-```
+![从论文到研究 Wiki 的四步工作流](assets/readme-workflow-cn.svg)
+
+从放入论文、逐篇精读，到跨论文连接、沉淀为可持续生长的研究 Wiki。背后的确定性流水线（prepare → finalize → audit → publish）与逐脚本细节见 [docs/architecture.md](docs/architecture.md)。
 
 ## 输出结构
 

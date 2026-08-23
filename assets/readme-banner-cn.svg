@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-label="wiki-paper-card">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="52%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.82" cy="0.12" r="0.6">
+      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.30"/>
+      <stop offset="55%" stop-color="#6366f1" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.12" cy="0.98" r="0.55">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#818cf8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#94a3b8" opacity="0.10"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="280" fill="url(#bg)"/>
+  <rect width="1200" height="280" fill="url(#dots)"/>
+  <rect width="1200" height="280" fill="url(#glowA)"/>
+  <rect width="1200" height="280" fill="url(#glowB)"/>
+
+  <!-- accent underline -->
+  <rect x="72" y="186" width="152" height="6" rx="3" fill="url(#accent)"/>
+
+  <!-- title -->
+  <text x="70" y="116" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="52" font-weight="700" fill="#f8fafc" letter-spacing="-1">wiki-paper-card</text>
+  <!-- tagline -->
+  <text x="70" y="160" font-family="system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, sans-serif" font-size="24" fill="#cbd5e1">把论文变成可检索、可对比、可追溯的个人研究 Wiki</text>
+  <!-- caption -->
+  <text x="72" y="220" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="15" fill="#64748b">读论文 · 沉淀知识 · 连接证据 · 持续增长</text>
+
+  <!-- card stack -->
+  <rect x="900" y="84" width="232" height="152" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <rect x="916" y="66" width="232" height="152" rx="12" fill="#26354e" stroke="#3b4a63" stroke-width="1"/>
+  <rect x="932" y="48" width="232" height="152" rx="12" fill="#2e405f" stroke="#38bdf8" stroke-opacity="0.45" stroke-width="1.5"/>
+  <circle cx="962" cy="76" r="7" fill="#2dd4bf"/>
+  <rect x="962" y="98" width="170" height="11" rx="5.5" fill="#e2e8f0" opacity="0.9"/>
+  <rect x="962" y="120" width="140" height="8" rx="4" fill="#94a3b8" opacity="0.55"/>
+  <rect x="962" y="138" width="155" height="8" rx="4" fill="#94a3b8" opacity="0.55"/>
+  <rect x="962" y="156" width="110" height="8" rx="4" fill="#94a3b8" opacity="0.55"/>
+</svg>
