@@ -91,6 +91,6 @@ The supported runtime hosts are Claude Code and DeepSeek Harness (DSH). The reco
 
 - Use a fresh `wiki-processor` per paper and one `wiki-linker` per batch. Approved wiki writes are handled by `publish_wiki.py`, not an agent.
 - Claude Code: close or release a completed processor before starting a different paper. Start up to three processors for a three-paper batch; for larger batches keep at most three active.
-- DeepSeek Harness: run each processor as a background subagent. Keep up to six processors active by default, at most eight. See `adapters/dsh/dsh-mode.md` for the phase mapping.
+- DeepSeek Harness: run each processor as a background subagent. Keep up to six processors active by default, at most eight. See `../../adapters/dsh/dsh-mode.md` for the phase mapping.
 - If subagents are unavailable, run phases serially and explicitly say that context usage will increase.
 - Light hosts may generate only the Paper Card and skip wiki writes.

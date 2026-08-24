@@ -4,7 +4,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.4.0-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.7.1-f59e0b"></a>
     <a href="#运行环境与入口"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
     <a href="#快速开始"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.en.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -13,6 +13,7 @@
     <a href="#项目定位">项目定位</a>
     · <a href="#知识闭环">知识闭环</a>
     · <a href="#核心能力">核心能力</a>
+    · <a href="#能力入口">能力入口</a>
     · <a href="#快速开始">快速开始</a>
     · <a href="#使用方式">使用方式</a>
     · <a href="#工作流程">工作流程</a>
@@ -25,7 +26,7 @@
 
 **`wiki-paper-card` 是一套面向长期研究的论文知识组织框架。** 它将每篇论文整理为带原文定位的 Paper Card，并通过 Topic 页面综合同一研究问题下的方法、结果、边界、共识、分歧与研究空白。随着论文持续加入，Wiki 中的知识页面、关系、索引和研究仪表盘同步更新，为论文回顾、跨论文比较、综述写作和研究选题提供可核验的知识基础。
 
-> 状态：核心流程已可运行，流程契约、知识规则与输出格式仍在持续迭代。
+> 状态：核心流程已稳定可运行，测试通过；流程契约与知识规则仍会持续细化。
 
 ## 项目定位
 
@@ -58,11 +59,28 @@
 
 topic 页基于独立来源支持或已有知识连接创建和更新；尚未形成跨论文价值的内容保留在 Paper Card 中。
 
+## 能力入口
+
+框架提供三个相互衔接的入口，覆盖「论文入库 → 知识检索 → 空白挖掘」的完整闭环：
+
+| 你想做什么 | 使用入口 | 产物 |
+|---|---|---|
+| 精读或批量处理论文 | `wiki-paper-card` | Paper Card、topic 页、index/log |
+| 在知识库上提问、检索、查证或写综述 | 检索协议（`wiki-shared`） | 基于知识树的 lookup / survey 检索，只读不回写 |
+| 跨组或全库挖掘研究空白与候选方向 | `wiki-gap-mining` | 空白挖掘报告，确认后写回 topic 页 |
+
+- `wiki-paper-card` 负责论文处理：把每篇论文精读为带原文定位的 Paper Card，并在跨论文证据满足条件时创建或更新 topic 页。
+- 检索遵循 [skills/wiki-shared/references/retrieval-protocol.md](skills/wiki-shared/references/retrieval-protocol.md)：面向已有知识库的问答与综述，先读 `wiki/meta/knowledge-tree.md`，按 lookup（预算剪枝）或 survey（领域整树展开）模式检索；只读，不回写 wiki。
+- `wiki-gap-mining` 负责空白挖掘：在指定领域范围或全库深挖研究空白与候选方向，产出 `work/gap-mining-report.md`，经用户确认后走确定性审计写回 topic 页。
+
+三者共享同一套知识模型与确定性发布管线：处理负责写入，检索负责读取，空白挖掘负责发现下一步该读什么。
+
 ## 目录
 
 - [项目定位](#项目定位)
 - [知识闭环](#知识闭环)
 - [核心能力](#核心能力)
+- [能力入口](#能力入口)
 - [运行环境与入口](#运行环境与入口)
 - [与上游 nature-skills 的关系](#与上游-nature-skills-的关系)
 - [设计参考](#设计参考)

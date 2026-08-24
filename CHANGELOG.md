@@ -2,6 +2,14 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.7.1] - 2026-08-24
+
+### 修复
+
+- **install.sh 宿主资源链接**：安装时除 skill 目录外，同时把 `adapters/`、`vendor/`、`scripts/` 软链到宿主层的 `../../` 位置（Claude Code：`$VAULT_ROOT/.claude/`；DSH：`$VAULT_ROOT/.dsh/`），并新增安装自检：按 DSH 词法解析规则校验 `../../adapters/dsh/dsh-mode.md`、`../../vendor/nature-paper-card/SKILL.md`、`../../scripts/build_processor_pack.py` 可读，断链以退出码 1 报错。修复技能内 `../../` 引用在 Vault 安装布局下解析到不存在路径、DSH 会话每次报 `cannot read ".../adapters/dsh/dsh-mode.md": not found` 的问题。
+- `wiki-paper-card` 与 `wiki-gap-mining` 的 `SKILL.md`：反引号形式的 `adapters/dsh/dsh-mode.md` 引用统一改为 `../../adapters/dsh/dsh-mode.md`，与 markdown 链接写法一致（DSH 按技能 base 目录解析相对路径，两种写法此前解析结果不同）。
+- 测试：新增 `tests/test_install.py`（安装布局回归测试：技能与 `adapters/vendor/scripts` 兄弟软链、`../../` 词法解析可读、幂等重跑、资源路径冲突退出码 1）。
+
 ## [0.7.0] - 2026-08-24
 
 ### 新增

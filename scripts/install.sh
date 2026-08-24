@@ -8,6 +8,8 @@
 #   - Vault directories are created only when missing.
 #   - template/wiki files are copied with no-clobber semantics.
 #   - Skills are symlinked into the host skill directory.
+#   - adapters/, vendor/, scripts/ are symlinked next to the host skills so the
+#     skills' '../../' references (e.g. ../../adapters/dsh/dsh-mode.md) resolve.
 #   - CLAUDE.md is copied only when the target does not exist.
 #
 # Exit codes: 0 ok, 1 conflict or missing requirement, 2 usage error.
@@ -124,8 +126,58 @@ link_skills() {
     done
 }
 
+# 5. Symlink the resource directories the skills reach via '../../' into the
+#    host directory (e.g. .dsh/, .claude/). The skill files reference
+#    ../../adapters, ../../vendor and ../../scripts from inside the skill
+#    directory; DSH resolves such references lexically against the skill base
+#    directory, so those siblings must exist next to the host skills.
+link_host_resources() {
+    local host_dir="$1"
+    mkdir -p "$host_dir"
+    for name in adapters vendor scripts; do
+        local link="$host_dir/$name"
+        local target="$REPO_ROOT/$name"
+        if [[ -L "$link" ]]; then
+            if [[ "$(readlink "$link")" == "$target" ]]; then
+                echo "link  $link (unchanged)"
+            else
+                report_conflict "$link points to $(readlink "$link"), expected $target"
+            fi
+        elif [[ -e "$link" ]]; then
+            report_conflict "$link exists and is not a symlink"
+        else
+            ln -s "$target" "$link"
+            echo "link  $link -> $target"
+        fi
+    done
+}
+
+# Verify the skills' '../../' references resolve for this host. Lexically,
+# <host_dir>/skills/<skill>/../../ equals <host_dir>/, so checking the sibling
+# paths directly validates what DSH will resolve at runtime. A failure means
+# the install is incomplete and sessions would hit "cannot read ... not found".
+verify_host_resources() {
+    local host_dir="$1"
+    local missing=""
+    for rel in \
+        "adapters/dsh/dsh-mode.md" \
+        "vendor/nature-paper-card/SKILL.md" \
+        "scripts/build_processor_pack.py"; do
+        if [[ ! -r "$host_dir/$rel" ]]; then
+            missing="$missing $rel"
+        fi
+    done
+    if [[ -n "$missing" ]]; then
+        echo "ERROR: $host_dir: skill 的 ../../ 资源引用无法解析（缺少:${missing}）；请确认 adapters/vendor/scripts 链接正确。" >&2
+        CONFLICTS=1
+    else
+        echo "ok    $host_dir: skill 的 ../../ 资源引用可解析"
+    fi
+}
+
 install_claude() {
     link_skills "$VAULT/.claude/skills"
+    link_host_resources "$VAULT/.claude"
     mkdir -p "$VAULT/.claude/agents"
     for agent in "$REPO_ROOT"/adapters/claude-code/agents/*.md; do
         [[ -e "$agent" ]] || continue
@@ -141,10 +193,13 @@ install_claude() {
             echo "copy  $dst"
         fi
     done
+    verify_host_resources "$VAULT/.claude"
 }
 
 install_dsh() {
     link_skills "$VAULT/.dsh/skills"
+    link_host_resources "$VAULT/.dsh"
+    verify_host_resources "$VAULT/.dsh"
 }
 
 [[ "$HOST" == "claude" || "$HOST" == "both" ]] && install_claude

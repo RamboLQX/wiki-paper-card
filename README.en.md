@@ -4,7 +4,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.4.0-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.7.1-f59e0b"></a>
     <a href="#runtime-and-entry-points"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
     <a href="#quick-start"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -13,6 +13,7 @@
     <a href="#project-positioning">Positioning</a>
     · <a href="#knowledge-loop">Knowledge Loop</a>
     · <a href="#core-capabilities">Capabilities</a>
+    · <a href="#capability-entry-points">Entry Points</a>
     · <a href="#quick-start">Quick Start</a>
     · <a href="#usage">Usage</a>
     · <a href="#workflow">Workflow</a>
@@ -25,7 +26,7 @@
 
 **`wiki-paper-card` is a paper knowledge framework for long-term research.** It turns each paper into a source-grounded Paper Card and uses Topic pages to synthesize methods, results, boundaries, consensus, disagreement, and research gaps around a shared question. As new papers arrive, the Wiki's pages, relationships, indexes, and research dashboard evolve together to support paper review, cross-paper comparison, survey writing, and research planning.
 
-> Status: the core workflow is runnable, while workflow contracts, knowledge rules, and output formats will continue to evolve.
+> Status: the core workflow is stable and tested; workflow contracts and knowledge rules will keep refining.
 
 ## Project Positioning
 
@@ -58,11 +59,28 @@ The core goal is to turn papers you have read into research knowledge that remai
 
 Topic pages are created or updated when they have independent source support or a direct connection to existing knowledge. Material without cross-paper value remains in its Paper Card.
 
+## Capability Entry Points
+
+The framework offers three connected entry points covering the full loop from paper ingestion to knowledge retrieval to gap mining:
+
+| What you want | Entry point | Output |
+|---|---|---|
+| Read or batch-process papers | `wiki-paper-card` | Paper Cards, topic pages, index/log |
+| Ask, retrieve, verify, or survey the knowledge base | Retrieval protocol (`wiki-shared`) | Knowledge-tree lookup / survey, read-only |
+| Mine research gaps and candidate directions across groups or the whole wiki | `wiki-gap-mining` | Gap-mining report, written back after confirmation |
+
+- `wiki-paper-card` handles paper processing: it turns each paper into a source-grounded Paper Card and creates or updates topic pages when cross-paper evidence justifies it.
+- Retrieval follows [skills/wiki-shared/references/retrieval-protocol.md](skills/wiki-shared/references/retrieval-protocol.md): for questions and surveys over the existing knowledge base, read `wiki/meta/knowledge-tree.md` first, then retrieve in lookup (budgeted pruning) or survey (whole-domain expansion) mode; it is read-only and never writes back to the wiki.
+- `wiki-gap-mining` handles gap mining: it mines research gaps and candidate directions within a scope or across the whole wiki, produces `work/gap-mining-report.md`, and writes back to topic pages through deterministic audits after you confirm.
+
+All three share one knowledge model and one deterministic publishing pipeline: processing writes, retrieval reads, and gap mining discovers what to read next.
+
 ## Table Of Contents
 
 - [Project Positioning](#project-positioning)
 - [Knowledge Loop](#knowledge-loop)
 - [Core Capabilities](#core-capabilities)
+- [Capability Entry Points](#capability-entry-points)
 - [Runtime And Entry Points](#runtime-and-entry-points)
 - [Relationship To Upstream nature-skills](#relationship-to-upstream-nature-skills)
 - [Design Reference](#design-reference)
@@ -218,7 +236,20 @@ The framework does not force-create topic pages when those conditions are not sa
 
 Legacy concept pages and legacy entity pages from older installs are no longer written or updated by the publisher and no longer appear in the knowledge tree; mark them `archived` or keep them as read-only references.
 
-### 5. Updates And Reprocessing
+### 5. Cross-Group And Whole-Wiki Gap Mining
+
+Once the knowledge base has accumulated several paper groups, you can ask the framework to mine research gaps and candidate directions within a scope, and to synthesize already-solved questions:
+
+```text
+Use wiki-gap-mining to mine research gaps and candidate directions across
+the knowledge-conflict and safety groups.
+
+Use wiki-gap-mining to mine research gaps across the whole wiki.
+```
+
+Mining is read-only at first: it produces `work/gap-mining-report.md` with candidate gaps (each carrying a source anchor, a testable direction, and a suggested landing page), plus cross-group solved relationships and resolution trails. After you confirm adoption, the framework generates a `purpose: "mining"` link plan that passes deterministic audits and is written back to topic pages via `publish_wiki.py` — cross-group directions may create a new topic (requiring at least two existing papers), and the research dashboard and knowledge tree refresh after the write.
+
+### 6. Updates And Reprocessing
 
 Unchanged PDFs are skipped when the same path is processed again. To regenerate one:
 

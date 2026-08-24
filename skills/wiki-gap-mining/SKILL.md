@@ -103,6 +103,6 @@ Supported hosts are Claude Code and DeepSeek Harness (DSH).
   `work/` files and the link plan.
 - Claude Code: run the miner as a Task subagent.
 - DeepSeek Harness: run the miner as a background subagent; see
-  `adapters/dsh/dsh-mode.md` for the orchestration mapping.
+  `../../adapters/dsh/dsh-mode.md` for the orchestration mapping.
 - If subagents are unavailable, run serially and say that context usage
   will increase.

@@ -111,7 +111,8 @@ git clone "$REPO_URL" "$REPO_ROOT"
 - skill 使用符号链接；链接已存在且指向不同位置时报冲突并退出码 1，不会自动替换。
 - Claude Code 宿主：链接 skill 到 `$VAULT_ROOT/.claude/skills/`，复制 agent 到 `$VAULT_ROOT/.claude/agents/`（同名不同内容报冲突）。
 - DSH 宿主：链接 skill 到 `$VAULT_ROOT/.dsh/skills/`。DSH 自动发现该目录与 Vault 根目录的 `CLAUDE.md`/`AGENTS.md`。
-- 退出码非 0 时，把脚本输出的 CONFLICT 行逐条报告给用户，不擅自处理。
+- 资源目录链接：`adapters/`、`vendor/`、`scripts/` 软链到宿主层的 `../../` 位置（Claude Code：`$VAULT_ROOT/.claude/`；DSH：`$VAULT_ROOT/.dsh/`），保证技能内 `../../` 引用（如 `../../adapters/dsh/dsh-mode.md`）在安装后仍可解析；安装结束自检这些引用，断链以退出码 1 报错。
+- 退出码非 0 时，把脚本输出的 CONFLICT/ERROR 行逐条报告给用户，不擅自处理。
 
 ## 第四步：手动安装（不使用脚本时的等价步骤）
 
@@ -127,8 +128,8 @@ mkdir -p "$VAULT_ROOT/work"
 
 链接 skill 并复制模板文件，规则与脚本一致（no-clobber、链接冲突报告不替换）：
 
-- Claude Code：链接到 `$VAULT_ROOT/.claude/skills/`，复制 `$REPO_ROOT/adapters/claude-code/agents/*.md` 到 `$VAULT_ROOT/.claude/agents/`。
-- DSH：链接到 `$VAULT_ROOT/.dsh/skills/`。
+- Claude Code：链接 `$REPO_ROOT/skills/{wiki-paper-card,wiki-shared,wiki-gap-mining}` 到 `$VAULT_ROOT/.claude/skills/`，复制 `$REPO_ROOT/adapters/claude-code/agents/*.md` 到 `$VAULT_ROOT/.claude/agents/`，并链接 `adapters`、`vendor`、`scripts` 到 `$VAULT_ROOT/.claude/`。
+- DSH：链接 `$REPO_ROOT/skills/{wiki-paper-card,wiki-shared,wiki-gap-mining}` 到 `$VAULT_ROOT/.dsh/skills/`，并链接 `adapters`、`vendor`、`scripts` 到 `$VAULT_ROOT/.dsh/`。
 - 模板文件按缺失补齐：
 
 ```text
@@ -185,6 +186,9 @@ test -d "$VAULT_ROOT/wiki/topics"
 test -f "$VAULT_ROOT/CLAUDE.md"
 test -L "$VAULT_ROOT/.claude/skills/wiki-paper-card"   # HOST 含 claude 时
 test -L "$VAULT_ROOT/.dsh/skills/wiki-paper-card"      # HOST 含 dsh 时
+test -L "$VAULT_ROOT/.claude/adapters"                 # HOST 含 claude 时
+test -L "$VAULT_ROOT/.dsh/adapters"                    # HOST 含 dsh 时
+test -r "$VAULT_ROOT/.dsh/adapters/dsh/dsh-mode.md"    # HOST 含 dsh 时
 ```
 
 DSH 宿主额外说明：skill 目录在会话启动时编入目录，需要新开一个 DSH 会话才能确认 `wiki-paper-card` 出现在会话技能列表里；把这一条写入"仍需用户手动完成的步骤"。
