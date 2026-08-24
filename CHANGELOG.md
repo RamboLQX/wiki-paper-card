@@ -2,6 +2,49 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.7.0] - 2026-08-24
+
+### 新增
+
+- **`wiki-gap-mining` skill**：跨组/全库研究空白挖掘入口。范围 = 用户指定的域集合（`raw/papers/` 一级目录）或全库；Phase A 只读挖掘并产出 `work/gap-mining-report.md`（候选空白、跨组已解决关系、已解决轨迹），Phase B 在用户确认后生成 link-plan 并走确定性审计与发布写回。读侧复用 retrieval-protocol 的 survey 纪律（含 topic 页归档小节），写侧仍由 `publish_wiki.py` 执行。
+- **link-plan `purpose` 字段**（`ingest` 默认 / `mining`）：mining plan 的 `batch.source_pages` 为空、`batch.label` 命名本次挖掘，topic 动作引用已有 source 页；审计按模式应用不同规则（mining 下 `create_topic` 要求至少两篇已有论文支撑、允许批外引用）。
+- **发布器 mining 支持**：为 mining plan 引用的已有 source 页追加 topic backlinks（新增 `source-backlinks` 写入类型，去重、幂等）；日志批次标题使用 `batch.label`。
+
+### 变更
+
+- `template/CLAUDE.md` 与仓库 `CLAUDE.md` 路由新增空白挖掘入口（第 3 条），并同步 retrieval-protocol 的 research.md 读取条件（选题类查询才读）；`retrieval-protocol.md` 明确 survey 只读、挖掘归 `wiki-gap-mining`。
+- `install.sh` 挂载第三个 skill；`dsh-mode.md` 增加 miner 子代理编排映射与验证清单；`wiki-shared` SKILL.md 引用方补充。
+- 测试：mining plan 审计（空 source_pages 放行、批外引用、双论文门槛、purpose 校验）与端到端发布（update/create topic、已有页 backlinks、日志标题、幂等）。
+
+## [0.6.0] - 2026-08-24
+
+### 新增
+
+- **开放问题/研究空白的解决归档机制**：`link-plan.json` 的 `open_questions` 支持对象 `{question, status, answered_by, answered_pointer}`（字符串兼容视为 `open`），`research_gaps` 支持 `status`（`open`/`answered`）、`answered_by`、`answered_pointer`。当后续批次论文回答既有开放问题或填补研究空白时，linker 将条目标记 `answered`，发布器把它从 topic 页的 `## 开放问题` / `## 研究空白与候选方向` 移除并移入归档小节 `## 已解决的问题` / `## 已解决的研究空白`（有内容才渲染）。
+- **聚合只显示当前开放项**：`wiki/meta/research.md` 与 `wiki/meta/knowledge-tree.md` 只聚合仍开放的条目，已解决条目不再出现在树与仪表盘中；全部解决时 research.md 渲染占位提示而非残留旧内容。
+
+### 变更
+
+- **research.md 与 knowledge-tree 分工明确**：knowledge-tree 为领域优先导航树（lookup 剪枝入口），research.md 为问题类型优先的全局开放问题/研究空白清单（选题扫描入口）；同一批 topic 页条目的两种透视，文本一致是设计使然，单一事实来源在 topic 页。`retrieval-protocol.md` 第一跳改为：定向问答只读 knowledge-tree，仅"按问题/空白选题"类查询才读 research.md。
+- `audit_link_plan.py`：新增 `open_question_shape/status/answer_source` 与 `research_gap_status/answer_source` 校验（answered 必须带 `answered_by`，status 仅限 `open`/`answered`）。
+- `publish_wiki.py`：`merge_topic_page` 的开放问题/研究空白合并从纯追加升级为"open 追加 + answered 迁移归档"；`topic_page_text` 支持对象格式并渲染归档小节；`render_research_page` 在无内容时返回占位仪表盘。
+- topic 页模板、wiki-schema、knowledge-model、link-plan-schema、linker-brief、wiki-integration、workflow-contract 同步归档语义与分工说明。
+
+## [0.5.0] - 2026-08-24
+
+### 移除
+
+- **实体页层**：不再生成 `wiki/entities/` 实体 stub。公开数据集/基准/模型族/指标保留在各篇 Paper Card 的 Section 14/15 中作为纯文本，不建独立页面。已有 vault 中的旧实体页不再被写入或更新，knowledge-tree 与 index 不再列出，可标记 `archived` 或保留为只读参考。
+- **digest 的 `analysis.datasets/models/metrics` 列表**：`paper-digest.json` schema 升至 3.0，analysis 只保留 `one_sentence_summary`、`problem`、`method`、`key_results`、`limitations`、`critical_observations`、`open_questions`。
+- **主题页「相关实体」节**、source 页 `## 关联页面` 中的实体反向链接、检索协议与 KB context 中的实体分支、index 的「实体」节一并移除。
+
+### 变更
+
+- `publish_wiki.py` 只写 source 页与 topic 页：移除实体归一化/变体合并/实体 stub 生成与合并逻辑约 200 行，publish-report 不再统计 entity。
+- `audit_paper_digest.py` 只接受 schema 3.0；`audit_link_plan.py` 的 `hub_actions_removed` 提示不再提及实体生成。
+- `audit_wiki_paper_card.py` 与 `smoke_test.py` 不再要求 `wiki/entities/` 目录；`install.sh` 不再创建该目录。
+- 删除 `skills/wiki-shared/templates/entity-page.md`；wiki-schema、knowledge-model、retrieval-protocol、processor/linker brief、workflow-contract、batch-mode、wiki-integration 与 README 同步改写。
+
 ## [0.4.0] - 2026-08-24
 
 ### 移除

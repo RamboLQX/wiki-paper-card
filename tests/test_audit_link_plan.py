@@ -127,3 +127,115 @@ class LinkPlanAuditTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["summary"]["status"], "pass")
+
+    def test_open_question_objects_pass_and_status_is_checked(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["open_questions"] = [
+            {"question": "Q1", "status": "open"},
+            {
+                "question": "Q2",
+                "status": "answered",
+                "answered_by": ["wiki/sources/a.md"],
+                "answered_pointer": "[Paper: PDF p. 2]",
+            },
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        action["open_questions"].append({"question": "Q3", "status": "answered"})
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "open_question_answer_source" for item in report["findings"])
+        )
+        action["open_questions"] = [{"question": "Q4", "status": "draft"}]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "open_question_status" for item in report["findings"])
+        )
+        action["open_questions"] = [{"status": "open"}]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "open_question_shape" for item in report["findings"])
+        )
+
+    def test_research_gap_status_and_answer_source(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"] = [
+            {"gap": "G1", "status": "open"},
+            {
+                "gap": "G2",
+                "status": "answered",
+                "answered_by": ["wiki/sources/b.md"],
+                "answered_pointer": "[Paper: PDF p. 4]",
+            },
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        action["research_gaps"].append({"gap": "G3", "status": "answered"})
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_answer_source" for item in report["findings"])
+        )
+        action["research_gaps"] = [{"gap": "G4", "status": "unknown"}]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_status" for item in report["findings"])
+        )
+
+    def mining_plan(self) -> dict:
+        return {
+            "schema_version": "2.0",
+            "purpose": "mining",
+            "batch": {"source_pages": [], "label": "gap mining"},
+            "topic_actions": [
+                {
+                    "action": "create_topic",
+                    "id": "mining-1",
+                    "name": "Cross Group Direction",
+                    "papers": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                    "summary": "Cross-group candidate direction.",
+                    "comparisons": [],
+                    "key_findings": [],
+                    "contradictions": [],
+                    "open_questions": [],
+                    "research_gaps": [],
+                    "existing_page": None,
+                }
+            ],
+        }
+
+    def test_mining_plan_without_batch_pages_passes(self) -> None:
+        report = LINK_AUDIT.audit(self.mining_plan())
+        self.assertEqual(report["summary"]["errors"], 0)
+        self.assertEqual(report["summary"]["status"], "pass")
+
+    def test_ingest_plan_without_batch_pages_fails(self) -> None:
+        plan = self.mining_plan()
+        plan.pop("purpose")
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(any(item["code"] == "batch" for item in report["findings"]))
+
+    def test_mining_plan_allows_references_outside_batch(self) -> None:
+        plan = self.mining_plan()
+        plan["topic_actions"][0]["papers"] = [
+            "wiki/sources/other-a.md",
+            "wiki/sources/other-b.md",
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertFalse(
+            any(item["code"] == "unknown_topic_papers" for item in report["findings"])
+        )
+        self.assertEqual(report["summary"]["errors"], 0)
+
+    def test_mining_create_topic_requires_two_references(self) -> None:
+        plan = self.mining_plan()
+        plan["topic_actions"][0]["papers"] = ["wiki/sources/a.md"]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(any(item["code"] == "topic_papers" for item in report["findings"]))
+
+    def test_unknown_purpose_fails(self) -> None:
+        plan = self.mining_plan()
+        plan["purpose"] = "scan"
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(any(item["code"] == "purpose" for item in report["findings"]))

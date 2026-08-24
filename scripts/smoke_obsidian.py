@@ -78,7 +78,7 @@ CHECK_JS = (
 
 CLOSE_JS = "(() => { app.workspace.getMostRecentLeaf().detach(); return 'ok'; })()"
 
-PAGE_KINDS = {"source", "entity", "topic"}
+PAGE_KINDS = {"source", "topic"}
 
 
 def find_cli() -> str | None:

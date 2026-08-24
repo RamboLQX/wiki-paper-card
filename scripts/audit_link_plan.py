@@ -74,7 +74,12 @@ def string_list(value: Any) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
-def audit_topic_action(action: dict[str, Any], batch_refs: set[str], target_names: set[str]) -> list[dict[str, Any]]:
+def audit_topic_action(
+    action: dict[str, Any],
+    batch_refs: set[str],
+    target_names: set[str],
+    purpose: str,
+) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     label = f"topic action {action.get('id') or action.get('name') or '<unnamed>'}"
     action_type = require_string(action, "action", findings, label)
@@ -91,7 +96,7 @@ def audit_topic_action(action: dict[str, Any], batch_refs: set[str], target_name
 
     papers = set(string_list(action.get("papers")))
     unknown_refs = sorted(papers - batch_refs)
-    if unknown_refs:
+    if purpose == "ingest" and unknown_refs:
         findings.append(
             finding(
                 "error",
@@ -101,11 +106,15 @@ def audit_topic_action(action: dict[str, Any], batch_refs: set[str], target_name
             )
         )
     if action_type == "create_topic" and len(papers) < 2:
+        if purpose == "mining":
+            message = "create_topic requires at least two source page references."
+        else:
+            message = "create_topic requires at least two distinct batch source pages."
         findings.append(
             finding(
                 "error",
                 "topic_papers",
-                "create_topic requires at least two distinct batch source pages.",
+                message,
                 papers=sorted(papers),
             )
         )
@@ -161,6 +170,26 @@ def audit_topic_action(action: dict[str, Any], batch_refs: set[str], target_name
                 continue
             if not isinstance(item, dict) or not str(item.get("gap", "")).strip():
                 findings.append(finding("error", "research_gap_shape", f"{label} research_gap {index} must be a string or an object with a non-empty gap."))
+                continue
+            status = item.get("status", "open")
+            if status not in {"open", "answered"}:
+                findings.append(finding("error", "research_gap_status", f"{label} research_gap {index} has unknown status.", status=status))
+            elif status == "answered" and not item.get("answered_by"):
+                findings.append(finding("error", "research_gap_answer_source", f"{label} research_gap {index} is answered but lacks answered_by."))
+
+    open_questions = action.get("open_questions", [])
+    if isinstance(open_questions, list):
+        for index, item in enumerate(open_questions, start=1):
+            if isinstance(item, str):
+                continue
+            if not isinstance(item, dict) or not str(item.get("question", "")).strip():
+                findings.append(finding("error", "open_question_shape", f"{label} open_question {index} must be a string or an object with a non-empty question."))
+                continue
+            status = item.get("status", "open")
+            if status not in {"open", "answered"}:
+                findings.append(finding("error", "open_question_status", f"{label} open_question {index} has unknown status.", status=status))
+            elif status == "answered" and not item.get("answered_by"):
+                findings.append(finding("error", "open_question_answer_source", f"{label} open_question {index} is answered but lacks answered_by."))
 
     return findings
 
@@ -177,6 +206,18 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
     if plan.get("schema_version") != "2.0":
         findings.append(finding("error", "schema_version", "Unsupported link plan schema version."))
 
+    purpose = plan.get("purpose", "ingest")
+    if purpose not in {"ingest", "mining"}:
+        findings.append(
+            finding(
+                "error",
+                "purpose",
+                "Link plan purpose must be 'ingest' or 'mining'.",
+                purpose=purpose,
+            )
+        )
+        purpose = "ingest"
+
     batch = plan.get("batch", {})
     source_pages = require_list(batch, "source_pages", findings, "batch") if isinstance(batch, dict) else []
     batch_refs: set[str] = set()
@@ -189,7 +230,7 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
             batch_refs.add(source_ref)
         require_string(page, "work_dir", findings, f"batch source page {index}")
         require_string(page, "title", findings, f"batch source page {index}")
-    if not batch_refs:
+    if purpose == "ingest" and not batch_refs:
         findings.append(finding("error", "batch", "Link plan must define at least one batch source page."))
 
     if plan.get("hub_actions"):
@@ -197,7 +238,7 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
             finding(
                 "error",
                 "hub_actions_removed",
-                "Link plan must not carry hub_actions: entity pages are generated deterministically by the publisher from the batch digests.",
+                "Link plan must not carry hub_actions: the hub layer was removed.",
                 count=len(plan.get("hub_actions")),
             )
         )
@@ -208,7 +249,7 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(action, dict):
             findings.append(finding("error", "topic_action", "Each topic action must be an object."))
             continue
-        findings.extend(audit_topic_action(action, batch_refs, target_names))
+        findings.extend(audit_topic_action(action, batch_refs, target_names, purpose))
 
     return {
         "schema_version": "2.0",

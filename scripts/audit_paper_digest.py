@@ -93,13 +93,13 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     if not isinstance(digest, dict):
         return {
-            "schema_version": "2.0",
+            "schema_version": "3.0",
             "summary": {"status": "fail", "passes": 0, "warnings": 0, "errors": 1},
             "metrics": {},
             "findings": [finding("error", "top_level", "Paper digest must be a JSON object.")],
         }
 
-    if digest.get("schema_version") != "2.0":
+    if digest.get("schema_version") != "3.0":
         findings.append(finding("error", "schema_version", "Unsupported paper digest schema version."))
 
     paper = digest.get("paper", {})
@@ -120,8 +120,7 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
     else:
         for field in ("one_sentence_summary", "problem", "method"):
             require_string(analysis, field, findings, "analysis")
-        for field in ("datasets", "models", "metrics", "open_questions"):
-            require_list(analysis, field, findings, "analysis")
+        require_list(analysis, "open_questions", findings, "analysis")
 
         key_results = require_list(analysis, "key_results", findings, "analysis")
         for index, row in enumerate(key_results, start=1):
@@ -170,7 +169,7 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
             finding(
                 "error",
                 "candidates_removed",
-                "Paper digest must not carry candidates: entity stubs are generated deterministically from analysis.datasets/models/metrics.",
+                "Paper digest must not carry candidates: the candidates layer was removed.",
                 count=len(digest.get("candidates")),
             )
         )
@@ -183,7 +182,7 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
         findings.extend(audit_topic_seed(topic, current_source_ref))
 
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",
         "summary": {
             "status": "fail"
             if any(item["level"] == "error" for item in findings)

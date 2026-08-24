@@ -183,7 +183,6 @@ def audit(card_text: str, wiki_root: Path | None) -> dict[str, Any]:
         required_paths = {
             "index": wiki_root / "wiki" / "index.md",
             "log": wiki_root / "wiki" / "log.md",
-            "entities": wiki_root / "wiki" / "entities",
             "topics": wiki_root / "wiki" / "topics",
             "sources": wiki_root / "wiki" / "sources",
         }

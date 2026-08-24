@@ -22,7 +22,7 @@ SPEC.loader.exec_module(DIGEST_AUDIT)
 
 def valid_digest() -> dict:
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",
         "paper": {
             "title": "Test Paper",
             "source_sha256": "a" * 64,
@@ -34,9 +34,6 @@ def valid_digest() -> dict:
             "one_sentence_summary": "The paper proposes a test method.",
             "problem": "An unresolved test problem.",
             "method": "A method with a mechanism.",
-            "datasets": ["TestSet"],
-            "models": ["TestModel"],
-            "metrics": ["Accuracy"],
             "key_results": [
                 {
                     "claim": "Accuracy improves.",

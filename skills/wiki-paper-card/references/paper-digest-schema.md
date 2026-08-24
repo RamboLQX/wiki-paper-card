@@ -6,7 +6,7 @@
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "3.0",
   "paper": {
     "title": "Paper title",
     "source_sha256": "hex digest",
@@ -18,9 +18,6 @@
     "one_sentence_summary": "One bounded sentence.",
     "problem": "Problem and research question.",
     "method": "Core method and mechanism.",
-    "datasets": [],
-    "models": [],
-    "metrics": [],
     "key_results": [],
     "limitations": [],
     "critical_observations": [],
@@ -33,7 +30,7 @@
 ## Analysis
 
 - `one_sentence_summary`, `problem`, and `method` are required strings.
-- `datasets`, `models`, and `metrics` are compact string lists of **public reusable artifacts** the paper uses: datasets, benchmarks, model families, and metrics whose identity is guaranteed by their publisher (for example CONFLICTVIS, LLaVA, GPT-4o, ROUGE). The deterministic publisher generates entity stubs from these three lists, so list only artifacts with a public identity. Paper-private methods, components, one-off checkpoints, and local names must not be listed here.
+- Public datasets, benchmarks, model families, and metrics stay in the Paper Card's Sections 14-16 as plain text; the digest does not carry artifact lists and there are no entity pages.
 - `key_results` records the main bounded results:
 
 ```json
@@ -45,7 +42,7 @@
 ```
 
 - `limitations` and `critical_observations` use `statement` or `observation` plus `pointer`.
-- Keep the complete detail in `paper-card.md`. The digest supports linking and entity extraction, not replacement of the card.
+- Keep the complete detail in `paper-card.md`. The digest supports linking, not replacement of the card.
 
 ## Topic Seed
 

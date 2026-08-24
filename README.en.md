@@ -23,7 +23,7 @@
 
 ---
 
-**`wiki-paper-card` is a paper knowledge framework for long-term research.** It turns each paper into a source-grounded Paper Card, deterministically builds entity pages for reusable objects (public datasets, benchmarks, model families, and metrics) across a batch, and uses Topic pages to synthesize methods, results, boundaries, consensus, disagreement, and research gaps around a shared question. As new papers arrive, the Wiki's pages, relationships, indexes, and research dashboard evolve together to support paper review, cross-paper comparison, survey writing, and research planning.
+**`wiki-paper-card` is a paper knowledge framework for long-term research.** It turns each paper into a source-grounded Paper Card and uses Topic pages to synthesize methods, results, boundaries, consensus, disagreement, and research gaps around a shared question. As new papers arrive, the Wiki's pages, relationships, indexes, and research dashboard evolve together to support paper review, cross-paper comparison, survey writing, and research planning.
 
 > Status: the core workflow is runnable, while workflow contracts, knowledge rules, and output formats will continue to evolve.
 
@@ -31,7 +31,7 @@
 
 `wiki-paper-card` supports researchers who continuously read, compare, and reuse academic papers. It organizes source-grounded close reading, knowledge connection, cross-paper synthesis, and incremental Wiki maintenance into one continuous workflow.
 
-Each paper first becomes a complete Paper Card covering its research question, methods, experiments, conclusion boundaries, limitations, and research ideas, with key claims anchored to a page, figure, table, or equation. Batch processing then connects entities and research topics across papers: the publisher deterministically builds entity pages for public datasets, benchmarks, model families, and metrics and aggregates their cited sources, while related methods, results, and disagreements accumulate and compare on Topic pages. Researchers can move from any knowledge page back to the source paper for verification, then use existing questions and research gaps to organize the next round of reading.
+Each paper first becomes a complete Paper Card covering its research question, methods, experiments, conclusion boundaries, limitations, and research ideas, with key claims anchored to a page, figure, table, or equation. Batch processing then connects research topics across papers: related methods, results, and disagreements accumulate and compare on Topic pages. Researchers can move from any knowledge page back to the source paper for verification, then use existing questions and research gaps to organize the next round of reading.
 
 ## Knowledge Loop
 
@@ -40,7 +40,6 @@ Three page types organize paper-level detail, knowledge objects, and research qu
 | Page | What it contains | Research value |
 |---|---|---|
 | **Paper Card** | A paper's research question, core idea, method modules, formulas, experiment-to-claim evidence chain, limitations, critical analysis, and research ideas | Restores the paper's full context quickly and links every key claim back to a page, figure, table, or equation |
-| **Entity** | Public datasets, benchmarks, model families, and metrics with their aliases and cited sources, generated deterministically by the publisher from paper digests | Tracks which papers use the same public artifact and links back to every cited source paper |
 | **Topic** | Paper comparisons, key findings, consensus, disagreement, open questions, and research gaps around a shared problem, mechanism, or evidence space | Synthesizes the evidence for a research direction and compares methods, results, and boundaries for survey writing, research planning, and experiment design |
 
 `index.md`, the research dashboard, the knowledge tree, and `log.md` form the maintenance layer for entry points, open-question and research-gap aggregation, navigation, and update history. New papers can create pages or add evidence that supports or challenges existing conclusions, closing the loop from reading and verification through connection and synthesis to later retrieval.
@@ -52,12 +51,12 @@ The core goal is to turn papers you have read into research knowledge that remai
 | The problem you hit | How wiki-paper-card solves it |
 |---|---|
 | You finish a paper, then forget it and can't find it when writing a survey | Each paper becomes a structured card whose claims, formulas, and figures point back to the source for one-click verification |
-| Papers accumulate while methods and research objects stay scattered | Entity pages deterministically aggregate cited sources for public datasets, benchmarks, model families, and metrics; Topic pages compare papers under one question so the same knowledge object stays connected |
+| Papers accumulate while methods and research objects stay scattered | Topic pages compare papers under one question so the same research question stays connected |
 | Comparing papers and forming a research judgment takes repeated manual work | Topic pages compare methods, results, and boundaries under a shared question while preserving consensus, single-paper claims, disagreements, and source evidence |
 | You worry AI output is padded or unreliable | Every claim must land on a page / figure / table / equation anchor, enforced by deterministic audits; sections stay empty when there is nothing of value |
 | A growing knowledge base becomes difficult to navigate and maintain | Deterministic scripts write incrementally, repeated runs create no duplicates, and the index, research dashboard, knowledge tree, and log stay maintained automatically |
 
-Entity stubs are generated and updated deterministically by the publisher from the batch digests; topic pages are created or updated when they have independent source support or a direct connection to existing knowledge. Material without cross-paper value remains in its Paper Card.
+Topic pages are created or updated when they have independent source support or a direct connection to existing knowledge. Material without cross-paper value remains in its Paper Card.
 
 ## Table Of Contents
 
@@ -95,7 +94,7 @@ The analysis core and shared rules come from the [nature-skills](https://github.
 | Responsibility | Source |
 |---|---|
 | Sections 01-16 card structure, source bundles, evidence grounding, paper-type lenses, upstream audits | `nature-skills` |
-| Obsidian path mapping, KB context, batch orchestration, digests, link plans and topic decisions, deterministic entity generation, Wiki publishing, idempotency | This project |
+| Obsidian path mapping, KB context, batch orchestration, digests, link plans and topic decisions, Wiki publishing, idempotency | This project |
 
 This project adds an orchestration and knowledge-crystallization layer for Obsidian LLM Wikis on top of the upstream paper-analysis core. See [UPSTREAM.md](UPSTREAM.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the pinned version, upstream commit, synchronization policy, and third-party notices.
 
@@ -167,7 +166,6 @@ vault/
 │       └── example.source-map.json
 ├── wiki/
 │   ├── sources/
-│   ├── entities/
 │   ├── topics/
 │   ├── index.md
 │   └── log.md
@@ -188,7 +186,7 @@ Process a `nature-reader` source map:
 Use wiki-paper-card to process raw/papers/example.source-map.json.
 ```
 
-A single paper produces at least a Paper Card source page under `wiki/sources/`, and the publisher also deterministically creates or updates entity stubs from the digest's public datasets, benchmarks, model families, and metrics. One paper alone does not create a new topic.
+A single paper produces at least a Paper Card source page under `wiki/sources/`. One paper alone does not create a new topic.
 
 ### 3. Process A Batch
 
@@ -208,7 +206,7 @@ Batch processing creates all source pages first and performs cross-paper linking
 
 ### 4. Topics And Cross-Paper Pages
 
-Entity stubs for public datasets, benchmarks, model families, and metrics are generated deterministically by the publisher from the paper digests (names normalized, variants merged, cited sources appended to existing pages) — no agent decides them. A topic is created or updated only when at least two papers share the same problem, mechanism, or evidence space, or when a new paper answers or challenges an existing topic's open questions.
+A topic is created or updated only when at least two papers share the same problem, mechanism, or evidence space, or when a new paper answers or challenges an existing topic's open questions. Public datasets, benchmarks, model families, and metrics stay in each Paper Card's Sections 14-15; there are no entity pages.
 
 You can state the synthesis goal explicitly:
 
@@ -218,7 +216,7 @@ Use wiki-paper-card to batch-process raw/papers/knowledge-conflict/ and create o
 
 The framework does not force-create topic pages when those conditions are not satisfied.
 
-Legacy concept pages from older installs are no longer written or updated by the publisher and no longer appear in the knowledge tree; mark them `archived` or keep them as read-only references.
+Legacy concept pages and legacy entity pages from older installs are no longer written or updated by the publisher and no longer appear in the knowledge tree; mark them `archived` or keep them as read-only references.
 
 ### 5. Updates And Reprocessing
 
@@ -272,7 +270,7 @@ The Agent creates missing vault directories, links the skills, merges `CLAUDE.md
 
 ![Research loop from close reading to knowledge reuse](assets/readme-workflow-en.svg)
 
-New papers produce source-grounded Paper Cards; the publisher deterministically builds entity stubs for public datasets, benchmarks, model families, and metrics; cross-paper evidence updates Topic pages; indexes and the research dashboard stay synchronized; existing questions and research gaps guide later reading. For the deterministic pipeline behind the scenes (prepare → finalize → audit → publish) and per-script details, see [docs/architecture.md](docs/architecture.md).
+New papers produce source-grounded Paper Cards; cross-paper evidence updates Topic pages; indexes and the research dashboard stay synchronized; existing questions and research gaps guide later reading. For the deterministic pipeline behind the scenes (prepare → finalize → audit → publish) and per-script details, see [docs/architecture.md](docs/architecture.md).
 
 ## Output Layout
 
@@ -285,14 +283,13 @@ vault/
     ├── sources/
     │   └── papers/
     │       └── example.md
-    ├── entities/
     ├── topics/
     ├── meta/
     ├── index.md
     └── log.md
 ```
 
-Paper Cards keep the detailed record, entity pages are deterministic stubs containing only aliases and cited sources, and topic pages carry cross-paper synthesis. Audit reports and intermediate files stay in the batch work directory.
+Paper Cards keep the detailed record, and topic pages carry cross-paper synthesis. Audit reports and intermediate files stay in the batch work directory.
 
 ## Supported Scope
 

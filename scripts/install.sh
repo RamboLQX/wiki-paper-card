@@ -75,7 +75,7 @@ report_conflict() {
 
 # 1. Vault directory skeleton.
 mkdir -p "$VAULT/raw/papers"
-mkdir -p "$VAULT/wiki/sources" "$VAULT/wiki/entities" \
+mkdir -p "$VAULT/wiki/sources" \
          "$VAULT/wiki/topics" "$VAULT/wiki/meta" "$VAULT/work"
 
 # 2. No-clobber copy of template wiki files.
@@ -106,7 +106,7 @@ fi
 link_skills() {
     local skills_dir="$1"
     mkdir -p "$skills_dir"
-    for skill in wiki-paper-card wiki-shared; do
+    for skill in wiki-paper-card wiki-shared wiki-gap-mining; do
         local link="$skills_dir/$skill"
         local target="$REPO_ROOT/skills/$skill"
         if [[ -L "$link" ]]; then

@@ -177,8 +177,7 @@ Appendix-only or supporting items should appear only when they materially suppor
 Keep detailed paper-local knowledge in Sections 14-16.
 
 - Paper-local terms, components, and one-off names stay in the Paper Card.
-- Reusable but not yet cross-paper verified terms stay in the Paper Card; there are no concept pages and no promotion ladder.
-- Public datasets, benchmarks, model families, and metrics go into the digest's `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists (the deterministic publisher generates entity stubs from them).
+- Reusable but not yet cross-paper verified terms stay in the Paper Card; there are no concept pages, no entity pages, and no promotion ladder.
 
 Proposed topic comparisons and open questions belong in the topic plan.
 

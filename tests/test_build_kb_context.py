@@ -23,17 +23,11 @@ class BuildKbContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             wiki = root / "wiki"
-            for name in ("sources", "entities", "topics"):
+            for name in ("sources", "topics"):
                 (wiki / name).mkdir(parents=True)
             (wiki / "index.md").write_text(
                 "# Index\n\n"
-                "- [[wiki/sources/a.md|A]] — knowledge conflict mechanism\n"
-                "- [[wiki/entities/conflict.md|Knowledge Conflict]] — entity stub\n",
-                encoding="utf-8",
-            )
-            (wiki / "entities" / "conflict.md").write_text(
-                "# Knowledge Conflict\n\n"
-                "> 本页由 publish_wiki.py 确定性生成。\n",
+                "- [[wiki/sources/a.md|A]] — knowledge conflict mechanism\n",
                 encoding="utf-8",
             )
             (wiki / "sources" / "a.md").write_text(
@@ -63,39 +57,39 @@ class BuildKbContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             wiki = root / "wiki"
-            for name in ("sources", "entities", "topics"):
+            for name in ("sources", "topics"):
                 (wiki / name).mkdir(parents=True)
             (wiki / "index.md").write_text(
                 "# Index\n\n"
-                "## 实体\n"
-                "- [[wiki/entities/knowledge-conflict.md|知识冲突]] — 参数化知识与上下文知识相悖\n"
-                "- [[wiki/entities/other.md|其他实体]] — 与查询无关的实体\n",
+                "## 主题\n"
+                "- [[wiki/topics/knowledge-conflict.md|知识冲突]] — 参数化知识与上下文知识相悖\n"
+                "- [[wiki/topics/other.md|其他主题]] — 与查询无关的主题\n",
                 encoding="utf-8",
             )
-            (wiki / "entities" / "knowledge-conflict.md").write_text(
+            (wiki / "topics" / "knowledge-conflict.md").write_text(
                 "---\n"
-                "tags: [entity]\n"
+                "tags: [topic]\n"
                 'aliases:\n  - "parametric knowledge"\n  - "contextual knowledge"\n'
                 "status: stub\n"
                 "---\n\n"
                 "# 知识冲突\n\n"
-                "> 本页由 publish_wiki.py 确定性生成。\n",
+                "## 概述\n",
                 encoding="utf-8",
             )
-            (wiki / "entities" / "other.md").write_text(
-                "# 其他实体\n\n无关内容。\n", encoding="utf-8"
+            (wiki / "topics" / "other.md").write_text(
+                "# 其他主题\n\n无关内容。\n", encoding="utf-8"
             )
             context = KB_CONTEXT.build_context(
                 root, "parametric knowledge", max_pages=1, max_chars=1600
             )
             self.assertIn("[[knowledge-conflict|知识冲突]]", context)
-            self.assertNotIn("[[other|其他实体]]", context)
+            self.assertNotIn("[[other|其他主题]]", context)
 
     def test_zero_overlap_marks_index_order_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             wiki = root / "wiki"
-            for name in ("sources", "entities", "topics"):
+            for name in ("sources", "topics"):
                 (wiki / name).mkdir(parents=True)
             (wiki / "index.md").write_text(
                 "# Index\n\n"

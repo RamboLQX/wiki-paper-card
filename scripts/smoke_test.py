@@ -47,7 +47,7 @@ def build_card() -> str:
 
 def build_digest() -> dict:
     return {
-        "schema_version": "2.0",
+        "schema_version": "3.0",
         "paper": {
             "title": "Smoke Paper",
             "source_sha256": "a" * 64,
@@ -59,9 +59,6 @@ def build_digest() -> dict:
             "one_sentence_summary": "A smoke paper.",
             "problem": "A smoke problem.",
             "method": "A smoke method.",
-            "datasets": [],
-            "models": [],
-            "metrics": [],
             "key_results": [],
             "limitations": [],
             "critical_observations": [],
@@ -93,7 +90,6 @@ def main() -> int:
         shutil.copytree(ROOT / "template", root, dirs_exist_ok=True)
         required_dirs = [
             root / "raw" / "papers",
-            root / "wiki" / "entities",
             root / "wiki" / "topics",
             root / "wiki" / "sources",
         ]

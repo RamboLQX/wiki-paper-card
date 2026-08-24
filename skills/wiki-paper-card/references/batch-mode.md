@@ -33,7 +33,7 @@ Only after every paper card and digest in the batch passes its audits:
 2. Build one compact existing-wiki context from the combined paper titles.
 3. Run one `wiki-linker` agent.
 4. Audit the resulting `link-plan.json`.
-5. Run the deterministic `publish_wiki.py` command for source pages, entity stubs, topic pages, index, and log.
+5. Run the deterministic `publish_wiki.py` command for source pages, topic pages, index, and log.
 
 The linker sees all current digests at the same time. Card generation order does not determine cross-paper conclusions.
 
@@ -67,7 +67,6 @@ processed
 skipped unchanged
 failed or needs OCR
 created/updated source pages
-created/updated entity pages
 created/updated topic pages
 report links
 ```

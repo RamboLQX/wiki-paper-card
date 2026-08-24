@@ -5,10 +5,9 @@
 | Artifact | Destination |
 |---|---|
 | Full Sections 01-16 | `wiki/sources/<raw-relative-path>.md` |
-| Entity stub (deterministic) | `wiki/entities/<canonical-name>.md` |
 | Cross-paper synthesis | `wiki/topics/<topic-name>.md` |
 
-Entity stubs are not link-plan actions: `publish_wiki.py` generates them from the batch digests' `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists. The linker never writes hub actions.
+There are no entity pages: public datasets, benchmarks, model families, and metrics stay in the Paper Card's Sections 14-16 as plain text. The linker never writes hub actions.
 
 ## Plan Boundary
 
@@ -27,26 +26,6 @@ Do not invent additional promotions, duplicate aliases, or change unrelated pros
 5. Copy all 16 numbered sections in order from the finalized Paper Card.
 6. Do not include internal protocol markers, formula reports, evidence coverage lists, or audit artifacts.
 7. Keep formulas in the finalized format.
-
-## Entity Stub Write
-
-Entity stubs are generated only by the deterministic publisher:
-
-1. Collect every name from the batch digests' `analysis.datasets`, `analysis.models`, and `analysis.metrics` lists.
-2. Normalize each name; merge variants under one page: the shorter raw name becomes the page title, other spellings become aliases. A name resembling an existing page's name or alias appends to that page instead of creating a variant.
-3. A new page contains only: frontmatter (`tags: [entity]`, `status: stub`, `sources`, `aliases`), the page title, a fixed note that the page is machine-generated, an `## 别名` section, and an `## 引用来源` section listing the source Paper Cards.
-4. An existing page only gains missing aliases and missing source links; its other content is preserved.
-5. Re-running the same batch is idempotent: unchanged pages are not rewritten.
-
-Definitions, evidence, and evaluations live in the source Paper Cards; entity stubs do not carry them.
-
-## Existing Entity Page Rules
-
-1. Read the target page before editing.
-2. Compare aliases and canonical names.
-3. Add only missing aliases and source links.
-4. Add the current source report link once.
-5. Do not replace or restate existing content.
 
 ## Topic Page Write
 
@@ -74,6 +53,10 @@ Do not create a topic page merely because a paper discusses a subject.
 
 The publisher renders grouped or flat comparison records, key findings (共识/单篇主张/分歧), contradictions, open questions, and research gaps from the audited action. On update, new comparison rows are merged into the existing comparison table instead of appending a sub-table.
 
+### Resolved Items
+
+`open_questions` and `research_gaps` entries carry an optional `status` (`open` default / `answered`). When an action marks an existing item answered (`answered_by` + `answered_pointer`), the publisher removes it from the open `## 开放问题` / `## 研究空白与候选方向` sections and appends it to the archive sections `## 已解决的问题` / `## 已解决的研究空白` on the topic page. The archive sections are rendered only when they have content, and they are not aggregated into `wiki/meta/research.md` or `wiki/meta/knowledge-tree.md`.
+
 ## Index And Log
 
 `wiki/index.md`:
@@ -83,7 +66,7 @@ The publisher renders grouped or flat comparison records, key findings (共识/�
 
 `wiki/log.md`:
 
-- append one operation entry for source and entity writes;
+- append one operation entry for source writes;
 - append one batch synthesis entry after topic pages are published;
 - do not change earlier entries.
 
@@ -92,4 +75,4 @@ The publisher renders grouped or flat comparison records, key findings (共识/�
 - Same PDF SHA-256 and unchanged target: no writes.
 - Changed PDF: update report while preserving `created`.
 - Legacy report without SHA-256: treat as changed and add the fingerprint.
-- Re-running the same link plan and cards must not rewrite unchanged pages, entity stubs, index entries, or log entries.
+- Re-running the same link plan and cards must not rewrite unchanged pages, index entries, or log entries.

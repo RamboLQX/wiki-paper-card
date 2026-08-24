@@ -46,6 +46,15 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
 - 不计算、不输出耗时预估或轮次预估。只报告 `workflow_status.py` 的确定性
   事实（complete / INCOMPLETE 与缺失文件），完成时间由系统自然呈现。
 
+## 空白挖掘（wiki-gap-mining）
+
+- Phase A（读 + 挖掘）：`subagent` 工具跑一个后台 miner 子代理，prompt 携带
+  `references/mining-brief.md`、范围（域列表或 all）与输出路径。全库范围时
+  miner 可在内部按域拆读并自行汇总，不返回论文正文。
+- Phase B（写回，仅在用户确认后）：主会话运行 audit_link_plan.py 与
+  publish_wiki.py 两个确定性脚本；miner 只写 link-plan 与 work/ 文件，禁止
+  子代理执行 wiki 写入。
+
 ## 与 Claude Code 宿主的差异
 
 - DSH 不使用 `adapters/claude-code/agents/*.md` 子代理定义文件；processor 与
@@ -61,7 +70,7 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
 
 安装完成后在 DSH 会话中依次确认：
 
-1. skill 目录里出现 `wiki-paper-card` 与 `wiki-shared`；
+1. skill 目录里出现 `wiki-paper-card`、`wiki-shared` 与 `wiki-gap-mining`；
 2. `python3 <REPO_ROOT>/scripts/smoke_test.py` 通过；
 3. 调用 `Use wiki-paper-card to process raw/papers/example.pdf.` 能进入 Phase 0
    并生成 source bundle 与 kb-context。

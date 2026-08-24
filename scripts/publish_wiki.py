@@ -173,13 +173,29 @@ def render_backlinks(entries: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def related_entity_names(papers: set[str], entity_source_links: dict[str, list[str]]) -> list[str]:
-    """Entity page stems that cite at least one paper of a topic action."""
-    names: list[str] = []
-    for stem, source_refs in entity_source_links.items():
-        if set(source_refs) & papers:
-            names.append(stem)
-    return names
+def backlink_bullets(entries: list[tuple[str, str]]) -> list[str]:
+    return [f"- [[{name}|{name}]] - {kind}" for name, kind in entries]
+
+
+def append_backlinks_to_page(
+    wiki_root: Path, source_ref: str, entries: list[tuple[str, str]]
+) -> tuple[str, bool]:
+    """Append topic backlinks to an existing source page (deduplicated).
+
+    Returns (updated_text, changed). A missing page yields ("", False).
+    """
+    try:
+        target = safe_relative_path(wiki_root, source_ref)
+        existing = target.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError, ValueError):
+        return "", False
+    _, _, body = parse_frontmatter(existing)
+    additions = backlink_bullets(entries)
+    updated_body = insert_before_next_section(body, "关联页面", additions)
+    if updated_body == body:
+        return existing, False
+    head = existing[: len(existing) - len(body)]
+    return head + updated_body, True
 
 
 def render_contradictions(items: Any, titles: dict[str, str]) -> list[str]:
@@ -226,60 +242,6 @@ def render_contradictions(items: Any, titles: dict[str, str]) -> list[str]:
             lines.append(f"- 如何解决：{resolve}")
         lines.append("")
     return lines
-
-
-def entity_source_line(source_ref: str, titles: dict[str, str]) -> str:
-    return f"- {wiki_link(source_ref, source_label(source_ref, titles))}"
-
-
-def entity_stub_text(
-    name: str,
-    aliases: list[str],
-    source_refs: list[str],
-    titles: dict[str, str],
-    today: str,
-    created: str,
-) -> str:
-    frontmatter = render_frontmatter(
-        ["entity"],
-        created,
-        today,
-        "stub",
-        sources=source_refs,
-        aliases=aliases,
-    )
-    lines = [
-        frontmatter.rstrip(),
-        f"# {name}",
-        "",
-        "> 本页由 publish_wiki.py 确定性生成，只聚合引用本实体的论文；定义与评价见各来源论文页。",
-        "",
-        "## 别名",
-        "",
-    ]
-    lines.extend(f"- {alias}" for alias in aliases)
-    lines.extend(["", "## 引用来源", ""])
-    for source_ref in source_refs:
-        lines.append(entity_source_line(source_ref, titles))
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def merge_entity_stub(
-    existing_text: str,
-    aliases: list[str],
-    source_refs: list[str],
-    titles: dict[str, str],
-    today: str,
-) -> str:
-    fields, lists, body = parse_frontmatter(existing_text)
-    fields, lists = merge_frontmatter_sets(fields, lists, source_refs, aliases, today)
-    additions = missing_lines(
-        [entity_source_line(ref, titles) for ref in source_refs],
-        section_body(body, "引用来源"),
-    )
-    if additions:
-        body = insert_before_next_section(body, "引用来源", additions)
-    return rebuild_page(fields, lists, body, "entity")
 
 
 def comparison_paper_name(item: dict[str, Any], titles: dict[str, str]) -> str:
@@ -391,38 +353,163 @@ def render_key_findings(
     return lines
 
 
-def render_research_gaps(
+def normalize_questions(items: Any) -> list[dict[str, Any]]:
+    """Normalize open_questions entries; strings become open items."""
+    normalized: list[dict[str, Any]] = []
+    if not isinstance(items, list):
+        return normalized
+    for item in items:
+        if isinstance(item, str):
+            question = item.strip()
+            if question:
+                normalized.append({"question": question, "status": "open"})
+            continue
+        if not isinstance(item, dict):
+            continue
+        question = str(item.get("question", "")).strip()
+        if not question:
+            continue
+        entry: dict[str, Any] = {
+            "question": question,
+            "status": item.get("status", "open"),
+        }
+        if entry["status"] == "answered":
+            entry["answered_by"] = string_list(item.get("answered_by"))
+            entry["answered_pointer"] = str(item.get("answered_pointer", "")).strip()
+        normalized.append(entry)
+    return normalized
+
+
+def render_open_questions(
     items: Any,
     titles: dict[str, str],
     short_names: dict[str, str] | None = None,
-) -> list[str]:
-    if not isinstance(items, list) or not items:
-        return []
-    if all(isinstance(item, str) for item in items):
-        return [f"- {gap}" for gap in string_list(items)]
+) -> tuple[list[str], list[str]]:
+    """Render open_questions into (open bullets, resolved bullets).
+
+    Resolved bullets go to the `## 已解决的问题` archive section.
+    """
     short = short_names or {}
-    lines: list[str] = []
+    open_lines: list[str] = []
+    resolved_lines: list[str] = []
+    for entry in normalize_questions(items):
+        if entry["status"] == "answered":
+            refs = "、".join(
+                source_wikilink(ref, short, titles)
+                for ref in entry.get("answered_by", [])
+            )
+            pointer = entry.get("answered_pointer", "")
+            suffix = "；".join(
+                part
+                for part in [f"已解决：{refs}" if refs else "", pointer]
+                if part
+            )
+            resolved_lines.append(
+                f"- {entry['question']}" + (f"（{suffix}）" if suffix else "")
+            )
+        else:
+            open_lines.append(f"- {entry['question']}")
+    return open_lines, resolved_lines
+
+
+def normalize_gaps(items: Any) -> list[dict[str, Any]]:
+    """Normalize research_gaps entries; strings become open items."""
+    normalized: list[dict[str, Any]] = []
+    if not isinstance(items, list):
+        return normalized
     for item in items:
+        if isinstance(item, str):
+            gap = item.strip()
+            if gap:
+                normalized.append({"gap": gap, "status": "open"})
+            continue
         if not isinstance(item, dict):
             continue
         gap = str(item.get("gap", "")).strip()
         if not gap:
             continue
+        entry: dict[str, Any] = {
+            "gap": gap,
+            "source_refs": string_list(item.get("source_refs")),
+            "direction": str(item.get("direction", "")).strip(),
+            "continuity": str(item.get("continuity", "")).strip(),
+            "status": item.get("status", "open"),
+        }
+        if entry["status"] == "answered":
+            entry["answered_by"] = string_list(item.get("answered_by"))
+            entry["answered_pointer"] = str(item.get("answered_pointer", "")).strip()
+        normalized.append(entry)
+    return normalized
+
+
+def gap_bullet(
+    entry: dict[str, Any],
+    titles: dict[str, str],
+    short_names: dict[str, str] | None,
+) -> str:
+    short = short_names or {}
+    refs = "、".join(
+        source_wikilink(ref, short, titles) for ref in entry.get("source_refs", [])
+    )
+    direction = entry.get("direction", "")
+    continuity = entry.get("continuity", "")
+    suffix = "；".join(
+        part
+        for part in [
+            f"来源：{refs}" if refs else "",
+            f"可检验方向：{direction}" if direction else "",
+            f"承接：{continuity}" if continuity else "",
+        ]
+        if part
+    )
+    return f"- {entry['gap']}" + (f"（{suffix}）" if suffix else "")
+
+
+def render_research_gaps(
+    items: Any,
+    titles: dict[str, str],
+    short_names: dict[str, str] | None = None,
+) -> list[str]:
+    """Render the open research gaps of an action as bullets.
+
+    Answered gaps are rendered separately by render_resolved_research_gaps.
+    """
+    lines: list[str] = []
+    for entry in normalize_gaps(items):
+        if entry["status"] == "open":
+            lines.append(gap_bullet(entry, titles, short_names))
+    return lines
+
+
+def render_resolved_research_gaps(
+    items: Any,
+    titles: dict[str, str],
+    short_names: dict[str, str] | None = None,
+) -> list[str]:
+    """Render answered research gaps as bullets for the archive section."""
+    short = short_names or {}
+    lines: list[str] = []
+    for entry in normalize_gaps(items):
+        if entry["status"] != "answered":
+            continue
         refs = "、".join(
-            source_wikilink(ref, short, titles) for ref in string_list(item.get("source_refs"))
+            source_wikilink(ref, short, titles) for ref in entry.get("source_refs", [])
         )
-        direction = str(item.get("direction", ""))
-        continuity = str(item.get("continuity", ""))
+        answered_refs = "、".join(
+            source_wikilink(ref, short, titles)
+            for ref in entry.get("answered_by", [])
+        )
+        pointer = entry.get("answered_pointer", "")
         suffix = "；".join(
             part
             for part in [
                 f"来源：{refs}" if refs else "",
-                f"可检验方向：{direction}" if direction else "",
-                f"承接：{continuity}" if continuity else "",
+                f"已解决：{answered_refs}" if answered_refs else "",
+                pointer,
             ]
             if part
         )
-        lines.append(f"- {gap}" + (f"（{suffix}）" if suffix else ""))
+        lines.append(f"- {entry['gap']}" + (f"（{suffix}）" if suffix else ""))
     return lines
 
 
@@ -431,7 +518,6 @@ def topic_page_text(
     titles: dict[str, str],
     today: str,
     created: str,
-    related_entities: list[str] | None = None,
     short_names: dict[str, str] | None = None,
 ) -> str:
     sources = string_list(action.get("papers"))
@@ -464,14 +550,22 @@ def topic_page_text(
     lines.extend(render_key_findings(action.get("key_findings", []), titles, short_names))
     lines.extend(["## 争议与不确定", ""])
     lines.extend(render_contradictions(action.get("contradictions", []), titles))
-    lines.extend(["## 相关实体", ""])
-    for name in related_entities or []:
-        lines.append(f"- [[{name}|{name}]]")
-    lines.extend(["", "## 开放问题", ""])
-    for question in string_list(action.get("open_questions")):
-        lines.append(f"- {question}")
+    lines.extend(["## 开放问题", ""])
+    q_open, q_resolved = render_open_questions(
+        action.get("open_questions", []), titles, short_names
+    )
+    lines.extend(q_open)
     lines.extend(["", "## 研究空白与候选方向", ""])
     lines.extend(render_research_gaps(action.get("research_gaps", []), titles, short_names))
+    if q_resolved:
+        lines.extend(["", "## 已解决的问题", ""])
+        lines.extend(q_resolved)
+    resolved_gaps = render_resolved_research_gaps(
+        action.get("research_gaps", []), titles, short_names
+    )
+    if resolved_gaps:
+        lines.extend(["", "## 已解决的研究空白", ""])
+        lines.extend(resolved_gaps)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -516,6 +610,30 @@ def section_body(body: str, section_name: str) -> str:
     pattern = re.compile(rf"(?ms)^##\s+{re.escape(section_name)}\s*$\n(.*?)(?=^##\s|\Z)")
     match = pattern.search(body)
     return match.group(1) if match else ""
+
+
+def bullet_text(line: str) -> str:
+    """Strip a leading '- ' marker from a section bullet."""
+    stripped = line.strip()
+    return stripped[2:].strip() if stripped.startswith("- ") else stripped
+
+
+def replace_section_body(body: str, section_name: str, new_lines: list[str]) -> str:
+    """Replace a section's body with new_lines, preserving the section title.
+
+    Appends the section when it is absent. An empty new_lines keeps the
+    section title in place (possibly empty).
+    """
+    pattern = re.compile(rf"(?ms)^##\s+{re.escape(section_name)}\s*$\n(.*?)(?=^##\s|\Z)")
+    match = pattern.search(body)
+    if not match:
+        return insert_before_next_section(body, section_name, new_lines)
+    content = "\n".join(new_lines)
+    if content:
+        result = body[: match.start(1)] + content + "\n\n" + body[match.end(1):]
+    else:
+        result = body[: match.start(1)] + body[match.end(1):]
+    return result.rstrip("\n") + "\n"
 
 
 def merge_table_rows(body: str, section_name: str, new_rows: list[str]) -> str:
@@ -589,7 +707,6 @@ def merge_topic_page(
     action: dict[str, Any],
     titles: dict[str, str],
     today: str,
-    related_entities: list[str] | None = None,
     short_names: dict[str, str] | None = None,
 ) -> str:
     fields, lists, body = parse_frontmatter(existing_text)
@@ -638,21 +755,55 @@ def merge_topic_page(
             "争议与不确定",
             render_contradictions(pending, titles),
         )
-    body = insert_before_next_section(
-        body,
-        "相关实体",
-        [f"- [[{name}|{name}]]" for name in related_entities or []],
+    q_open, q_resolved = render_open_questions(
+        action.get("open_questions", []), titles, short_names
     )
-    body = insert_before_next_section(
-        body,
-        "开放问题",
-        [f"- {question}" for question in string_list(action.get("open_questions"))],
+    existing_q = section_bullets(body, "开放问题")
+    answered_q = [
+        entry["question"]
+        for entry in normalize_questions(action.get("open_questions", []))
+        if entry["status"] == "answered"
+    ]
+    kept_q = [
+        line
+        for line in existing_q
+        if not any(line.startswith(text) for text in answered_q)
+    ]
+    merged_q = [f"- {line}" for line in kept_q] + [
+        line for line in q_open if bullet_text(line) not in kept_q
+    ]
+    body = replace_section_body(body, "开放问题", merged_q)
+    if q_resolved:
+        existing_rq = section_bullets(body, "已解决的问题")
+        merged_rq = [f"- {line}" for line in existing_rq] + [
+            line for line in q_resolved if bullet_text(line) not in existing_rq
+        ]
+        body = replace_section_body(body, "已解决的问题", merged_rq)
+    g_open = render_research_gaps(action.get("research_gaps", []), titles, short_names)
+    g_resolved = render_resolved_research_gaps(
+        action.get("research_gaps", []), titles, short_names
     )
-    body = insert_before_next_section(
-        body,
-        "研究空白与候选方向",
-        render_research_gaps(action.get("research_gaps", []), titles, short_names),
-    )
+    existing_g = section_bullets(body, "研究空白与候选方向")
+    answered_g = [
+        entry["gap"]
+        for entry in normalize_gaps(action.get("research_gaps", []))
+        if entry["status"] == "answered"
+    ]
+    kept_g = [
+        line
+        for line in existing_g
+        if not any(line.startswith(text) for text in answered_g)
+    ]
+    merged_g = [f"- {line}" for line in kept_g] + [
+        line for line in g_open if bullet_text(line) not in kept_g
+    ]
+    body = replace_section_body(body, "研究空白与候选方向", merged_g)
+    if g_resolved:
+        existing_rg = section_bullets(body, "已解决的研究空白")
+        merged_rg = [f"- {line}" for line in existing_rg] + [
+            line for line in g_resolved if bullet_text(line) not in existing_rg
+        ]
+        body = replace_section_body(body, "已解决的研究空白", merged_rg)
     fields, lists = merge_frontmatter_sets(
         fields,
         lists,
@@ -757,16 +908,6 @@ def resolve_work_dir(value: str, wiki_root: Path) -> Path:
     return (wiki_root / path).resolve()
 
 
-def find_existing_entity(name: str, wiki_root: Path) -> Path | None:
-    directory = wiki_root / "wiki" / "entities"
-    if not directory.is_dir():
-        return None
-    for path in directory.glob("*.md"):
-        if path.stem == name:
-            return path
-    return None
-
-
 def find_existing_topic(action: dict[str, Any], wiki_root: Path) -> Path | None:
     existing_page = action.get("existing_page")
     if isinstance(existing_page, str) and existing_page:
@@ -781,201 +922,20 @@ def find_existing_topic(action: dict[str, Any], wiki_root: Path) -> Path | None:
     return None
 
 
-def normalize_entity_name(value: str) -> str:
-    return re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", str(value).lower())
-
-
-MIN_NAME_VARIANT_LEN = 3
-
-
-def find_name_variant(name: str, wiki_root: Path) -> str | None:
-    """Find an existing entity page whose name or alias resembles `name`.
-
-    Exact raw-name matches are handled by the normal merge path; this detects
-    variants (punctuation differences, parenthetical expansions, family
-    prefixes) that would otherwise create a duplicate page.
-    """
-    key = normalize_entity_name(name)
-    if not key:
-        return None
-    folder = wiki_root / "wiki" / "entities"
-    if not folder.is_dir():
-        return None
-    for page in folder.glob("*.md"):
-        if page.stem == name:
-            continue
-        candidates = [page.stem]
-        try:
-            _, lists, _ = parse_frontmatter(page.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError):
-            lists = {}
-        candidates.extend(lists.get("aliases", []))
-        for candidate in candidates:
-            candidate_key = normalize_entity_name(candidate)
-            if len(candidate_key) < MIN_NAME_VARIANT_LEN:
-                continue
-            if (
-                key == candidate_key
-                or key.startswith(candidate_key)
-                or candidate_key.startswith(key)
-            ):
-                return page.stem
-    return None
-
-
-def collect_entity_mentions(
-    source_pages: list[Any], wiki_root: Path
-) -> dict[str, list[tuple[str, str]]]:
-    """Collect normalized entity mentions from the batch digests.
-
-    Returns a mapping from normalized key to a list of `(raw_name, source_ref)`
-    pairs across `analysis.datasets`, `analysis.models`, and `analysis.metrics`.
-    """
-    mentions: dict[str, list[tuple[str, str]]] = {}
-    seen_pairs: set[tuple[str, str]] = set()
-    for page in source_pages:
-        if not isinstance(page, dict):
-            continue
-        work_dir = resolve_work_dir(page.get("work_dir", ""), wiki_root)
-        digest_path = work_dir / "paper-digest.json"
-        if not digest_path.is_file():
-            continue
-        try:
-            digest = json.loads(digest_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            continue
-        analysis = digest.get("analysis", {})
-        if not isinstance(analysis, dict):
-            continue
-        source_ref = page.get("source_ref", "")
-        for field in ("datasets", "models", "metrics"):
-            for name in string_list(analysis.get(field)):
-                key = normalize_entity_name(name)
-                if not key:
-                    continue
-                pair = (name, source_ref)
-                if pair in seen_pairs:
-                    continue
-                seen_pairs.add(pair)
-                mentions.setdefault(key, []).append((name, source_ref))
-    return mentions
-
-
-def resolve_entity_targets(
-    mentions: dict[str, list[tuple[str, str]]], wiki_root: Path
-) -> list[dict[str, Any]]:
-    """Resolve collected mentions into entity page targets.
-
-    For every normalized key: the shorter raw name becomes the canonical page
-    title and other spellings become aliases. A name resembling an existing
-    entity page (or its aliases) merges into that page instead of creating a
-    variant. Names resembling each other within the batch also merge into the
-    shorter canonical name. Returns one target per canonical page.
-    """
-    proposals: dict[str, dict[str, Any]] = {}
-    for key in sorted(mentions):
-        pairs = mentions[key]
-        canonical, _ = min(pairs, key=lambda pair: (len(pair[0]), pair[0]))
-        raw_names = sorted({name for name, _ in pairs})
-        aliases = [name for name in raw_names if name != canonical]
-        source_refs: list[str] = []
-        for _, source_ref in pairs:
-            if source_ref and source_ref not in source_refs:
-                source_refs.append(source_ref)
-        existing_path = find_existing_entity(canonical, wiki_root)
-        if existing_path is None:
-            variant = find_name_variant(canonical, wiki_root)
-            if variant:
-                existing_path = find_existing_entity(variant, wiki_root)
-                if existing_path is not None:
-                    aliases = sorted(set(aliases) | {canonical})
-                    canonical = existing_path.stem
-        proposals[key] = {
-            "name": canonical,
-            "aliases": aliases,
-            "source_refs": source_refs,
-            "path": existing_path,
-        }
-
-    # Merge within-batch proposals: a name that is a variant of an
-    # already-claimed canonical name folds into that proposal, so one batch
-    # never creates two pages for the same family (for example LLaVA and
-    # LLaVA 1.5).
-    index: dict[str, str] = {}  # normalized name -> proposal key
-    merged_out: set[str] = set()
-
-    def register(prop_key: str) -> None:
-        prop = proposals[prop_key]
-        for name in [prop["name"]] + prop["aliases"]:
-            nkey = normalize_entity_name(name)
-            if len(nkey) >= MIN_NAME_VARIANT_LEN:
-                index.setdefault(nkey, prop_key)
-
-    def merge_into(parent_key: str, child_key: str) -> None:
-        parent = proposals[parent_key]
-        child = proposals[child_key]
-        merged_names = {child["name"], *child["aliases"]} - {parent["name"]}
-        parent["aliases"] = sorted(set(parent["aliases"]) | merged_names)
-        parent["source_refs"] = list(
-            dict.fromkeys(parent["source_refs"] + child["source_refs"])
-        )
-        if parent["path"] is None and child["path"] is not None:
-            parent["path"] = child["path"]
-        merged_out.add(child_key)
-
-    for key in sorted(proposals, key=lambda item: (len(item), item)):
-        if key in merged_out:
-            continue
-        prop = proposals[key]
-        parent_key: str | None = None
-        for name in [prop["name"], *prop["aliases"]]:
-            nkey = normalize_entity_name(name)
-            if len(nkey) < MIN_NAME_VARIANT_LEN:
-                continue
-            for candidate_key in list(index):
-                if (
-                    nkey == candidate_key
-                    or nkey.startswith(candidate_key)
-                    or candidate_key.startswith(nkey)
-                ):
-                    parent_key = index[candidate_key]
-                    break
-            if parent_key:
-                break
-        if parent_key is not None and parent_key != key:
-            merge_into(parent_key, key)
-            register(parent_key)
-            continue
-        register(key)
-
-    targets: list[dict[str, Any]] = []
-    for key in sorted(proposals):
-        if key in merged_out:
-            continue
-        prop = proposals[key]
-        path = prop["path"]
-        if path is None:
-            directory = wiki_root / "wiki" / "entities"
-            directory.mkdir(parents=True, exist_ok=True)
-            path = directory / f"{safe_filename(prop['name'])}.md"
-        targets.append(
-            {
-                "name": prop["name"],
-                "aliases": prop["aliases"],
-                "source_refs": prop["source_refs"],
-                "path": path,
-            }
-        )
-    return targets
-
-
 def render_research_page(
     buckets: dict[str, dict[str, list[Any]]] | None,
     today: str,
     created: str,
 ) -> str | None:
     """Render wiki/meta/research.md: domain-grouped dashboard of open
-    questions and research gaps."""
+    questions and research gaps.
+
+    This is the question-type-first view of the same topic-page data that
+    knowledge-tree.md shows domain-first. It aggregates only *currently
+    open* questions and gaps; answered items live in the topic pages'
+    `## 已解决的问题` / `## 已解决的研究空白` archive sections and are
+    deliberately not aggregated here.
+    """
     questions_by_domain: dict[str, list[tuple[str, str, str]]] = {}
     gaps_by_domain: dict[str, list[tuple[str, str, str]]] = {}
     if buckets:
@@ -986,14 +946,22 @@ def render_research_page(
     has_content = bool(
         any(questions_by_domain.values()) or any(gaps_by_domain.values())
     )
-    if not has_content:
+    if buckets is None:
         return None
+    if not has_content:
+        return (
+            render_frontmatter(["meta"], created, today, "evergreen").rstrip()
+            + "\n"
+            + "# 研究仪表盘\n\n"
+            + "> 本页由 publish_wiki.py 确定性生成：按领域聚合主题页的当前开放问题与研究空白（问题类型优先视图，只含仍开放的条目；已解决的归档在各主题页）。不要手动编辑。\n\n"
+            + "当前没有待解决的开放问题与研究空白；已解决的条目归档在各主题页的 `## 已解决的问题` / `## 已解决的研究空白` 小节。\n"
+        )
 
     lines = [
         render_frontmatter(["meta"], created, today, "evergreen").rstrip(),
         "# 研究仪表盘",
         "",
-        "> 本页由 publish_wiki.py 确定性生成：按领域聚合主题页的开放问题与研究空白。不要手动编辑。",
+        "> 本页由 publish_wiki.py 确定性生成：按领域聚合主题页的当前开放问题与研究空白（问题类型优先视图，只含仍开放的条目；已解决的归档在各主题页）。不要手动编辑。",
         "",
     ]
 
@@ -1098,7 +1066,7 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
     def bucket(domain: str) -> dict[str, list[Any]]:
         return buckets.setdefault(
             domain,
-            {"sources": [], "topics": [], "entities": [], "questions": [], "gaps": []},
+            {"sources": [], "topics": [], "questions": [], "gaps": []},
         )
 
     for entry in entries:
@@ -1118,16 +1086,6 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
                 bucket(domain)["questions"].append((question, label, path))
             for gap in section_bullets(body, "研究空白与候选方向"):
                 bucket(domain)["gaps"].append((gap, label, path))
-        elif path.startswith("wiki/entities/"):
-            text = ""
-            try:
-                text = (wiki_root / path).read_text(encoding="utf-8")
-            except OSError:
-                pass
-            _, lists, _ = parse_frontmatter(text)
-            aliases = lists.get("aliases", [])
-            domain = page_domains(wiki_root, path)
-            bucket(domain)["entities"].append((path, label, description, aliases))
     return buckets
 
 
@@ -1141,12 +1099,17 @@ def ordered_domains(buckets: dict[str, dict[str, list[Any]]]) -> list[str]:
 def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
     """Render wiki/meta/knowledge-tree.md from collected buckets.
 
-    Deterministic: identical buckets produce identical text.
+    Deterministic: identical buckets produce identical text. This is the
+    domain-first navigation view of the same topic-page data that
+    research.md shows question-type-first; the open-question and
+    research-gap bullets are shared between the two documents by design.
+    Only *currently open* items are aggregated; answered items stay in the
+    topic pages' archive sections.
     """
     lines = [
         "# 知识树",
         "",
-        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航；不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
+        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航（领域优先视图；开放问题与研究空白与 research.md 为同一批数据的另一透视，只含仍开放的条目）。不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
         "",
     ]
     for domain in ordered_domains(buckets):
@@ -1156,7 +1119,6 @@ def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
         for kind, title, key in (
             ("sources", "### 论文", "sources"),
             ("topics", "### 主题", "topics"),
-            ("entities", "### 实体", "entities"),
         ):
             items = sorted(data[key], key=lambda row: row[1])
             if not items:
@@ -1166,11 +1128,7 @@ def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
             for row in items:
                 stem = Path(row[0]).stem
                 suffix = f" — {row[2]}" if row[2] else ""
-                if kind == "entities" and row[3]:
-                    alias_text = f"（别名：{'、'.join(row[3])}）"
-                    lines.append(f"- [[{stem}|{row[1]}]]{alias_text}{suffix}")
-                else:
-                    lines.append(f"- [[{stem}|{row[1]}]]{suffix}")
+                lines.append(f"- [[{stem}|{row[1]}]]{suffix}")
             lines.append("")
         for title, key in (("### 开放问题", "questions"), ("### 研究空白", "gaps")):
             if not data[key]:
@@ -1229,7 +1187,7 @@ def main() -> int:
         return 1
 
     today = datetime.date.today().isoformat()
-    for directory in ("wiki", "wiki/entities", "wiki/topics", "wiki/sources"):
+    for directory in ("wiki", "wiki/topics", "wiki/sources"):
         (wiki_root / directory).mkdir(parents=True, exist_ok=True)
 
     source_pages = plan.get("batch", {}).get("source_pages", [])
@@ -1243,19 +1201,15 @@ def main() -> int:
         for page in source_pages
         if isinstance(page, dict) and page.get("source_ref") and page.get("short")
     }
-    batch_title = "、".join(titles.values()) or "batch"
+    batch = plan.get("batch", {})
+    batch_label = str(batch.get("label", "")).strip() if isinstance(batch, dict) else ""
+    batch_title = "、".join(titles.values()) or batch_label or "batch"
     writes: list[dict[str, str]] = []
     errors: list[str] = []
     source_log_entries: list[dict[str, Any]] = []
     synthesis_log_entries: list[dict[str, Any]] = []
     index_entries: list[tuple[str, str, str]] = []
     backlinks: dict[str, list[tuple[str, str]]] = {}
-    entity_targets = resolve_entity_targets(collect_entity_mentions(source_pages, wiki_root), wiki_root)
-    entity_source_links: dict[str, list[str]] = {}
-    for target in entity_targets:
-        entity_source_links[target["name"]] = target["source_refs"]
-        for source_ref in target["source_refs"]:
-            backlinks.setdefault(source_ref, []).append((target["name"], "实体"))
     for action in plan.get("topic_actions", []):
         if not isinstance(action, dict):
             continue
@@ -1316,54 +1270,6 @@ def main() -> int:
             )
         )
 
-    for target in entity_targets:
-        existing_path = target["path"]
-        existing_text = existing_path.read_text(encoding="utf-8") if existing_path.is_file() else None
-        try:
-            if existing_text is None:
-                content = entity_stub_text(
-                    target["name"],
-                    target["aliases"],
-                    target["source_refs"],
-                    titles,
-                    today,
-                    today,
-                )
-            else:
-                content = merge_entity_stub(
-                    existing_text,
-                    target["aliases"],
-                    target["source_refs"],
-                    titles,
-                    today,
-                )
-        except (OSError, UnicodeDecodeError, ValueError) as exc:
-            errors.append(f"Failed to prepare entity {target['name']}: {exc}")
-            continue
-        if existing_text != content:
-            existing_path.write_text(content, encoding="utf-8")
-            created = existing_text is None
-            writes.append(
-                {
-                    "kind": "entity",
-                    "path": str(existing_path.relative_to(wiki_root)),
-                    "action": "create" if created else "update",
-                }
-            )
-            synthesis_log_entries.append(
-                {
-                    "path": str(existing_path.relative_to(wiki_root)),
-                    "created": created,
-                }
-            )
-        index_entries.append(
-            (
-                "实体",
-                str(existing_path.relative_to(wiki_root)),
-                "公共数据集 / 基准 / 模型家族 / 指标",
-            )
-        )
-
     for action in plan.get("topic_actions", []):
         if not isinstance(action, dict):
             continue
@@ -1376,15 +1282,11 @@ def main() -> int:
             directory.mkdir(parents=True, exist_ok=True)
             existing_path = directory / f"{safe_filename(action.get('name', ''))}.md"
         existing_text = existing_path.read_text(encoding="utf-8") if existing_path.is_file() else None
-        related_entities = related_entity_names(
-            set(string_list(action.get("papers"))),
-            entity_source_links,
-        )
         try:
             if existing_text is None:
-                content = topic_page_text(action, titles, today, today, related_entities, short_names)
+                content = topic_page_text(action, titles, today, today, short_names)
             else:
-                content = merge_topic_page(existing_text, action, titles, today, related_entities, short_names)
+                content = merge_topic_page(existing_text, action, titles, today, short_names)
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             errors.append(f"Failed to prepare topic {action.get('name', '')}: {exc}")
             continue
@@ -1412,6 +1314,34 @@ def main() -> int:
             )
         )
 
+    # Mining plans reference existing source pages instead of writing new
+    # ones: append the topic backlinks to those pages.
+    batch_page_refs = {
+        page.get("source_ref")
+        for page in source_pages
+        if isinstance(page, dict) and page.get("source_ref")
+    }
+    for action in plan.get("topic_actions", []):
+        if not isinstance(action, dict):
+            continue
+        name = action.get("name", "")
+        for source_ref in string_list(action.get("papers")):
+            if source_ref in batch_page_refs:
+                continue
+            text, changed = append_backlinks_to_page(
+                wiki_root, source_ref, [(name, "主题")]
+            )
+            if changed:
+                target = safe_relative_path(wiki_root, source_ref)
+                target.write_text(text, encoding="utf-8")
+                writes.append(
+                    {
+                        "kind": "source-backlinks",
+                        "path": str(target.relative_to(wiki_root)),
+                        "action": "update",
+                    }
+                )
+
     research_path = wiki_root / "wiki" / "meta" / "research.md"
     research_existing = (
         research_path.read_text(encoding="utf-8") if research_path.is_file() else None
@@ -1424,7 +1354,7 @@ def main() -> int:
     index_path = wiki_root / "wiki" / "index.md"
     log_path = wiki_root / "wiki" / "log.md"
     if not index_path.is_file():
-        index_path.write_text("# Wiki 索引\n\n## 实体\n## 主题\n## 来源\n## 元页面\n", encoding="utf-8")
+        index_path.write_text("# Wiki 索引\n\n## 主题\n## 来源\n## 元页面\n", encoding="utf-8")
     if not log_path.is_file():
         log_path.write_text("# 操作日志\n", encoding="utf-8")
     try:
@@ -1487,8 +1417,6 @@ def main() -> int:
             "status": "fail" if errors else "pass",
             "created_sources": sum(item["kind"] == "source" and item["action"] == "create" for item in writes),
             "updated_sources": sum(item["kind"] == "source" and item["action"] == "update" for item in writes),
-            "created_entities": sum(item["kind"] == "entity" and item["action"] == "create" for item in writes),
-            "updated_entities": sum(item["kind"] == "entity" and item["action"] == "update" for item in writes),
             "created_topics": sum(item["kind"] == "topic" and item["action"] == "create" for item in writes),
             "updated_topics": sum(item["kind"] == "topic" and item["action"] == "update" for item in writes),
             "errors": len(errors),
@@ -1501,8 +1429,6 @@ def main() -> int:
         f"Publish status: {report['summary']['status']} "
         f"(sources={report['summary']['created_sources']} new/"
         f"{report['summary']['updated_sources']} updated, "
-        f"entities={report['summary']['created_entities']} new/"
-        f"{report['summary']['updated_entities']} updated, "
         f"topics={report['summary']['created_topics']} new/"
         f"{report['summary']['updated_topics']} updated)"
     )

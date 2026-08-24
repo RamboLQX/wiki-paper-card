@@ -5,21 +5,33 @@
 ```text
 wiki/index.md                   扁平目录（人读入口）
 wiki/meta/knowledge-tree.md     按领域分组的导航树（publish_wiki.py 确定性生成）
-wiki/topics|entities|sources/   分支页面与叶子小节
+wiki/meta/research.md           按问题类型分组的全局开放问题/研究空白清单（publish_wiki.py 确定性生成）
+wiki/topics|sources/            分支页面与叶子小节
 ```
 
 `knowledge-tree.md` 按 `raw/papers/` 一级目录分域，每个节点带一句话摘要，
-实体节点附带别名，每个领域聚合了来自 topic 页的开放问题与研究空白。
+每个领域聚合了来自 topic 页的开放问题与研究空白。
 检索从树开始，逐层下降；这是 PageIndex 式"树索引 + LLM 树搜索"在本知识库
 的落地：索引由确定性脚本维护（零 LLM 成本），检索时才消耗 LLM 判断。
 
+`research.md` 与 `knowledge-tree.md` 的开放问题/研究空白是同一批 topic 页
+条目的两种透视（领域优先 vs 问题类型优先），文本一致是设计使然，不是数据冗余；
+单一事实来源在 topic 页的 `## 开放问题` 与 `## 研究空白与候选方向` 小节。
+两个文档都只聚合**仍开放**的条目：被后续论文回答/填补的条目由发布器移入
+topic 页的 `## 已解决的问题` / `## 已解决的研究空白` 归档小节，不再出现在
+树与仪表盘中；检索时若在聚合视图里找不到某空白，先查对应 topic 页的归档小节。
+
 ## 第一跳：选择分支
 
-1. 读 `wiki/meta/knowledge-tree.md`（不存在时读 `wiki/index.md`）；定向问答与选题类
-   查询同时读 `wiki/meta/research.md`（按领域聚合的开放问题与研究空白）。
+1. 读 `wiki/meta/knowledge-tree.md`（不存在时读 `wiki/index.md`）。
 2. 用问题文本匹配节点：领域名、页面标题、别名、开放问题文本、研究空白文本。
 3. 选出候选分支后，打开页面文件核实，不得仅凭树里的摘要断言页面内容。
 4. 树可能滞后于最近一次发布；找不到入口时，列出对应目录下的文件再判断。
+
+`wiki/meta/research.md` 只在"按问题/空白选题"类查询时读（例如"这个领域还有
+哪些研究空白可做"、"哪些开放问题未被回答"）：它一次给出全库的开放问题与
+研究空白清单，无需先定位领域。普通定向问答与查证不读它——knowledge-tree
+已含同样条目。
 
 ## lookup 模式：定向问答与查证
 
@@ -27,7 +39,7 @@ wiki/topics|entities|sources/   分支页面与叶子小节
 
 1. 读树，选不超过 3 个候选分支；
 2. 只读候选页面的相关小节：topic → 概述 / 关键发现 / 开放问题；
-   entity → 别名 / 引用来源（定义与证据沿链接进入 source 页）；source → 对应编号小节；
+   source → 对应编号小节；
 3. 需要证据细节时，沿 `[Paper: PDF p.X]` 指针进入 source 页对应小节；
 4. 回答必须带来源（页面 wikilink + 证据指针）。
 
@@ -47,6 +59,14 @@ wiki/topics|entities|sources/   分支页面与叶子小节
 
 survey 的边界是用户声明的范围本身，不是固定页数；这正是它与 lookup
 的区别——综述需要整树展开，而问答需要剪枝。
+
+## 与空白挖掘的边界
+
+survey 模式是只读检索：产出问答或综述，不回写 wiki。跨组或全库的研究
+空白与候选方向挖掘（读 + 产出候选 + 用户确认后写回）由 `wiki-gap-mining`
+skill 承担：读侧复用本协议的 survey 纪律（含归档小节），写侧仍走
+`publish_wiki.py`。用户要综述或查证时走本协议；用户要挖空白、找选题或
+综合已解决问题时路由到 `wiki-gap-mining`。
 
 ## 共享纪律
 

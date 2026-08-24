@@ -53,6 +53,7 @@ Prefer the digests for context. A final card may be read only for a specific amb
 - **Empty is a valid result**: every `key_findings`, `open_question`, or `research_gap` must change what a reader does next. A restatement of an abstract, or anything no future work can pick up, must not be written. If a batch yields no genuine gap, leave the section empty.
 - **Snapshot semantics**: `consensus` = supported by two or more independent papers with no current counter-evidence; `single` = one paper; `conflict` = a recorded contradiction. Do not call a term "consensus" just because several papers mention it, and do not manufacture a conflict to fill space.
 - **Research gap shape**: emit `research_gaps` as objects with `gap` (the gap and its origin), `source_refs` (the papers it traces to), `direction` (what observation would move it forward), and `continuity` (a future paper may answer it; this batch need not). Record only the 2-3 gaps that most affect decisions.
+- **Answers close items, they do not delete them**: when a batch paper answers an existing open question or fills an existing research gap on a topic page you update, emit that entry with `status: "answered"`, `answered_by` (the answering paper's source refs), and `answered_pointer` (the evidence). The publisher moves it to the topic page's archive section and the dashboards stop listing it. Record the substance of the answer as a `key_findings` entry so the field-state snapshot keeps it; do not silently drop the old item.
 
 ### Classification Decision: key_findings vs research_gaps
 

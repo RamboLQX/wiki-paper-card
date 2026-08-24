@@ -5,7 +5,6 @@
 ```text
 raw/            # User-owned source material, read only
 wiki/
-  entities/     # Deterministic stubs for public datasets, benchmarks, model families, metrics
   topics/       # Cross-paper synthesis, comparisons, open questions
   sources/      # Source reports, mirroring raw/ subdirectories
   meta/         # Indexes, logs, dashboards, conventions
@@ -15,9 +14,11 @@ wiki/
 
 The agent never modifies `raw/`.
 
-`wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, grouped by domain (first directory under `wiki/sources/papers/`).
+Legacy `wiki/entities/` and `wiki/concepts/` directories from older installs are ignored by the publisher: it never writes or lists their pages. They may be marked `archived` or kept as read-only references.
 
-`wiki/meta/knowledge-tree.md` is the machine-maintained navigation tree for LLM retrieval. The publisher rebuilds it deterministically after each publish, grouped by domain (first directory under `wiki/sources/papers/`), with per-node summaries, entity aliases, and per-domain open questions and research gaps aggregated from topic pages. Retrieval follows the two-mode protocol in `retrieval-protocol.md` (lookup pruning / survey expansion).
+`wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, grouped by domain (first directory under `wiki/sources/papers/`). It is the question-type-first view of the same topic-page data that the knowledge tree shows domain-first, so the two documents intentionally share the same open-item bullets. It aggregates only *currently open* items; answered items live in the topic pages' archive sections. When no open item remains, the dashboard shows a placeholder instead of stale content.
+
+`wiki/meta/knowledge-tree.md` is the machine-maintained navigation tree for LLM retrieval. The publisher rebuilds it deterministically after each publish, grouped by domain (first directory under `wiki/sources/papers/`), with per-node summaries and per-domain open questions and research gaps aggregated from topic pages (same open-item bullets as the dashboard, open-only). Retrieval follows the two-mode protocol in `retrieval-protocol.md` (lookup pruning / survey expansion).
 
 ## Frontmatter
 
@@ -25,7 +26,7 @@ Every wiki page contains:
 
 ```yaml
 ---
-tags: [entity]
+tags: [topic]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 sources: []
@@ -37,13 +38,12 @@ status: stub
 Valid page tags:
 
 ```text
-entity
 topic
 source
 meta
 ```
 
-Legacy `concept` pages from older installs are no longer written or updated; the publisher leaves them untouched.
+Legacy `concept` and `entity` pages from older installs are no longer written or updated; the publisher leaves them untouched.
 
 Paper source pages use:
 
@@ -76,19 +76,19 @@ The source page is the primary paper entry and contains all Sections 01-16 in or
 
 Formulas are written outside Markdown tables. Use `$$...$$` for a displayed formula and `$...$` only for a short inline reference outside a table. Escape a literal pipe inside table math as `\|`.
 
-Sections 14-16 keep local and reusable candidates. They use wiki-links to topic and entity pages when such a page exists:
+Sections 14-16 keep local and reusable candidates. They use wiki-links to topic pages when such a page exists; public datasets, benchmarks, model families, and metrics stay as plain text (there are no entity pages):
 
 ```markdown
 ## 14. 学到的知识
 
-- [[某实体|某实体]] — 本文提供的一个增量证据
+- LLaVA 1.5 — 本文提供的一个增量证据
 - 本地候选：另一个可复用但尚未跨论文印证的术语
 
 ## 15. 与已有知识连接
 
 | 类型 | 对象 | 证据 | 结论 |
 |---|---|---|---|
-| supports | [[某实体]] | [Paper: Figure 3] | 本文结果与已有结论一致 |
+| supports | [[某主题]] | [Paper: Figure 3] | 本文结果与已有结论一致 |
 | proposed | 候选对象 | [Paper: PDF p. 5] | 暂留本地，不建独立页面 |
 
 ## 16. 研究想法
@@ -100,25 +100,8 @@ Sections 14-16 keep local and reusable candidates. They use wiki-links to topic 
 ```
 
 The deterministic publisher appends a trailing `## 关联页面` section to each
-source page, listing basename wikilinks to every topic and entity that cites the
+source page, listing basename wikilinks to every topic that cites the
 page. This keeps the graph bidirectional after batch linking.
-
-## Entity Page
-
-Entity pages are thin deterministic stubs written only by `publish_wiki.py`. They aggregate which source pages use a public artifact. Do not copy a Paper Card into them, and do not create them by hand.
-
-```markdown
-# 页面名
-
-> 本页由 publish_wiki.py 确定性生成，只聚合引用本实体的论文；定义与评价见各来源论文页。
-
-## 别名
-
-## 引用来源
-
-- [[论文A|论文标题A]]
-- [[论文B|论文标题B]]
-```
 
 ## Topic Page
 
@@ -138,14 +121,18 @@ Topic pages are the primary synthesis surface. They compare sources and record o
 
 ## 争议与不确定
 
-## 相关实体
-
 ## 开放问题
 
 ## 研究空白与候选方向
+
+## 已解决的问题
+
+## 已解决的研究空白
 ```
 
 The `## 关键发现` section is rendered from the plan's `key_findings`, each marked 共识 / 单篇主张 / 分歧 with source pointers.
+
+The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. When a later paper answers an open item, the publisher removes it from the open section and appends it to the archive sections `## 已解决的问题` / `## 已解决的研究空白` (rendered only when they have content, never aggregated into the dashboards).
 
 ## Index And Log
 

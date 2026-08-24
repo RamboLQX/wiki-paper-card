@@ -22,7 +22,7 @@ SPEC.loader.exec_module(WIKI_STATE)
 
 def prepare_wiki(root: Path) -> Path:
     wiki = root / "wiki"
-    for directory in ("entities", "topics", "sources/papers/x", "meta"):
+    for directory in ("topics", "sources/papers/x", "meta"):
         (wiki / directory).mkdir(parents=True, exist_ok=True)
     return wiki
 
@@ -31,9 +31,9 @@ class AuditWikiStateTests(unittest.TestCase):
     def test_clean_wiki_passes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             wiki = prepare_wiki(Path(directory))
-            (wiki / "entities" / "Entity.md").write_text(
+            (wiki / "topics" / "Entity.md").write_text(
                 "---\n"
-                "tags: [entity]\n"
+                "tags: [topic]\n"
                 'created: "2026-01-01"\n'
                 "aliases:\n"
                 '  - "Alias Name"\n'
@@ -49,8 +49,8 @@ class AuditWikiStateTests(unittest.TestCase):
             (wiki / "sources/papers/x/a.md").write_text(
                 "# Paper A\n\n"
                 "## 关联页面\n\n"
-                "- [[Entity|Entity]] - 实体\n"
-                "- [[Alias Name|Alias Name]] - 实体\n",
+                "- [[Entity|Entity]] - 主题\n"
+                "- [[Alias Name|Alias Name]] - 主题\n",
                 encoding="utf-8",
             )
             (wiki / "log.md").write_text("# 操作日志\n", encoding="utf-8")
@@ -61,7 +61,7 @@ class AuditWikiStateTests(unittest.TestCase):
     def test_detects_orphan_table_row(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             wiki = prepare_wiki(Path(directory))
-            (wiki / "entities" / "C.md").write_text(
+            (wiki / "topics" / "C.md").write_text(
                 "# C\n\n"
                 "## 证据\n\n"
                 "| 来源 | 断言 | 证据 | confidence |\n"
@@ -97,8 +97,8 @@ class AuditWikiStateTests(unittest.TestCase):
             wiki = prepare_wiki(Path(directory))
             (wiki / "log.md").write_text(
                 "# 操作日志\n\n"
-                "- 更新：wiki/entities/C.md\n"
-                "- 更新：wiki/entities/C.md\n",
+                "- 更新：wiki/topics/C.md\n"
+                "- 更新：wiki/topics/C.md\n",
                 encoding="utf-8",
             )
             report = WIKI_STATE.audit(Path(directory))
@@ -113,7 +113,7 @@ class AuditWikiStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             wiki = prepare_wiki(root)
-            (wiki / "entities" / "C.md").write_text(
+            (wiki / "topics" / "C.md").write_text(
                 "# C\n\n对比 <image> token。\n", encoding="utf-8"
             )
             result = subprocess.run(

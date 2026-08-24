@@ -149,19 +149,6 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
         )[: max(0, max_pages)]
     ]
 
-    entity_entries = [
-        entry
-        for entry in entries
-        if entry["path"].startswith("wiki/entities/")
-    ]
-    related_entities = [
-        entry
-        for _, entry in sorted(
-            score_entries(query, entity_entries, wiki_root, with_aliases=True),
-            key=lambda pair: pair[0],
-            reverse=True,
-        )[: max(0, max_pages)]
-    ]
     topic_entries = [
         entry for entry in entries if entry["path"].startswith("wiki/topics/")
     ]
@@ -176,13 +163,12 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
 
     all_scored = (
         score_entries(query, source_entries, wiki_root, with_aliases=False)
-        + score_entries(query, entity_entries, wiki_root, with_aliases=True)
         + score_entries(query, topic_entries, wiki_root, with_aliases=True)
     )
     zero_overlap = bool(all_scored) and all(pair[0] == 0 for pair in all_scored)
 
     notes: list[str] = []
-    for entry in related_sources + related_entities + related_topics:
+    for entry in related_sources + related_topics:
         page_path = wiki_root / entry["path"]
         notes.extend(page_notes(page_path))
 
@@ -203,14 +189,6 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
     if notes:
         lines.append("## 当前开放问题与争议")
         lines.extend(f"- {note}" for note in notes[:10])
-        lines.append("")
-
-    if related_entities:
-        lines.append("## 已有实体")
-        for entry in related_entities:
-            lines.append(
-                f"- [[{Path(entry['path']).stem}|{entry['label']}]] — {entry['description']}"
-            )
         lines.append("")
 
     if related_topics:

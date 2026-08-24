@@ -7,8 +7,6 @@ status: evergreen
 
 # Wiki 索引
 
-## 实体
-
 ## 主题
 
 ## 来源
