@@ -79,6 +79,8 @@ There are no hub actions: the linker writes topic actions only.
     {
       "gap": "A gap this batch fills.",
       "source_refs": ["wiki/sources/paper-a.md"],
+      "direction": "What observation would test the gap.",
+      "continuity": "The answering paper closes this recorded direction.",
       "status": "answered",
       "answered_by": ["wiki/sources/paper-c.md"],
       "answered_pointer": "[Paper: PDF p. 5]"
@@ -91,14 +93,14 @@ There are no hub actions: the linker writes topic actions only.
 Rules:
 
 - `create_topic` requires at least two distinct batch source pages.
-- `update_topic` requires a non-empty `existing_page`; it may include one new paper that answers or challenges an existing open question. When a paper answers an existing open question or fills an existing research gap, the linker marks that entry `status: "answered"` with `answered_by` (the answering paper's source refs) and `answered_pointer` (the evidence). The publisher then moves the entry from the open `## 开放问题` / `## 研究空白与候选方向` sections into the archive sections `## 已解决的问题` / `## 已解决的研究空白` on the topic page; the research dashboard and knowledge tree stop listing it. A plain string entry is shorthand for `status: "open"`.
+- `update_topic` requires a non-empty `existing_page`; it may include one new paper that answers or challenges an existing open question. When a paper answers an existing open question or fills an existing research gap, the linker marks that entry `status: "answered"` with non-empty `answered_by` (the answering paper's source refs) and `answered_pointer` (the evidence). The publisher then moves the entry from the open `## 开放问题` / `## 研究空白与候选方向` sections into the archive sections `## 已解决的问题` / `## 已解决的研究空白` on the topic page; the research dashboard and knowledge tree stop listing it.
 - Comparison rows use canonical keys `paper`, `source_ref` (optional, for a wikilink), `method`, `intervention_granularity`, `main_result`, `boundary`, `pointer`. The legacy key `granularity` is still rendered but deprecated.
 - Contradiction items use `position_a` / `position_b` with `position_a_source_ref` / `position_a_pointer` and `position_b_source_ref` / `position_b_pointer`, plus `resolving_evidence` naming the discriminating experiment that would settle the conflict. The legacy keys `source_ref_a` / `pointer_a` / `resolve` are still rendered but deprecated.
 - `key_findings` kinds: `consensus` (multiple independent sources), `single` (one source), `conflict` (disputed). Each finding carries `claim`, optional `source_refs`, and optional `pointer`. The list may be empty when no finding meets the value threshold.
-- `open_questions` entries are strings or objects with `question`, optional `status` (`open` default / `answered`), and for answered entries `answered_by` (source refs) plus optional `answered_pointer`. The list may be empty.
-- `research_gaps` entries are objects with `gap`, `source_refs` (the papers it traces to), `direction`, `continuity`, optional `status` (`open` default / `answered`), and for answered entries `answered_by` plus optional `answered_pointer`. Legacy string entries are still rendered as a bullet list for backward compatibility.
+- `open_questions` entries are strings or objects with `question` and optional `status` (`open` default / `answered`). A string is shorthand for an open question. Answered objects require non-empty `answered_by` source refs and a non-empty `answered_pointer`. The list may be empty.
+- `research_gaps` entries in a new plan must be objects with non-empty `gap`, `source_refs` (a non-empty list of the papers it traces to), `direction`, `continuity`, and optional `status` (`open` default / `answered`). Answered gaps additionally require non-empty `answered_by` and `answered_pointer`. The publisher retains legacy string rendering for historical compatibility, but `audit_link_plan.py` rejects strings in every newly submitted plan.
 - Classification between `key_findings` and `research_gaps` follows the two-question decision in `linker-brief.md`: findings change what a reader believes about the field's current state; gaps name something missing plus a direction and a way to check it. A statement satisfying both is recorded fully under `key_findings` and referenced by the gap. When a later paper answers an open item, record the answer's substance as a `key_findings` entry and mark the old item answered instead of silently dropping it.
 
 ## Publisher Boundary
 
-`publish_wiki.py` applies only the actions in this plan. It does not invent topic promotions, duplicate aliases, or rewrite unrelated prose.
+`publish_wiki.py` applies only the actions in this plan. It does not invent topic promotions, duplicate aliases, or rewrite unrelated prose. Before a mining plan writes anything, the publisher verifies that every page named by topic-action `papers` exists under `wiki/sources/`; any missing or invalid source blocks the whole publish.

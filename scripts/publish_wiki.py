@@ -182,13 +182,12 @@ def append_backlinks_to_page(
 ) -> tuple[str, bool]:
     """Append topic backlinks to an existing source page (deduplicated).
 
-    Returns (updated_text, changed). A missing page yields ("", False).
+    Returns (updated_text, changed). Missing or unreadable pages raise.
     """
-    try:
-        target = safe_relative_path(wiki_root, source_ref)
-        existing = target.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError, ValueError):
-        return "", False
+    target = safe_relative_path(wiki_root, source_ref)
+    if not target.is_file():
+        raise FileNotFoundError(f"Missing source page: {source_ref}")
+    existing = target.read_text(encoding="utf-8")
     _, _, body = parse_frontmatter(existing)
     additions = backlink_bullets(entries)
     updated_body = insert_before_next_section(body, "关联页面", additions)
@@ -922,6 +921,30 @@ def find_existing_topic(action: dict[str, Any], wiki_root: Path) -> Path | None:
     return None
 
 
+def mining_source_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
+    if plan.get("purpose", "ingest") != "mining":
+        return []
+    errors: list[str] = []
+    refs = {
+        source_ref
+        for action in plan.get("topic_actions", [])
+        if isinstance(action, dict)
+        for source_ref in string_list(action.get("papers"))
+    }
+    for source_ref in sorted(refs):
+        if not source_ref.startswith("wiki/sources/"):
+            errors.append(f"Mining paper reference is not a source page: {source_ref}")
+            continue
+        try:
+            target = safe_relative_path(wiki_root, source_ref)
+        except ValueError as exc:
+            errors.append(f"Invalid mining source page {source_ref}: {exc}")
+            continue
+        if not target.is_file():
+            errors.append(f"Missing mining source page: {source_ref}")
+    return errors
+
+
 def render_research_page(
     buckets: dict[str, dict[str, list[Any]]] | None,
     today: str,
@@ -1186,6 +1209,12 @@ def main() -> int:
     if audit_plan(plan) is None:
         return 1
 
+    preflight_errors = mining_source_errors(plan, wiki_root)
+    if preflight_errors:
+        for error in preflight_errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+
     today = datetime.date.today().isoformat()
     for directory in ("wiki", "wiki/topics", "wiki/sources"):
         (wiki_root / directory).mkdir(parents=True, exist_ok=True)
@@ -1328,9 +1357,13 @@ def main() -> int:
         for source_ref in string_list(action.get("papers")):
             if source_ref in batch_page_refs:
                 continue
-            text, changed = append_backlinks_to_page(
-                wiki_root, source_ref, [(name, "主题")]
-            )
+            try:
+                text, changed = append_backlinks_to_page(
+                    wiki_root, source_ref, [(name, "主题")]
+                )
+            except (OSError, UnicodeDecodeError, ValueError) as exc:
+                errors.append(f"Failed to update source backlinks for {source_ref}: {exc}")
+                continue
             if changed:
                 target = safe_relative_path(wiki_root, source_ref)
                 target.write_text(text, encoding="utf-8")

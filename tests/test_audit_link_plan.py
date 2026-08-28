@@ -147,6 +147,17 @@ class LinkPlanAuditTests(unittest.TestCase):
         self.assertTrue(
             any(item["code"] == "open_question_answer_source" for item in report["findings"])
         )
+        action["open_questions"] = [
+            {
+                "question": "Q3",
+                "status": "answered",
+                "answered_by": ["wiki/sources/a.md"],
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "open_question_answer_pointer" for item in report["findings"])
+        )
         action["open_questions"] = [{"question": "Q4", "status": "draft"}]
         report = LINK_AUDIT.audit(plan)
         self.assertTrue(
@@ -162,9 +173,18 @@ class LinkPlanAuditTests(unittest.TestCase):
         plan = valid_link_plan()
         action = plan["topic_actions"][0]
         action["research_gaps"] = [
-            {"gap": "G1", "status": "open"},
+            {
+                "gap": "G1",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "Run a unified benchmark.",
+                "continuity": "A future paper can test it.",
+                "status": "open",
+            },
             {
                 "gap": "G2",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "Compare both settings.",
+                "continuity": "The next paper can close the gap.",
                 "status": "answered",
                 "answered_by": ["wiki/sources/b.md"],
                 "answered_pointer": "[Paper: PDF p. 4]",
@@ -172,16 +192,76 @@ class LinkPlanAuditTests(unittest.TestCase):
         ]
         report = LINK_AUDIT.audit(plan)
         self.assertEqual(report["summary"]["errors"], 0)
-        action["research_gaps"].append({"gap": "G3", "status": "answered"})
+        action["research_gaps"].append(
+            {
+                "gap": "G3",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "Test G3.",
+                "continuity": "Future work can answer G3.",
+                "status": "answered",
+            }
+        )
         report = LINK_AUDIT.audit(plan)
         self.assertTrue(
             any(item["code"] == "research_gap_answer_source" for item in report["findings"])
         )
-        action["research_gaps"] = [{"gap": "G4", "status": "unknown"}]
+        action["research_gaps"] = [
+            {
+                "gap": "G3",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "Test G3.",
+                "continuity": "Future work can answer G3.",
+                "status": "answered",
+                "answered_by": ["wiki/sources/b.md"],
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_answer_pointer" for item in report["findings"])
+        )
+        action["research_gaps"] = [
+            {
+                "gap": "G4",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "Test G4.",
+                "continuity": "Future work can answer G4.",
+                "status": "unknown",
+            }
+        ]
         report = LINK_AUDIT.audit(plan)
         self.assertTrue(
             any(item["code"] == "research_gap_status" for item in report["findings"])
         )
+
+    def test_research_gap_requires_traceable_object_fields(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"] = ["Legacy gap"]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_legacy_string" for item in report["findings"])
+        )
+
+        complete = {
+            "gap": "A traceable gap.",
+            "source_refs": ["wiki/sources/a.md"],
+            "direction": "Run a targeted experiment.",
+            "continuity": "A future paper can answer it.",
+            "status": "open",
+        }
+        for field, code in (
+            ("source_refs", "research_gap_source_refs"),
+            ("direction", "research_gap_direction"),
+            ("continuity", "research_gap_continuity"),
+        ):
+            with self.subTest(field=field):
+                item = dict(complete)
+                item.pop(field)
+                action["research_gaps"] = [item]
+                report = LINK_AUDIT.audit(plan)
+                self.assertTrue(
+                    any(finding["code"] == code for finding in report["findings"])
+                )
 
     def mining_plan(self) -> dict:
         return {

@@ -12,7 +12,7 @@ from pathlib import Path
 INDEX_ENTRY_RE = re.compile(r"^[-*]\s+\[\[([^\]|]+)(?:\|([^\]]+))?\]\](?:\s*[—-]\s*(.*))?$")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.S)
 SECTION_RE = re.compile(
-    r"^##\s+(开放问题|争议与矛盾|研究空白与候选方向)\s*$\n(.*?)(?=^##\s|\Z)",
+    r"^##\s+(开放问题|争议与不确定|争议与矛盾|研究空白与候选方向)\s*$\n(.*?)(?=^##\s|\Z)",
     re.M | re.S,
 )
 
@@ -140,31 +140,27 @@ def build_context(wiki_root: Path, query: str, max_pages: int, max_chars: int) -
     source_entries = [
         entry for entry in entries if entry["path"].startswith("wiki/sources/")
     ]
-    related_sources = [
-        entry
-        for _, entry in sorted(
-            score_entries(query, source_entries, wiki_root, with_aliases=False),
-            key=lambda pair: pair[0],
-            reverse=True,
-        )[: max(0, max_pages)]
-    ]
-
     topic_entries = [
         entry for entry in entries if entry["path"].startswith("wiki/topics/")
     ]
-    related_topics = [
-        entry
-        for _, entry in sorted(
-            score_entries(query, topic_entries, wiki_root, with_aliases=True),
-            key=lambda pair: pair[0],
-            reverse=True,
-        )[: max(0, max_pages)]
-    ]
-
     all_scored = (
         score_entries(query, source_entries, wiki_root, with_aliases=False)
         + score_entries(query, topic_entries, wiki_root, with_aliases=True)
     )
+    related_entries = [
+        entry
+        for _, entry in sorted(
+            all_scored,
+            key=lambda pair: pair[0],
+            reverse=True,
+        )[: max(0, max_pages)]
+    ]
+    related_sources = [
+        entry for entry in related_entries if entry["path"].startswith("wiki/sources/")
+    ]
+    related_topics = [
+        entry for entry in related_entries if entry["path"].startswith("wiki/topics/")
+    ]
     zero_overlap = bool(all_scored) and all(pair[0] == 0 for pair in all_scored)
 
     notes: list[str] = []

@@ -2,6 +2,34 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.7.2] - 2026-08-28
+
+### 问题与影响
+
+- **研究空白的来源可追溯契约未被审计完整执行**：`link-plan` 文档要求研究空白携带 `source_refs`、`direction` 与 `continuity`，但审计器此前允许字符串 gap，也允许只有 `gap/status` 的对象通过；`answered` 条目只检查 `answered_by`，缺少 `answered_pointer` 仍可发布。结果是 Topic、研究仪表盘和知识树可能出现无法回到来源、缺少可检验方向或没有解决证据的研究空白。
+- **Mining 缺失来源页时产生部分发布**：mining plan 引用不存在的 `papers` 页面时，发布器仍先写入 Topic，backlink 更新遇到缺页后静默跳过，最终退出码和发布报告仍显示成功。结果是 Topic 到来源页的图关系不完整，且成功状态掩盖了数据一致性问题。
+- **KB Context 与新版 Topic 标题不一致**：上下文提取器仍匹配旧标题 `## 争议与矛盾`，而当前模板使用 `## 争议与不确定`，导致已有 Topic 的争议内容没有提供给 processor。
+- **`max_pages` 上下文预算被重复使用**：来源页与 Topic 页分别截取 `max_pages`，默认 5 实际最多选入 10 页，突破调用方理解的全局页面预算。
+
+### 修复方法
+
+- `audit_link_plan.py`：新 plan 的 `research_gaps` 只接受结构化对象；每项强制非空 `source_refs`、`direction`、`continuity`，并校验列表元素类型。`answered` 的开放问题和研究空白同时强制非空 `answered_by` 与 `answered_pointer`。发布器保留旧字符串 gap 的渲染兼容，但审计门禁止它进入新的写入计划。
+- `publish_wiki.py`：在任何目录、Topic、索引或日志写入前，对 mining plan 的全部 `papers` 引用执行来源页预检；缺页、越界路径或非 `wiki/sources/` 引用立即以退出码 1 阻断。backlink 写入函数不再吞掉缺页或读取异常，预检后的竞态/读取错误也会进入发布错误列表。
+- `build_kb_context.py`：同时识别新版 `## 争议与不确定` 与历史 `## 争议与矛盾`；先合并来源页和 Topic 页评分，再全局截取一次 `max_pages`。
+- 契约文档同步明确必填字段、历史兼容边界、Mining 发布前置校验和全局页面预算语义。
+
+### 修复结果
+
+- 不可追溯、不可检验或缺少回答证据的 link-plan 在 Wiki 写入前失败。
+- Mining 引用缺页时不会创建 Topic 或产生成功假象，来源与 Topic 的双向图关系保持完整。
+- Processor 能重新获得新版 Topic 中的争议与不确定内容。
+- `max_pages=5` 在来源页与 Topic 页合计范围内最多选入 5 页。
+
+### 验证
+
+- 新增 4 个回归测试，覆盖 gap 必填字段与旧字符串拒绝、`answered_pointer`、Mining 缺页写入门、当前争议标题和全局 `max_pages`。
+- 项目测试、smoke test 与两个固定上游测试集全部通过。
+
 ## [0.7.1] - 2026-08-24
 
 ### 修复

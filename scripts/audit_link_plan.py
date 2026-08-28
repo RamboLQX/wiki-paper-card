@@ -74,6 +74,28 @@ def string_list(value: Any) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
+def require_nonempty_string_list(
+    item: dict[str, Any],
+    field: str,
+    findings: list[dict[str, Any]],
+    item_label: str,
+    code: str,
+) -> list[str]:
+    value = item.get(field)
+    values = string_list(value)
+    if not isinstance(value, list) or not values or len(values) != len(value):
+        findings.append(
+            finding(
+                "error",
+                code,
+                f"{item_label} must define {field} as a non-empty list of strings.",
+                field=field,
+            )
+        )
+        return []
+    return values
+
+
 def audit_topic_action(
     action: dict[str, Any],
     batch_refs: set[str],
@@ -164,18 +186,65 @@ def audit_topic_action(
                 findings.append(finding("warning", "key_finding_kind", f"{label} key_finding {index} has unknown kind.", kind=kind))
 
     research_gaps = action.get("research_gaps", [])
-    if isinstance(research_gaps, list):
+    if not isinstance(research_gaps, list):
+        findings.append(finding("error", "research_gaps", f"{label} research_gaps must be a list."))
+    else:
         for index, item in enumerate(research_gaps, start=1):
             if isinstance(item, str):
+                findings.append(
+                    finding(
+                        "error",
+                        "research_gap_legacy_string",
+                        f"{label} research_gap {index} must use the structured object format.",
+                    )
+                )
                 continue
             if not isinstance(item, dict) or not str(item.get("gap", "")).strip():
-                findings.append(finding("error", "research_gap_shape", f"{label} research_gap {index} must be a string or an object with a non-empty gap."))
+                findings.append(finding("error", "research_gap_shape", f"{label} research_gap {index} must be an object with a non-empty gap."))
                 continue
+            gap_label = f"{label} research_gap {index}"
+            require_nonempty_string_list(
+                item,
+                "source_refs",
+                findings,
+                gap_label,
+                "research_gap_source_refs",
+            )
+            if not isinstance(item.get("direction"), str) or not item["direction"].strip():
+                findings.append(
+                    finding(
+                        "error",
+                        "research_gap_direction",
+                        f"{gap_label} must define direction.",
+                    )
+                )
+            if not isinstance(item.get("continuity"), str) or not item["continuity"].strip():
+                findings.append(
+                    finding(
+                        "error",
+                        "research_gap_continuity",
+                        f"{gap_label} must define continuity.",
+                    )
+                )
             status = item.get("status", "open")
             if status not in {"open", "answered"}:
                 findings.append(finding("error", "research_gap_status", f"{label} research_gap {index} has unknown status.", status=status))
-            elif status == "answered" and not item.get("answered_by"):
-                findings.append(finding("error", "research_gap_answer_source", f"{label} research_gap {index} is answered but lacks answered_by."))
+            elif status == "answered":
+                require_nonempty_string_list(
+                    item,
+                    "answered_by",
+                    findings,
+                    gap_label,
+                    "research_gap_answer_source",
+                )
+                if not isinstance(item.get("answered_pointer"), str) or not item["answered_pointer"].strip():
+                    findings.append(
+                        finding(
+                            "error",
+                            "research_gap_answer_pointer",
+                            f"{gap_label} is answered but lacks answered_pointer.",
+                        )
+                    )
 
     open_questions = action.get("open_questions", [])
     if isinstance(open_questions, list):
@@ -188,8 +257,23 @@ def audit_topic_action(
             status = item.get("status", "open")
             if status not in {"open", "answered"}:
                 findings.append(finding("error", "open_question_status", f"{label} open_question {index} has unknown status.", status=status))
-            elif status == "answered" and not item.get("answered_by"):
-                findings.append(finding("error", "open_question_answer_source", f"{label} open_question {index} is answered but lacks answered_by."))
+            elif status == "answered":
+                question_label = f"{label} open_question {index}"
+                require_nonempty_string_list(
+                    item,
+                    "answered_by",
+                    findings,
+                    question_label,
+                    "open_question_answer_source",
+                )
+                if not isinstance(item.get("answered_pointer"), str) or not item["answered_pointer"].strip():
+                    findings.append(
+                        finding(
+                            "error",
+                            "open_question_answer_pointer",
+                            f"{question_label} is answered but lacks answered_pointer.",
+                        )
+                    )
 
     return findings
 
