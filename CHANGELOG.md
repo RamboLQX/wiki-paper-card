@@ -2,6 +2,31 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.7.3] - 2026-08-28
+
+### 问题与影响
+
+- **研究空白的"可追溯"校验仍有漏洞**：0.7.2 只预检 topic action 的 `papers` 引用，研究空白的 `source_refs` 与回答证据 `answered_by` 指向的页面未做存在性校验，一个 gap 仍可指向不存在的来源页通过审计并发布，形成不可核验的研究空白。
+- **ingest 计划仍有部分发布风险**：预检只对 mining 计划生效；ingest 批次某来源页缺少 `paper-card.md` 时，来源页写不出去，但 Topic、index、log 仍会写入，产生指向不存在来源页的 Topic。
+- **旧字符串 gap 的报错指引不足**：审计拒绝旧字符串 gap 时只提示"必须用结构化对象"，未说明必需字段与契约文档位置，迁移成本高。
+
+### 修复方法
+
+- `publish_wiki.py`：将原 `mining_source_errors` 扩展为统一的 `preflight_errors`。在任何写入前校验全部来源引用（topic `papers`、gap `source_refs`、answered 的 `answered_by`）：属于当前批次（本趟会写）的页面跳过存在性检查，其余引用必须存在于 `wiki/sources/` 下，缺页、越界路径或非来源页引用即以退出码 1 阻断；同时新增批次来源页 `paper-card.md` 存在性预检，ingest 与 mining 统一生效。
+- `audit_link_plan.py`：旧字符串 gap 的报错信息明确列出必需字段（`gap`/`source_refs`/`direction`/`continuity`）并指向 `link-plan-schema.md`；`research_gap_shape` 报错同步列出字段要求。
+- 契约文档（`workflow-contract.md`、`link-plan-schema.md`、`mining-brief.md`）同步统一预检语义。
+
+### 修复结果
+
+- 研究空白或回答证据引用不存在的来源页时，整次发布在任何 Wiki 写入前被阻断。
+- ingest 批次缺少最终卡片时同样在写入前阻断，不再产生"Topic 已写、来源缺失"的部分发布。
+- 被拒绝的旧格式 gap 报错可直接指引如何迁移。
+
+### 验证
+
+- 新增 3 个回归测试：gap `source_refs` 指向缺页时阻断、ingest 缺卡片时阻断、gap 引用本批之外已存在页面时放行；更新 mining 缺页与审计旧字符串断言的报错文案。
+- 项目测试、smoke test 与两个固定上游测试集全部通过。
+
 ## [0.7.2] - 2026-08-28
 
 ### 问题与影响

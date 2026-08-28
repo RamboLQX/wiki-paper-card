@@ -195,12 +195,21 @@ def audit_topic_action(
                     finding(
                         "error",
                         "research_gap_legacy_string",
-                        f"{label} research_gap {index} must use the structured object format.",
+                        f"{label} research_gap {index} uses the legacy string format; "
+                        "new plans must use an object with non-empty gap, source_refs, "
+                        "direction, and continuity (see skills/wiki-paper-card/references/link-plan-schema.md).",
                     )
                 )
                 continue
             if not isinstance(item, dict) or not str(item.get("gap", "")).strip():
-                findings.append(finding("error", "research_gap_shape", f"{label} research_gap {index} must be an object with a non-empty gap."))
+                findings.append(
+                    finding(
+                        "error",
+                        "research_gap_shape",
+                        f"{label} research_gap {index} must be an object with a non-empty gap "
+                        "(plus source_refs, direction, and continuity).",
+                    )
+                )
                 continue
             gap_label = f"{label} research_gap {index}"
             require_nonempty_string_list(

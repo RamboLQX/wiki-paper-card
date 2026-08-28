@@ -202,7 +202,7 @@ python "<REPO_ROOT>/scripts/publish_wiki.py" \
 The publisher:
 
 1. Re-checks the link plan with the deterministic link-plan audit.
-2. For a mining plan, verifies before any write that every `papers` reference is an existing page under `wiki/sources/`; missing or invalid pages block the whole publish.
+2. Preflights every reference before any write: each source page named by topic `papers`, research-gap `source_refs`, or answered evidence must be either part of the current batch or an existing page under `wiki/sources/`, and every batch source page must have a finalized `paper-card.md`. Any missing, escaping, or non-`wiki/sources/` reference blocks the whole publish.
 3. Writes every finalized current source page and appends its `## 关联页面` backlinks.
 4. Applies only `create_topic` and `update_topic` actions.
 5. Updates `wiki/index.md` and `wiki/log.md`.

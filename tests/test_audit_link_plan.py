@@ -238,9 +238,10 @@ class LinkPlanAuditTests(unittest.TestCase):
         action = plan["topic_actions"][0]
         action["research_gaps"] = ["Legacy gap"]
         report = LINK_AUDIT.audit(plan)
-        self.assertTrue(
-            any(item["code"] == "research_gap_legacy_string" for item in report["findings"])
-        )
+        legacy = [item for item in report["findings"] if item["code"] == "research_gap_legacy_string"]
+        self.assertEqual(len(legacy), 1)
+        self.assertIn("source_refs", legacy[0]["message"])
+        self.assertIn("direction", legacy[0]["message"])
 
         complete = {
             "gap": "A traceable gap.",

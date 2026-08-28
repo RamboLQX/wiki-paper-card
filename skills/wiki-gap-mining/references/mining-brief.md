@@ -126,9 +126,10 @@ After the user confirms which candidates to adopt, write one
   `answered_by` and `answered_pointer` (the publisher archives them).
 - A candidate with no fitting topic may `create_topic` when at least two
   existing source pages support it; `papers` lists those existing pages.
-- Before any write, the publisher verifies that every page listed in `papers`
-  exists under `wiki/sources/`; a missing or invalid page blocks the complete
-  mining publish instead of silently skipping its backlink.
+- Before any write, the publisher verifies that every page listed in `papers`,
+  in a gap's `source_refs`, or in `answered_by` exists under `wiki/sources/`; a
+  missing or invalid page blocks the complete mining publish instead of
+  silently skipping its backlink.
 - The miner writes the plan file only; `audit_link_plan.py` and
   `publish_wiki.py` perform the writes.
 

@@ -923,10 +923,169 @@ class PublishWikiTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(result.returncode, 1)
-            self.assertIn("Missing mining source page", result.stderr)
+            self.assertIn(
+                "Missing source page: wiki/sources/missing.md", result.stderr
+            )
             self.assertFalse(
                 (root / "wiki" / "topics" / "Must Not Be Written.md").exists()
             )
+
+    def test_gap_source_ref_missing_blocks_before_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_dir = root / "wiki" / "sources"
+            source_dir.mkdir(parents=True)
+            (source_dir / "a.md").write_text("# Paper A\n", encoding="utf-8")
+            (source_dir / "b.md").write_text("# Paper B\n", encoding="utf-8")
+            plan = {
+                "schema_version": "2.0",
+                "purpose": "mining",
+                "batch": {"source_pages": [], "label": "gap source probe"},
+                "topic_actions": [
+                    {
+                        "action": "create_topic",
+                        "id": "mining-gap",
+                        "name": "Gap Topic",
+                        "papers": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "summary": "This plan has a gap tracing to a missing page.",
+                        "comparisons": [],
+                        "key_findings": [],
+                        "contradictions": [],
+                        "open_questions": [],
+                        "research_gaps": [
+                            {
+                                "gap": "A gap traced to a missing page.",
+                                "source_refs": ["wiki/sources/gone.md"],
+                                "direction": "Run a probe.",
+                                "continuity": "A future paper can answer it.",
+                            }
+                        ],
+                        "existing_page": None,
+                    }
+                ],
+            }
+            plan_path = root / "link-plan.json"
+            plan_path.write_text(json.dumps(plan), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "--plan",
+                    str(plan_path),
+                    "--wiki-root",
+                    str(root),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "Missing source page: wiki/sources/gone.md", result.stderr
+            )
+            self.assertFalse((root / "wiki" / "topics" / "Gap Topic.md").exists())
+
+    def test_ingest_missing_card_blocks_before_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ("a", "b"):
+                (root / "work" / name).mkdir(parents=True)
+            # Batch pages a.md and b.md declared, but neither work dir has a
+            # finalized paper-card.md.
+            plan = {
+                "schema_version": "2.0",
+                "batch": {
+                    "source_pages": [
+                        {
+                            "source_ref": "wiki/sources/a.md",
+                            "work_dir": "work/a",
+                            "title": "Paper A",
+                        },
+                        {
+                            "source_ref": "wiki/sources/b.md",
+                            "work_dir": "work/b",
+                            "title": "Paper B",
+                        },
+                    ]
+                },
+                "topic_actions": [
+                    {
+                        "action": "create_topic",
+                        "id": "topic-1",
+                        "name": "Must Not Be Written",
+                        "papers": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "summary": "This plan has no finalized cards.",
+                        "comparisons": [],
+                        "key_findings": [],
+                        "contradictions": [],
+                        "open_questions": [],
+                        "research_gaps": [],
+                        "existing_page": None,
+                    }
+                ],
+            }
+            plan_path = root / "link-plan.json"
+            plan_path.write_text(json.dumps(plan), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "--plan",
+                    str(plan_path),
+                    "--wiki-root",
+                    str(root),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Missing finalized card", result.stderr)
+            self.assertFalse(
+                (root / "wiki" / "topics" / "Must Not Be Written.md").exists()
+            )
+
+    def test_gap_referencing_existing_historical_page_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_dir = root / "wiki" / "sources"
+            source_dir.mkdir(parents=True)
+            (source_dir / "a.md").write_text("# Paper A\n", encoding="utf-8")
+            (source_dir / "c.md").write_text("# Paper C\n", encoding="utf-8")
+            (root / "work" / "c").mkdir(parents=True)
+            (root / "work" / "c" / "paper-card.md").write_text(
+                "# Paper C card\n", encoding="utf-8"
+            )
+            plan = {
+                "schema_version": "2.0",
+                "purpose": "mining",
+                "batch": {"source_pages": [], "label": "historical trace"},
+                "topic_actions": [
+                    {
+                        "action": "create_topic",
+                        "id": "mining-historical",
+                        "name": "Historical Trace",
+                        "papers": ["wiki/sources/a.md", "wiki/sources/c.md"],
+                        "summary": "Gap traces to an existing earlier page.",
+                        "comparisons": [],
+                        "key_findings": [],
+                        "contradictions": [],
+                        "open_questions": [],
+                        "research_gaps": [
+                            {
+                                "gap": "A gap rooted in an earlier page.",
+                                "source_refs": ["wiki/sources/a.md"],
+                                "direction": "d",
+                                "continuity": "c",
+                            }
+                        ],
+                        "existing_page": None,
+                    }
+                ],
+            }
+            # Direct unit check of the preflight: refs outside the current
+            # batch are allowed when they already exist on disk.
+            self.assertEqual(PUBLISH.preflight_errors(plan, root), [])
 
     def test_knowledge_tree_groups_by_domain(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

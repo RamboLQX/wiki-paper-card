@@ -921,27 +921,77 @@ def find_existing_topic(action: dict[str, Any], wiki_root: Path) -> Path | None:
     return None
 
 
-def mining_source_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
-    if plan.get("purpose", "ingest") != "mining":
-        return []
+def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
+    """Verify every plan reference before any wiki write.
+
+    Checks, before any file is written:
+    - every source page referenced by topic papers, research-gap sources, or
+      answered evidence is either part of the current batch (written by this
+      run) or an existing page under ``wiki/sources/``;
+    - every batch source page has a finalized ``paper-card.md`` to publish.
+
+    Missing, escaping, or non-``wiki/sources/`` references block the whole
+    publish instead of producing a partial write with a success report.
+    Returns a list of human-readable error strings (empty when clean).
+    """
     errors: list[str] = []
-    refs = {
-        source_ref
-        for action in plan.get("topic_actions", [])
-        if isinstance(action, dict)
-        for source_ref in string_list(action.get("papers"))
+    source_pages = (
+        plan.get("batch", {}).get("source_pages", [])
+        if isinstance(plan.get("batch"), dict)
+        else []
+    )
+    batch_refs = {
+        page["source_ref"]
+        for page in source_pages
+        if isinstance(page, dict) and page.get("source_ref")
     }
-    for source_ref in sorted(refs):
+
+    referenced: dict[str, list[str]] = {}
+    for action in plan.get("topic_actions", []):
+        if not isinstance(action, dict):
+            continue
+        label = action.get("id") or action.get("name") or "<unnamed>"
+        for source_ref in string_list(action.get("papers")):
+            referenced.setdefault(source_ref, []).append(f"topic action {label} papers")
+        for gap in action.get("research_gaps", []):
+            if not isinstance(gap, dict):
+                continue
+            for source_ref in string_list(gap.get("source_refs")):
+                referenced.setdefault(source_ref, []).append(f"research gap sources in {label}")
+            if gap.get("status") == "answered":
+                for source_ref in string_list(gap.get("answered_by")):
+                    referenced.setdefault(source_ref, []).append(f"answered gap evidence in {label}")
+        for question in action.get("open_questions", []):
+            if isinstance(question, dict) and question.get("status") == "answered":
+                for source_ref in string_list(question.get("answered_by")):
+                    referenced.setdefault(source_ref, []).append(f"answered question evidence in {label}")
+
+    for source_ref in sorted(referenced):
+        if source_ref in batch_refs:
+            continue
+        where = "; ".join(sorted(set(referenced[source_ref])))
         if not source_ref.startswith("wiki/sources/"):
-            errors.append(f"Mining paper reference is not a source page: {source_ref}")
+            errors.append(
+                f"Source reference is not a source page: {source_ref} (referenced by {where})"
+            )
             continue
         try:
             target = safe_relative_path(wiki_root, source_ref)
         except ValueError as exc:
-            errors.append(f"Invalid mining source page {source_ref}: {exc}")
+            errors.append(f"Invalid source page {source_ref}: {exc} (referenced by {where})")
             continue
         if not target.is_file():
-            errors.append(f"Missing mining source page: {source_ref}")
+            errors.append(f"Missing source page: {source_ref} (referenced by {where})")
+
+    # Every batch source page must have a finalized card before this run writes it.
+    for page in source_pages:
+        if not isinstance(page, dict):
+            continue
+        work_dir = resolve_work_dir(page.get("work_dir", ""), wiki_root)
+        card_path = work_dir / "paper-card.md"
+        if not card_path.is_file():
+            errors.append(f"Missing finalized card: {card_path}")
+
     return errors
 
 
@@ -1209,9 +1259,9 @@ def main() -> int:
     if audit_plan(plan) is None:
         return 1
 
-    preflight_errors = mining_source_errors(plan, wiki_root)
-    if preflight_errors:
-        for error in preflight_errors:
+    blockers = preflight_errors(plan, wiki_root)
+    if blockers:
+        for error in blockers:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 

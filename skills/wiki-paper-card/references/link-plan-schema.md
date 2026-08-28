@@ -103,4 +103,4 @@ Rules:
 
 ## Publisher Boundary
 
-`publish_wiki.py` applies only the actions in this plan. It does not invent topic promotions, duplicate aliases, or rewrite unrelated prose. Before a mining plan writes anything, the publisher verifies that every page named by topic-action `papers` exists under `wiki/sources/`; any missing or invalid source blocks the whole publish.
+`publish_wiki.py` applies only the actions in this plan. It does not invent topic promotions, duplicate aliases, or rewrite unrelated prose. Before any write, the publisher verifies that every page named by topic-action `papers`, by research-gap `source_refs`, or by answered evidence (`answered_by`) is either part of the current batch or an existing page under `wiki/sources/`, and that every batch source page has a finalized `paper-card.md`; any missing or invalid reference blocks the whole publish.
