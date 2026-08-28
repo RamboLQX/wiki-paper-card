@@ -106,6 +106,51 @@ class BuildKbContextTests(unittest.TestCase):
             self.assertIn("无关键词重合", context)
             self.assertIn("[[a|A]]", context)
 
+    def test_current_disagreement_heading_is_included(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            topic = root / "wiki" / "topics" / "conflict.md"
+            topic.parent.mkdir(parents=True)
+            (root / "wiki" / "index.md").write_text(
+                "# Index\n\n"
+                "- [[wiki/topics/conflict.md|冲突主题]] — knowledge conflict\n",
+                encoding="utf-8",
+            )
+            topic.write_text(
+                "# 冲突主题\n\n"
+                "## 争议与不确定\n\n"
+                "两篇论文给出相反结论。\n",
+                encoding="utf-8",
+            )
+            context = KB_CONTEXT.build_context(
+                root, "knowledge conflict", max_pages=1, max_chars=1600
+            )
+            self.assertIn("争议与不确定", context)
+            self.assertIn("相反结论", context)
+
+    def test_max_pages_is_a_global_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wiki = root / "wiki"
+            wiki.mkdir()
+            entries = [
+                f"- [[wiki/sources/s{index}.md|S{index}]] — shared query"
+                for index in range(6)
+            ] + [
+                f"- [[wiki/topics/t{index}.md|T{index}]] — shared query"
+                for index in range(6)
+            ]
+            (wiki / "index.md").write_text(
+                "# Index\n\n" + "\n".join(entries) + "\n", encoding="utf-8"
+            )
+            context = KB_CONTEXT.build_context(
+                root, "shared query", max_pages=5, max_chars=100_000
+            )
+            selected = [
+                line for line in context.splitlines() if line.startswith("- [[")
+            ]
+            self.assertEqual(len(selected), 5)
+
 
 if __name__ == "__main__":
     unittest.main()

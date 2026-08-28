@@ -74,6 +74,11 @@ target report path
 
 Full paper text must not enter the main conversation.
 
+`build_kb_context.py --max-pages` is a global cap across source and topic
+pages combined, not a separate allowance for each page type. Context notes
+recognize the current `## 争议与不确定` heading and the historical
+`## 争议与矛盾` spelling.
+
 ## Phase 1: Paper Cards
 
 Claude Code processor agent: `wiki-processor`.
@@ -180,6 +185,11 @@ python "<REPO_ROOT>/scripts/audit_link_plan.py" \
 
 Audit errors block wiki writes.
 
+The audit rejects legacy string research gaps in new plans. Every research
+gap requires non-empty `source_refs`, `direction`, and `continuity`; answered
+questions and gaps additionally require non-empty `answered_by` and
+`answered_pointer`.
+
 ## Phase 5: Deterministic Wiki Publish
 
 ```bash
@@ -192,12 +202,13 @@ python "<REPO_ROOT>/scripts/publish_wiki.py" \
 The publisher:
 
 1. Re-checks the link plan with the deterministic link-plan audit.
-2. Writes every finalized current source page and appends its `## 关联页面` backlinks.
-3. Applies only `create_topic` and `update_topic` actions.
-4. Updates `wiki/index.md` and `wiki/log.md`.
-5. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
-6. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
-7. Rebuilds `wiki/meta/knowledge-tree.md` (domain-grouped navigation tree) and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. Both aggregate only open items; answered items are archived on the topic pages and excluded.
+2. For a mining plan, verifies before any write that every `papers` reference is an existing page under `wiki/sources/`; missing or invalid pages block the whole publish.
+3. Writes every finalized current source page and appends its `## 关联页面` backlinks.
+4. Applies only `create_topic` and `update_topic` actions.
+5. Updates `wiki/index.md` and `wiki/log.md`.
+6. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
+7. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
+8. Rebuilds `wiki/meta/knowledge-tree.md` (domain-grouped navigation tree) and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. Both aggregate only open items; answered items are archived on the topic pages and excluded.
 
 After publishing, run the deterministic wiki-state audit. The Obsidian render
 smoke check is optional and soft-failing by default:

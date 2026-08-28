@@ -89,7 +89,14 @@ def valid_plan() -> dict:
                 "comparisons": [],
                 "contradictions": [],
                 "open_questions": ["Topic question"],
-                "research_gaps": ["Missing benchmark"],
+                "research_gaps": [
+                    {
+                        "gap": "Missing benchmark",
+                        "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "direction": "Evaluate both papers on one benchmark.",
+                        "continuity": "A future paper can run the comparison.",
+                    }
+                ],
                 "existing_page": None,
             }
         ],
@@ -599,7 +606,8 @@ class PublishWikiTests(unittest.TestCase):
             self.assertIn("[[Shared Topic|Shared Topic]]", text)
             self.assertNotIn("### 实体", text)
             self.assertIn("Topic question — 来源：[[Shared Topic|Shared Topic]]", text)
-            self.assertIn("Missing benchmark — 来源：[[Shared Topic|Shared Topic]]", text)
+            self.assertIn("Missing benchmark", text)
+            self.assertIn("来源：[[Shared Topic|Shared Topic]]", text)
 
     def test_merge_topic_moves_resolved_items_to_archive(self) -> None:
         existing = (
@@ -733,6 +741,9 @@ class PublishWikiTests(unittest.TestCase):
                         "research_gaps": [
                             {
                                 "gap": "Missing benchmark",
+                                "source_refs": ["wiki/sources/a.md"],
+                                "direction": "Evaluate the missing benchmark.",
+                                "continuity": "Paper C closes the recorded gap.",
                                 "status": "answered",
                                 "answered_by": ["wiki/sources/c.md"],
                                 "answered_pointer": "[Paper: PDF p. 4]",
@@ -866,6 +877,56 @@ class PublishWikiTests(unittest.TestCase):
                 (root / "publish-report.json").read_text(encoding="utf-8")
             )
             self.assertEqual(report3["writes"], [])
+
+    def test_mining_missing_source_blocks_before_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_dir = root / "wiki" / "sources"
+            source_dir.mkdir(parents=True)
+            (source_dir / "a.md").write_text("# Paper A\n", encoding="utf-8")
+            plan = {
+                "schema_version": "2.0",
+                "purpose": "mining",
+                "batch": {"source_pages": [], "label": "missing source probe"},
+                "topic_actions": [
+                    {
+                        "action": "create_topic",
+                        "id": "mining-missing",
+                        "name": "Must Not Be Written",
+                        "papers": [
+                            "wiki/sources/a.md",
+                            "wiki/sources/missing.md",
+                        ],
+                        "summary": "This plan has a missing source page.",
+                        "comparisons": [],
+                        "key_findings": [],
+                        "contradictions": [],
+                        "open_questions": [],
+                        "research_gaps": [],
+                        "existing_page": None,
+                    }
+                ],
+            }
+            plan_path = root / "link-plan.json"
+            plan_path.write_text(json.dumps(plan), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "--plan",
+                    str(plan_path),
+                    "--wiki-root",
+                    str(root),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Missing mining source page", result.stderr)
+            self.assertFalse(
+                (root / "wiki" / "topics" / "Must Not Be Written.md").exists()
+            )
 
     def test_knowledge_tree_groups_by_domain(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
