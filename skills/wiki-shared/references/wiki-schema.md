@@ -114,8 +114,8 @@ Topic pages are the primary synthesis surface. They compare sources and record o
 
 ## 论文与方法对照
 
-| 论文 | 方法 | 干预粒度 | 主要结果 | 边界 |
-|---|---|---|---|---|
+| 论文 | 方法 | 干预粒度 | 主要结果 | 边界 | 证据 |
+|---|---|---|---|---|---|---|
 
 ## 关键发现
 

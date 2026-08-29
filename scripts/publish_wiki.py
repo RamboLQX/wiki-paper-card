@@ -250,7 +250,7 @@ def comparison_paper_name(item: dict[str, Any], titles: dict[str, str]) -> str:
 def comparison_row(row: dict[str, Any], titles: dict[str, str]) -> str:
     source_ref = row.get("source_ref", "")
     paper = row.get("paper") or source_label(source_ref, titles)
-    paper_cell = wiki_link(source_ref, paper) if source_ref else escape_table(paper)
+    paper_cell = escape_table(wiki_link(source_ref, paper)) if source_ref else escape_table(paper)
     return (
         "| "
         + " | ".join(
@@ -297,7 +297,7 @@ def render_grouped_comparisons(items: list[dict[str, Any]], titles: dict[str, st
                 continue
             source_ref = entry.get("source_ref", "")
             paper = entry.get("paper") or source_label(source_ref, titles)
-            paper_cell = wiki_link(source_ref, paper) if source_ref else escape_table(paper)
+            paper_cell = escape_table(wiki_link(source_ref, paper)) if source_ref else escape_table(paper)
             lines.append(
                 "| "
                 + " | ".join(

@@ -186,7 +186,29 @@ class PublishWikiTests(unittest.TestCase):
             ],
             {"wiki/sources/a.md": "Paper A"},
         )
-        self.assertIn("[[a|Paper A]]", lines[2])
+        self.assertIn("[[a\\|Paper A]]", lines[2])
+        self.assertNotIn("[[a|Paper A]]", lines[2])
+
+    def test_grouped_comparisons_escape_wikilink_pipe(self) -> None:
+        lines = PUBLISH.render_grouped_comparisons(
+            [
+                {
+                    "dimension": "干预粒度",
+                    "entries": [
+                        {
+                            "source_ref": "wiki/sources/a.md",
+                            "paper": "Paper A",
+                            "claim": "claim A",
+                            "pointer": "[Paper: PDF p. 1]",
+                        }
+                    ],
+                }
+            ],
+            {"wiki/sources/a.md": "Paper A"},
+        )
+        table = "\n".join(lines)
+        self.assertIn("[[a\\|Paper A]]", table)
+        self.assertNotIn("[[a|Paper A]]", table)
 
     def test_topic_page_has_no_related_entities_section(self) -> None:
         text = PUBLISH.topic_page_text(
