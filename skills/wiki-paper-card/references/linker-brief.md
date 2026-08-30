@@ -42,22 +42,25 @@ Prefer the digests for context. A final card may be read only for a specific amb
 - Compare candidate identity, definitions, methods, evidence, contradictions, and open questions across all batch papers.
 - Compare batch digests with the existing wiki context.
 - Emit only `create_topic` or `update_topic` actions.
+- `create_topic` requires at least two papers sharing the same problem, mechanism, or evidence space. Two papers that merely mention similar future-work ideas at an abstract level — different network objects, outcome variables, or data sources — do not qualify; record the shared direction as a research gap on an existing topic instead. A new topic defaults to `status: stub` (a candidate topic until later batches substantiate it).
+- Assign the topic a `category` only from the existing small user-owned set; proposing a new category requires user confirmation. Leave it out when no category fits.
 - Emit `key_findings` for a topic action only when a finding is genuine, marked `consensus` / `single` / `conflict` with a source pointer (see the value discipline below).
 - Give every contradiction with two positions a `resolving_evidence` naming the evidence or benchmark that would settle it.
 - Never use mention frequency as a promotion signal.
 - Preserve contradictions instead of merging them away.
 - Do not invent topics, aliases, or relations absent from the digests and existing pages.
 
-## Value And Snapshot Discipline
+## Value And Placement Discipline
 
-- **Empty is a valid result**: every `key_findings`, `open_question`, or `research_gap` must change what a reader does next. A restatement of an abstract, or anything no future work can pick up, must not be written. If a batch yields no genuine gap, leave the section empty.
+- **Placement before padding**: every `key_findings`, `open_question`, or `research_gap` must earn its place — it tells a researcher something they need to know, and it lands in the one section that owns that content type (see the Content Placement Map in `knowledge-model.md`). A restatement of an abstract, or anything no future work can pick up, must not be written. If a batch yields no genuine gap, leave the section empty.
 - **Snapshot semantics**: `consensus` = supported by two or more independent papers with no current counter-evidence; `single` = one paper; `conflict` = a recorded contradiction. Do not call a term "consensus" just because several papers mention it, and do not manufacture a conflict to fill space.
-- **Research gap shape**: emit `research_gaps` only as objects with non-empty `gap` (the gap and its origin), `source_refs` (the papers it traces to), `direction` (what observation would move it forward), and `continuity` (a future paper may answer it; this batch need not). New plans must not use legacy string gaps. Record only the 2-3 gaps that most affect decisions.
+- **Research gap shape**: emit `research_gaps` only as objects with non-empty `gap` (the gap and its origin), `source_refs` (the papers it traces to), `direction` (what observation would move it forward), and `continuity` (a future paper may answer it; this batch need not). New plans must not use legacy string gaps. Record only the 2-3 gaps that most affect decisions. The six v2 detail fields `significance` / `evidence_boundary` / `experiment` / `success_criterion` / `risk` / `priority` are optional; the linker is not required to fill them (the gap-miner does), and `priority` uses the labels 高/中/低.
 - **Answers close items, they do not delete them**: when a batch paper answers an existing open question or fills an existing research gap on a topic page you update, emit that entry with `status: "answered"`, `answered_by` (the answering paper's source refs), and `answered_pointer` (the evidence). The publisher moves it to the topic page's archive section and the dashboards stop listing it. Record the substance of the answer as a `key_findings` entry so the field-state snapshot keeps it; do not silently drop the old item.
+- **Edit, do not append**: before writing to a section, read its current content; merge near-duplicates into existing entries instead of adding a rewording.
 
-### Classification Decision: key_findings vs research_gaps
+### Classification Decision: key_findings vs research_gaps vs open_questions
 
-For every candidate statement, apply two questions in order:
+For every candidate statement, apply three questions in order:
 
 1. **Does it change what a reader believes about the field's current state?**
    (For example: "all three methods omit significance tests", "method A and B
@@ -67,6 +70,10 @@ For every candidate statement, apply two questions in order:
 2. **Does it name something missing plus a direction a future paper can take
    and a way to check it?** If yes, write it as a `research_gaps` object with
    `gap`, `source_refs`, `direction`, and `continuity`.
+3. **Is it a plain reader-facing question with no direction attached?** Only
+   then may it go to `open_questions`. A candidate carrying `source_refs` and
+   a `direction` belongs to `research_gaps` only — never double-write the same
+   candidate into both sections.
 
 A statement may satisfy both questions: record the full statement under
 `key_findings`, and make the gap reference the finding instead of restating

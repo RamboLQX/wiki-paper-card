@@ -235,6 +235,36 @@ def audit_topic_action(
                         f"{gap_label} must define continuity.",
                     )
                 )
+            for field_name in (
+                "significance",
+                "evidence_boundary",
+                "experiment",
+                "success_criterion",
+                "risk",
+                "priority",
+            ):
+                if field_name in item and (
+                    not isinstance(item.get(field_name), str)
+                    or not item[field_name].strip()
+                ):
+                    findings.append(
+                        finding(
+                            "warning",
+                            f"research_gap_{field_name}",
+                            f"{gap_label} {field_name} is present but empty; "
+                            "omit it or provide a non-empty value.",
+                        )
+                    )
+            priority = item.get("priority", "")
+            if priority and priority not in {"高", "中", "低"}:
+                findings.append(
+                    finding(
+                        "error",
+                        "research_gap_priority",
+                        f"{gap_label} priority must be one of 高/中/低.",
+                        priority=priority,
+                    )
+                )
             status = item.get("status", "open")
             if status not in {"open", "answered"}:
                 findings.append(finding("error", "research_gap_status", f"{label} research_gap {index} has unknown status.", status=status))
@@ -283,6 +313,19 @@ def audit_topic_action(
                             f"{question_label} is answered but lacks answered_pointer.",
                         )
                     )
+
+    category = action.get("category")
+    if category is not None and (
+        not isinstance(category, str) or not category.strip()
+    ):
+        findings.append(
+            finding(
+                "warning",
+                "topic_category",
+                f"{label} category is present but empty; omit it or provide "
+                "a non-empty value (single category string).",
+            )
+        )
 
     return findings
 

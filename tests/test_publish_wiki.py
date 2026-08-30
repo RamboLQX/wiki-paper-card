@@ -365,6 +365,238 @@ class PublishWikiTests(unittest.TestCase):
         self.assertIn("承接：可由未来论文承接", text)
         self.assertIn("[[a|Paper A]]", text)
 
+    def test_gap_without_v2_fields_renders_legacy_line(self) -> None:
+        bullet = PUBLISH.gap_bullet(
+            PUBLISH.normalize_gaps(
+                [
+                    {
+                        "gap": "缺统一基准",
+                        "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "direction": "统一评测",
+                        "continuity": "可由未来论文承接",
+                    }
+                ]
+            )[0],
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            None,
+        )
+        self.assertEqual(
+            bullet,
+            "- 缺统一基准（来源：[[a|Paper A]]、[[b|Paper B]]；可检验方向：统一评测；承接：可由未来论文承接）",
+        )
+
+    def test_gap_v2_fields_render_sub_bullets(self) -> None:
+        action = valid_plan()["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "缺统一基准",
+                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                "direction": "统一评测",
+                "continuity": "可由未来论文承接",
+                "significance": "解决了会改变评估结论",
+                "evidence_boundary": "现有方法只测英文",
+                "experiment": "在中文基准上重跑",
+                "success_criterion": "排名稳定",
+                "risk": "基准可能失效",
+                "priority": "高",
+            }
+        ]
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-08-16",
+            "2026-08-16",
+        )
+        self.assertIn("  - 为什么值得做：解决了会改变评估结论", text)
+        self.assertIn("  - 现有方法卡在哪：现有方法只测英文", text)
+        self.assertIn("  - 怎么检验：在中文基准上重跑", text)
+        self.assertIn("  - 做到什么算成：排名稳定", text)
+        self.assertIn("  - 可能行不通：基准可能失效", text)
+        self.assertIn("  - 优先级：高", text)
+        self.assertNotIn("[待验证]", text)
+
+    def test_gap_v2_tentative_direction_gets_tag(self) -> None:
+        action = valid_plan()["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "缺统一基准",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "统一评测",
+                "continuity": "可由未来论文承接",
+                "significance": "重要",
+            }
+        ]
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A"},
+            "2026-08-16",
+            "2026-08-16",
+        )
+        self.assertIn("[待验证]", text)
+
+    def test_merge_keeps_existing_gap_sub_bullets(self) -> None:
+        existing = (
+            "---\n"
+            "tags: [topic]\n"
+            'created: "2026-01-01"\n'
+            'updated: "2026-01-01"\n'
+            "sources:\n"
+            '  - "wiki/sources/a.md"\n'
+            "aliases:\n"
+            'status: "stub"\n'
+            "---\n\n"
+            "# Shared Topic\n\n"
+            "## 概述\n\nsummary.\n\n"
+            "## 论文与方法对照\n\n"
+            "## 关键发现\n\n"
+            "## 争议与不确定\n\n"
+            "## 开放问题\n\n"
+            "## 研究空白与候选方向\n\n"
+            "- gap1（来源：[[a|a]]）\n"
+            "  - 为什么值得做：重要\n"
+            "  - 怎么检验：跑基准\n"
+        )
+        action = {
+            "action": "update_topic",
+            "id": "topic-1",
+            "name": "Shared Topic",
+            "papers": ["wiki/sources/a.md"],
+            "summary": "",
+            "comparisons": [],
+            "key_findings": [],
+            "contradictions": [],
+            "open_questions": [],
+            "research_gaps": [
+                {
+                    "gap": "gap2",
+                    "source_refs": ["wiki/sources/a.md"],
+                    "direction": "d2",
+                    "continuity": "c2",
+                }
+            ],
+            "existing_page": "wiki/topics/Shared Topic.md",
+        }
+        merged = PUBLISH.merge_topic_page(
+            existing,
+            action,
+            {"wiki/sources/a.md": "Paper A"},
+            "2026-01-02",
+            {"wiki/sources/a.md": "A"},
+        )
+        self.assertIn("- gap1（来源：[[a|a]]）\n  - 为什么值得做：重要", merged)
+        self.assertIn("  - 怎么检验：跑基准", merged)
+        self.assertIn("- gap2（来源：[[a|A]]", merged)
+
+    def test_topic_create_with_category(self) -> None:
+        action = valid_plan()["topic_actions"][0]
+        action["category"] = "评估框架"
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-08-16",
+            "2026-08-16",
+        )
+        self.assertIn('category: "评估框架"', text)
+
+    def test_topic_update_sets_and_preserves_category(self) -> None:
+        existing = (
+            "---\n"
+            "tags: [topic]\n"
+            'created: "2026-01-01"\n'
+            'updated: "2026-01-01"\n'
+            'category: "模型优化"\n'
+            "sources:\n"
+            '  - "wiki/sources/a.md"\n'
+            "aliases:\n"
+            'status: "stub"\n'
+            "---\n\n"
+            "# Shared Topic\n\n"
+            "## 概述\n\nsummary.\n\n"
+            "## 论文与方法对照\n\n"
+            "## 关键发现\n\n"
+            "## 争议与不确定\n\n"
+            "## 开放问题\n\n"
+            "## 研究空白与候选方向\n\n"
+        )
+        action = {
+            "action": "update_topic",
+            "id": "topic-1",
+            "name": "Shared Topic",
+            "papers": ["wiki/sources/a.md"],
+            "summary": "",
+            "comparisons": [],
+            "key_findings": [],
+            "contradictions": [],
+            "open_questions": [],
+            "research_gaps": [],
+            "existing_page": "wiki/topics/Shared Topic.md",
+        }
+        merged = PUBLISH.merge_topic_page(
+            existing, action, {"wiki/sources/a.md": "Paper A"}, "2026-01-02"
+        )
+        self.assertIn('category: "模型优化"', merged)
+        action["category"] = "评估框架"
+        merged = PUBLISH.merge_topic_page(
+            existing, action, {"wiki/sources/a.md": "Paper A"}, "2026-01-02"
+        )
+        self.assertIn('category: "评估框架"', merged)
+        self.assertNotIn('category: "模型优化"', merged)
+
+    def test_research_page_sorts_gaps_by_priority(self) -> None:
+        buckets = {
+            "rag": {
+                "sources": [],
+                "topics": [],
+                "questions": [],
+                "gaps": [
+                    ("gap 低", "T", "wiki/topics/t.md", "低"),
+                    ("gap 高", "T", "wiki/topics/t.md", "高"),
+                    ("gap 中", "T", "wiki/topics/t.md", "中"),
+                    ("gap 无", "T", "wiki/topics/t.md", ""),
+                ],
+            }
+        }
+        text = PUBLISH.render_research_page(buckets, "2026-08-22", "2026-08-22")
+        assert text is not None
+        self.assertLess(text.index("gap 高"), text.index("gap 中"))
+        self.assertLess(text.index("gap 中"), text.index("gap 低"))
+        self.assertLess(text.index("gap 低"), text.index("gap 无"))
+
+    def test_knowledge_tree_renders_category_view(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wiki = root / "wiki"
+            for sub in ("sources/papers/rag", "topics"):
+                (wiki / sub).mkdir(parents=True)
+            (wiki / "sources" / "papers" / "rag" / "x.md").write_text(
+                "# Paper X\n", encoding="utf-8"
+            )
+            (wiki / "topics" / "t.md").write_text(
+                "---\n"
+                "tags: [topic]\n"
+                'sources:\n  - "wiki/sources/papers/rag/x.md"\n'
+                'category: "评估框架"\n'
+                "aliases:\n"
+                "status: stub\n"
+                "---\n\n"
+                "# T\n\n",
+                encoding="utf-8",
+            )
+            (wiki / "index.md").write_text(
+                "# Wiki 索引\n\n"
+                "## 来源\n"
+                "- [[wiki/sources/papers/rag/x.md|x]] - paper x\n"
+                "## 主题\n"
+                "- [[wiki/topics/t.md|T]] - topic t\n",
+                encoding="utf-8",
+            )
+            tree = PUBLISH.build_knowledge_tree(root)
+            assert tree is not None
+            self.assertIn("## 按主题分类", tree)
+            self.assertIn("### 评估框架", tree)
+            self.assertIn("[[t|T]]", tree)
+            self.assertLess(tree.index("## rag"), tree.index("## 按主题分类"))
+
     def test_legacy_research_gaps_render_as_list(self) -> None:
         lines = PUBLISH.render_research_gaps(["gap A", "gap B"], {}, None)
         self.assertEqual(lines, ["- gap A", "- gap B"])

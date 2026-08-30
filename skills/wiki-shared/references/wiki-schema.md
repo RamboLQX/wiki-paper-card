@@ -107,6 +107,12 @@ page. This keeps the graph bidirectional after batch linking.
 
 Topic pages are the primary synthesis surface. They compare sources and record open questions.
 
+Topic frontmatter may carry an optional single-value `category` (for example
+`"模型优化"` or `"评估框架"`), written by the publisher when a topic action
+provides it. The category classifies the topic by research question type and
+is orthogonal to the source-paper domain axis; the knowledge tree renders a
+category-first topic view from it. Omit it for uncategorized topics.
+
 ```markdown
 # 页面名
 
@@ -133,6 +139,27 @@ Topic pages are the primary synthesis surface. They compare sources and record o
 The `## 关键发现` section is rendered from the plan's `key_findings`, each marked 共识 / 单篇主张 / 分歧 with source pointers.
 
 The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. When a later paper answers an open item, the publisher removes it from the open section and appends it to the archive sections `## 已解决的问题` / `## 已解决的研究空白` (rendered only when they have content, never aggregated into the dashboards).
+
+### Research Gap Rendering
+
+A gap renders as a main bullet plus optional indented detail sub-bullets; only
+fields that were written appear:
+
+```markdown
+- <gap 描述>（来源：[[论文A]]；可检验方向：…；承接：…）
+  - 为什么值得做：…
+  - 现有方法卡在哪：…
+  - 怎么检验：…
+  - 做到什么算成：…
+  - 可能行不通：…
+  - 优先级：高/中/低 + 理由
+```
+
+An entry that carries v2 detail fields but lacks both `现有方法卡在哪` and
+`怎么检验` is a tentative direction and its main line gains a `[待验证]` tag.
+Entries without any detail field render as the legacy single line. The main
+line stays the compact summary; the dashboards aggregate only main lines,
+sorted by priority (高 < 中 < 低 < unmarked).
 
 ## Index And Log
 

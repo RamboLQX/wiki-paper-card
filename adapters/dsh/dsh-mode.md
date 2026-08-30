@@ -51,9 +51,13 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
 - Phase A（读 + 挖掘）：`subagent` 工具跑一个后台 miner 子代理，prompt 携带
   `references/mining-brief.md`、范围（域列表或 all）与输出路径。全库范围时
   miner 可在内部按域拆读并自行汇总，不返回论文正文。
-- Phase B（写回，仅在用户确认后）：主会话运行 audit_link_plan.py 与
-  publish_wiki.py 两个确定性脚本；miner 只写 link-plan 与 work/ 文件，禁止
-  子代理执行 wiki 写入。
+- Phase B（写回，仅在用户确认后）：用户对报告「待确认清单」逐项答复后，
+  主会话用 `send_message` 唤醒**同一个 miner**，把确认结果发回，由 miner
+  生成 link-plan（miner 保留 Phase A 的全部上下文，不重读库；报告候选与
+  link-plan 字段同名同构，翻译是机械映射）。若子代理已不可用，主 agent
+  按同名同构规则生成 link-plan。
+- 主会话运行 audit_link_plan.py 与 publish_wiki.py 两个确定性脚本；miner
+  只写 link-plan 与 work/ 文件，禁止子代理执行 wiki 写入。
 
 ## 与 Claude Code 宿主的差异
 

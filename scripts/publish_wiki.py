@@ -412,7 +412,12 @@ def render_open_questions(
 
 
 def normalize_gaps(items: Any) -> list[dict[str, Any]]:
-    """Normalize research_gaps entries; strings become open items."""
+    """Normalize research_gaps entries; strings become open items.
+
+    The optional v2 detail fields (significance, evidence_boundary,
+    experiment, success_criterion, risk, priority) are carried through when
+    present; entries without them render exactly as before.
+    """
     normalized: list[dict[str, Any]] = []
     if not isinstance(items, list):
         return normalized
@@ -432,6 +437,12 @@ def normalize_gaps(items: Any) -> list[dict[str, Any]]:
             "source_refs": string_list(item.get("source_refs")),
             "direction": str(item.get("direction", "")).strip(),
             "continuity": str(item.get("continuity", "")).strip(),
+            "significance": str(item.get("significance", "")).strip(),
+            "evidence_boundary": str(item.get("evidence_boundary", "")).strip(),
+            "experiment": str(item.get("experiment", "")).strip(),
+            "success_criterion": str(item.get("success_criterion", "")).strip(),
+            "risk": str(item.get("risk", "")).strip(),
+            "priority": str(item.get("priority", "")).strip(),
             "status": item.get("status", "open"),
         }
         if entry["status"] == "answered":
@@ -441,11 +452,28 @@ def normalize_gaps(items: Any) -> list[dict[str, Any]]:
     return normalized
 
 
+GAP_DETAIL_FIELDS: tuple[tuple[str, str], ...] = (
+    ("significance", "为什么值得做"),
+    ("evidence_boundary", "现有方法卡在哪"),
+    ("experiment", "怎么检验"),
+    ("success_criterion", "做到什么算成"),
+    ("risk", "可能行不通"),
+    ("priority", "优先级"),
+)
+
+
 def gap_bullet(
     entry: dict[str, Any],
     titles: dict[str, str],
     short_names: dict[str, str] | None,
 ) -> str:
+    """Render one open gap as a main bullet plus optional detail sub-bullets.
+
+    Entries without any v2 detail field render byte-identically to the
+    legacy single-line format. A v2 entry that lacks both
+    ``evidence_boundary`` and ``experiment`` is a tentative direction and
+    carries a [待验证] tag.
+    """
     short = short_names or {}
     refs = "、".join(
         source_wikilink(ref, short, titles) for ref in entry.get("source_refs", [])
@@ -461,7 +489,52 @@ def gap_bullet(
         ]
         if part
     )
-    return f"- {entry['gap']}" + (f"（{suffix}）" if suffix else "")
+    details = [
+        f"  - {label}：{entry[field]}"
+        for field, label in GAP_DETAIL_FIELDS
+        if entry.get(field)
+    ]
+    has_v2 = any(entry.get(field) for field, _ in GAP_DETAIL_FIELDS)
+    tentative = has_v2 and not (
+        entry.get("evidence_boundary") and entry.get("experiment")
+    )
+    tag = " [待验证]" if tentative else ""
+    line = f"- {entry['gap']}{tag}" + (f"（{suffix}）" if suffix else "")
+    if details:
+        return "\n".join([line] + details)
+    return line
+
+
+def gap_key(text: str) -> str:
+    """Reduce a rendered gap root line to its plain gap text for dedup."""
+    key = text.split("（", 1)[0].strip()
+    if key.endswith(" [待验证]"):
+        key = key[: -len(" [待验证]")]
+    return key
+
+
+def section_bullet_blocks(body: str, section_name: str) -> list[str]:
+    """Return top-level bullets with their indented sub-lines, in order."""
+    blocks: list[str] = []
+    current: list[str] = []
+    for line in section_body(body, section_name).splitlines():
+        if line.startswith("- "):
+            if current:
+                blocks.append("\n".join(current))
+            current = [line]
+        elif current and (line.startswith("  ") or not line.strip()):
+            current.append(line)
+        elif current:
+            blocks.append("\n".join(current))
+            current = []
+    if current:
+        blocks.append("\n".join(current))
+    return blocks
+
+
+def block_root_text(block: str) -> str:
+    first = block.splitlines()[0].strip() if block else ""
+    return first[2:].strip() if first.startswith("- ") else first
 
 
 def render_research_gaps(
@@ -520,6 +593,8 @@ def topic_page_text(
     short_names: dict[str, str] | None = None,
 ) -> str:
     sources = string_list(action.get("papers"))
+    category = str(action.get("category", "")).strip()
+    extra = [("category", category)] if category else None
     frontmatter = render_frontmatter(
         ["topic"],
         created,
@@ -527,6 +602,7 @@ def topic_page_text(
         "stub",
         sources=sources,
         aliases=[],
+        extra=extra,
     )
     lines = [
         frontmatter.rstrip(),
@@ -690,6 +766,8 @@ def rebuild_page(
     body: str,
     tag: str,
 ) -> str:
+    category = fields.get("category", "")
+    extra = [("category", category)] if category else None
     frontmatter = render_frontmatter(
         [tag],
         fields.get("created", datetime.date.today().isoformat()),
@@ -697,6 +775,7 @@ def rebuild_page(
         fields.get("status", "stub"),
         sources=lists.get("sources", []),
         aliases=lists.get("aliases", []),
+        extra=extra,
     )
     return frontmatter + body.lstrip("\n")
 
@@ -782,19 +861,20 @@ def merge_topic_page(
     g_resolved = render_resolved_research_gaps(
         action.get("research_gaps", []), titles, short_names
     )
-    existing_g = section_bullets(body, "研究空白与候选方向")
-    answered_g = [
-        entry["gap"]
+    existing_blocks = section_bullet_blocks(body, "研究空白与候选方向")
+    answered_keys = {
+        gap_key(entry["gap"])
         for entry in normalize_gaps(action.get("research_gaps", []))
         if entry["status"] == "answered"
+    }
+    kept_blocks = [
+        block
+        for block in existing_blocks
+        if gap_key(block_root_text(block)) not in answered_keys
     ]
-    kept_g = [
-        line
-        for line in existing_g
-        if not any(line.startswith(text) for text in answered_g)
-    ]
-    merged_g = [f"- {line}" for line in kept_g] + [
-        line for line in g_open if bullet_text(line) not in kept_g
+    existing_keys = {gap_key(block_root_text(block)) for block in existing_blocks}
+    merged_g = kept_blocks + [
+        line for line in g_open if gap_key(block_root_text(line)) not in existing_keys
     ]
     body = replace_section_body(body, "研究空白与候选方向", merged_g)
     if g_resolved:
@@ -810,6 +890,9 @@ def merge_topic_page(
         [],
         today,
     )
+    category = str(action.get("category", "")).strip()
+    if category:
+        fields["category"] = category
     return rebuild_page(fields, lists, body, "topic")
 
 
@@ -1053,7 +1136,8 @@ def render_research_page(
             lines.append(f"### {domain}")
             lines.append("")
             seen: set[str] = set()
-            for text_item, label, path in sorted(items, key=lambda row: row[0]):
+            for row in sorted(items, key=priority_sort_key):
+                text_item, label, path = row[0], row[1], row[2]
                 line = f"- {text_item} — 来源：[[{Path(path).stem}|{label}]]"
                 if line in seen:
                     continue
@@ -1157,9 +1241,48 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
             bucket(domain)["topics"].append((path, label, description))
             for question in section_bullets(body, "开放问题"):
                 bucket(domain)["questions"].append((question, label, path))
-            for gap in section_bullets(body, "研究空白与候选方向"):
-                bucket(domain)["gaps"].append((gap, label, path))
+            for block in section_bullet_blocks(body, "研究空白与候选方向"):
+                root = block_root_text(block)
+                priority = ""
+                for line in block.splitlines()[1:]:
+                    stripped = line.strip()
+                    if stripped.startswith("- 优先级："):
+                        priority = stripped[len("- 优先级：") :].strip()
+                        break
+                bucket(domain)["gaps"].append((root, label, path, priority))
     return buckets
+
+
+def collect_topic_categories(wiki_root: Path) -> dict[str, list[tuple[str, str, str]]]:
+    """Collect topic pages grouped by their optional frontmatter category.
+
+    Topics without a category land in the 未分类 bucket. This is the
+    category-first view rendered by render_knowledge_tree; it is orthogonal
+    to the source-domain grouping of collect_tree_buckets.
+    """
+    index_path = wiki_root / "wiki" / "index.md"
+    if not index_path.is_file():
+        return {}
+    try:
+        entries = parse_index_entries(index_path.read_text(encoding="utf-8"))
+    except OSError:
+        return {}
+    categories: dict[str, list[tuple[str, str, str]]] = {}
+    for entry in entries:
+        path = entry["path"]
+        if not path.startswith("wiki/topics/"):
+            continue
+        category = ""
+        try:
+            text = (wiki_root / path).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        fields, _, _ = parse_frontmatter(text)
+        category = fields.get("category", "").strip()
+        categories.setdefault(category or "未分类", []).append(
+            (path, entry["label"], entry["description"])
+        )
+    return categories
 
 
 def ordered_domains(buckets: dict[str, dict[str, list[Any]]]) -> list[str]:
@@ -1169,7 +1292,22 @@ def ordered_domains(buckets: dict[str, dict[str, list[Any]]]) -> list[str]:
     return ordered
 
 
-def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
+PRIORITY_ORDER = {"高": 0, "中": 1, "低": 2}
+
+
+def priority_sort_key(row: tuple[Any, ...]) -> tuple[int, str]:
+    """Sort gap rows by priority (高 < 中 < 低 < unmarked), then text.
+
+    Rows without a priority element (e.g. open-question rows) rank last.
+    """
+    priority = row[3] if len(row) > 3 else ""
+    return (PRIORITY_ORDER.get(str(priority), 3), str(row[0]))
+
+
+def render_knowledge_tree(
+    buckets: dict[str, dict[str, list[Any]]],
+    categories: dict[str, list[tuple[str, str, str]]] | None = None,
+) -> str:
     """Render wiki/meta/knowledge-tree.md from collected buckets.
 
     Deterministic: identical buckets produce identical text. This is the
@@ -1177,12 +1315,13 @@ def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
     research.md shows question-type-first; the open-question and
     research-gap bullets are shared between the two documents by design.
     Only *currently open* items are aggregated; answered items stay in the
-    topic pages' archive sections.
+    topic pages' archive sections. When categories are supplied, a
+    category-first topic view is appended after the domain view.
     """
     lines = [
         "# 知识树",
         "",
-        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航（领域优先视图；开放问题与研究空白与 research.md 为同一批数据的另一透视，只含仍开放的条目）。不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
+        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航（领域优先视图；按主题分类视图随后；开放问题与研究空白与 research.md 为同一批数据的另一透视，只含仍开放的条目）。不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
         "",
     ]
     for domain in ordered_domains(buckets):
@@ -1209,12 +1348,29 @@ def render_knowledge_tree(buckets: dict[str, dict[str, list[Any]]]) -> str:
             lines.append(title)
             lines.append("")
             seen: set[str] = set()
-            for text_item, label, path in sorted(data[key], key=lambda row: row[0]):
+            for row in sorted(data[key], key=priority_sort_key):
+                text_item, label, path = row[0], row[1], row[2]
                 line = f"- {text_item} — 来源：[[{Path(path).stem}|{label}]]"
                 if line in seen:
                     continue
                 seen.add(line)
                 lines.append(line)
+            lines.append("")
+    if categories:
+        lines.append("## 按主题分类")
+        lines.append("")
+        ordered_categories = sorted(
+            category for category in categories if category != "未分类"
+        )
+        if "未分类" in categories:
+            ordered_categories.append("未分类")
+        for category in ordered_categories:
+            lines.append(f"### {category}")
+            lines.append("")
+            for row in sorted(categories[category], key=lambda row: row[1]):
+                stem = Path(row[0]).stem
+                suffix = f" — {row[2]}" if row[2] else ""
+                lines.append(f"- [[{stem}|{row[1]}]]{suffix}")
             lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -1224,12 +1380,13 @@ def build_knowledge_tree(wiki_root: Path) -> str | None:
 
     Deterministic: identical wiki state produces identical text. Grouped by
     domain (first directory under wiki/sources/papers/), with per-domain
-    open questions and research gaps aggregated from topic pages.
+    open questions and research gaps aggregated from topic pages, followed
+    by the category-first topic view.
     """
     buckets = collect_tree_buckets(wiki_root)
     if buckets is None:
         return None
-    return render_knowledge_tree(buckets)
+    return render_knowledge_tree(buckets, collect_topic_categories(wiki_root))
 
 
 def parse_args() -> argparse.Namespace:
@@ -1456,9 +1613,12 @@ def main() -> int:
         errors.append(f"Failed to update index or log: {exc}")
 
     buckets = collect_tree_buckets(wiki_root)
+    categories = collect_topic_categories(wiki_root)
     tree_path = wiki_root / "wiki" / "meta" / "knowledge-tree.md"
     try:
-        tree_text = render_knowledge_tree(buckets) if buckets is not None else None
+        tree_text = (
+            render_knowledge_tree(buckets, categories) if buckets is not None else None
+        )
         if tree_text is not None:
             tree_path.parent.mkdir(parents=True, exist_ok=True)
             existing_tree = (

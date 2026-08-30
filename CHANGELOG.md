@@ -2,6 +2,32 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.8.0] - 2026-08-29
+
+### 新增与改进
+
+- **研究空白 v2 条目**：`research_gaps` 新增 6 个可选字段 `significance` / `evidence_boundary` / `experiment` / `success_criterion` / `risk` / `priority`（高/中/低）。发布器把它们渲染成主行 + 缩进子条目（只渲染已填字段）；带 v2 字段但缺 `evidence_boundary` 与 `experiment` 的条目标 `[待验证]`（待验证方向）；不带任何 v2 字段的条目保持旧的单行渲染，逐字节兼容。研究仪表盘与知识树的空白聚合只取主行，按优先级排序。
+- **topic 分类轴**：topic 动作支持可选单值 `category`（如 模型优化 / 评估框架），发布器写入 frontmatter；知识树在领域视图之后新增「按主题分类」视图，未分类 topic 落在「未分类」分组。分类集合小而稳定、由用户持有。
+- **信息排布纪律**：`knowledge-model.md` 新增「内容类型→区块」映射表与编辑式合并纪律；`linker-brief.md` 补第三条分类规则（`open_questions` 与 `research_gaps` 排他，禁止同候选双写）；`create_topic` 收紧为"至少两篇共享同一问题/机制/证据空间"，两篇仅抽象相似的未来想法不建页，新 topic 默认 `stub`（候选主题）。
+- **gap-mining 流程收紧**：SKILL.md 增加输入意图分流（raw 路径 → 先查是否已入库）与 scope 退化说明；miner 报告新增 Top 空白速览、候选分级、结构化待确认清单，候选字段与 link-plan 字段同名同构；mining 写回只允许三种动作（增空白/开放问题、标记 answered 归档、经确认的候选 topic 建页），并要求写回前语义去重；DSH 下 Phase B 用 `send_message` 唤醒同一 miner 生成 link-plan。
+
+### 修复方法
+
+- `publish_wiki.py`：`normalize_gaps` 携带新字段；`gap_bullet` 渲染子条目与 `[待验证]` 标签；新增 `gap_key` / `section_bullet_blocks` / `block_root_text`，gap 合并改为块级（保留已有条目的子条目）；`priority_sort_key` 用于仪表盘与知识树排序；`collect_topic_categories` + `render_knowledge_tree` 分类视图；`topic_page_text` / `merge_topic_page` / `rebuild_page` 支持 category。
+- `audit_link_plan.py`：新字段轻校验（给了但为空 → warning 不阻断）；`priority` 值域 高/中/低（违例报 error）；topic 动作 `category` 轻校验。
+- 契约文档：`link-plan-schema.md`、`knowledge-model.md`、`wiki-schema.md`、`linker-brief.md`、`mining-brief.md`、`wiki-gap-mining/SKILL.md`、`adapters/dsh/dsh-mode.md` 同步以上语义。
+
+### 修复结果
+
+- 单条研究空白从一行摘要升级为"摘要 + 可检验细节"，学者可快速判断值不值得做、卡在哪、怎么做、做到什么算成。
+- 知识库多出一个与来源领域正交的主题分类轴，检索与全库整理都能按分类定位。
+- 探索性候选不再直接污染正式知识：待验证方向带标签、候选 topic 保持 stub、mining 写回不再触碰概述/对照/发现。
+
+### 验证
+
+- 新增 12 个回归测试：v2 字段渲染与 `[待验证]` 标签、旧格式逐字节兼容、合并保留已有子条目、category 创建/更新/保留、priority 排序、知识树分类视图、审计新字段与 priority 值域。
+- 项目 111 个测试、smoke test 全部通过；旧格式 gap 渲染与既有页面更新行为不变。
+
 ## [0.7.3] - 2026-08-28
 
 ### 问题与影响

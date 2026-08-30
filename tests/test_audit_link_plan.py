@@ -264,6 +264,76 @@ class LinkPlanAuditTests(unittest.TestCase):
                     any(finding["code"] == code for finding in report["findings"])
                 )
 
+    def test_research_gap_v2_fields_are_optional(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "G1",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "d",
+                "continuity": "c",
+                "significance": "Why it matters.",
+                "evidence_boundary": "Existing methods stop here.",
+                "experiment": "Run benchmark X with metric Y.",
+                "success_criterion": "Improvement over baseline.",
+                "risk": "Paper B hints this may fail.",
+                "priority": "高",
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        self.assertEqual(report["summary"]["warnings"], 0)
+
+    def test_research_gap_v2_empty_fields_warn_not_block(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "G1",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "d",
+                "continuity": "c",
+                "significance": "",
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        self.assertTrue(
+            any(item["code"] == "research_gap_significance" for item in report["findings"])
+        )
+
+    def test_research_gap_priority_must_be_label(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "G1",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "d",
+                "continuity": "c",
+                "priority": "P1",
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_priority" for item in report["findings"])
+        )
+
+    def test_topic_category_field_is_optional_and_warns_when_empty(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["category"] = "评估框架"
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        self.assertEqual(report["summary"]["warnings"], 0)
+        action["category"] = ""
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        self.assertTrue(
+            any(item["code"] == "topic_category" for item in report["findings"])
+        )
+
     def mining_plan(self) -> dict:
         return {
             "schema_version": "2.0",

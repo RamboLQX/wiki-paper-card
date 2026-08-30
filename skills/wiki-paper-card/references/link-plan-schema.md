@@ -49,6 +49,7 @@ There are no hub actions: the linker writes topic actions only.
     "wiki/sources/paper-b.md"
   ],
   "summary": "Short synthesis.",
+  "category": "评估框架",
   "comparisons": [],
   "key_findings": [
     {
@@ -74,6 +75,12 @@ There are no hub actions: the linker writes topic actions only.
       "source_refs": ["wiki/sources/paper-a.md"],
       "direction": "What observation would move it forward.",
       "continuity": "A future paper may answer it.",
+      "significance": "Why it matters: what judgment it would change.",
+      "evidence_boundary": "Where existing methods stop.",
+      "experiment": "The guess and how to test it (data/benchmark/metric/control).",
+      "success_criterion": "What result counts as filling the gap.",
+      "risk": "Where it may fail, per existing papers.",
+      "priority": "高",
       "status": "open"
     },
     {
@@ -99,6 +106,8 @@ Rules:
 - `key_findings` kinds: `consensus` (multiple independent sources), `single` (one source), `conflict` (disputed). Each finding carries `claim`, optional `source_refs`, and optional `pointer`. The list may be empty when no finding meets the value threshold.
 - `open_questions` entries are strings or objects with `question` and optional `status` (`open` default / `answered`). A string is shorthand for an open question. Answered objects require non-empty `answered_by` source refs and a non-empty `answered_pointer`. The list may be empty.
 - `research_gaps` entries in a new plan must be objects with non-empty `gap`, `source_refs` (a non-empty list of the papers it traces to), `direction`, `continuity`, and optional `status` (`open` default / `answered`). Answered gaps additionally require non-empty `answered_by` and `answered_pointer`. The publisher retains legacy string rendering for historical compatibility, but `audit_link_plan.py` rejects strings in every newly submitted plan.
+- The six v2 detail fields `significance`, `evidence_boundary`, `experiment`, `success_criterion`, `risk`, and `priority` are all optional. The gap-mining miner fills them; the ingest linker is not required to. `priority` uses the labels 高/中/低 (audit rejects other values). An entry carrying any v2 field but lacking both `evidence_boundary` and `experiment` renders with a `[待验证]` tag (a tentative direction); entries without any v2 field render exactly as before. Empty optional fields should be omitted rather than set to `""` (audit warns).
+- Topic actions may carry an optional single-value `category` (for example `"评估框架"`): the publisher writes it into the topic frontmatter on create and on update (only when given), and the knowledge tree renders a category-first topic view from it. Omit it to leave a topic uncategorized. The category set is small and user-owned; proposing a new category requires user confirmation.
 - Classification between `key_findings` and `research_gaps` follows the two-question decision in `linker-brief.md`: findings change what a reader believes about the field's current state; gaps name something missing plus a direction and a way to check it. A statement satisfying both is recorded fully under `key_findings` and referenced by the gap. When a later paper answers an open item, record the answer's substance as a `key_findings` entry and mark the old item answered instead of silently dropping it.
 
 ## Publisher Boundary

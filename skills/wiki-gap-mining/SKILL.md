@@ -27,6 +27,17 @@ Before mining:
 
 Do not proceed from this router alone.
 
+## Intent Routing
+
+Resolve what the user actually wants before mining:
+
+- The user names a `raw/` path or says 处理 papers → check whether the wiki
+  already has matching source pages. None yet → route to `wiki-paper-card`
+  first. Some exist → ask one clarifying question: 补处理新论文 / 只挖掘已有
+  内容的空白 / 两者.
+- The user asks for a survey, verification, or plain answers → follow the
+  retrieval protocol, not this skill.
+
 ## Scope Resolution
 
 The mining scope is always a set of wiki domains (first directory under
@@ -39,6 +50,11 @@ The mining scope is always a set of wiki domains (first directory under
 
 Topic pages join the scope when their `sources` frontmatter intersects the
 selected domains; cross-domain topic pages join when any source is inside.
+
+When `wiki/sources/papers/` has no first-level domain directories, every
+paper belongs to 未分类 and a per-domain scope degrades to the whole wiki:
+state this in the report's 范围与日期 section and suggest organizing
+`raw/papers/` into domain subdirectories to enable per-domain mining.
 
 ## Workflow
 
@@ -58,17 +74,26 @@ selected domains; cross-domain topic pages join when any source is inside.
 
 ### Phase B: Write-Back (only after explicit user confirmation)
 
-1. Emit one `link-plan.json` with `purpose: "mining"`:
+1. Present the report's 待确认清单; the user confirms each candidate's
+   采用 / 落点 / 知识状态 / 写入区块.
+2. Resume the same miner with the user's confirmations (DSH:
+   `send_message` to the miner subagent; Claude Code: continue the Task).
+   The miner emits one `link-plan.json` with `purpose: "mining"`:
    - `batch.source_pages` is empty;
    - `batch.label` names the mining run;
    - topic actions reference *existing* source pages in `papers`;
    - mined gaps and questions become `open_questions` / `research_gaps`
-     entries on the confirmed target topics (open entries), while gaps the
-     mining found to be already resolved by other groups become
-     `status: "answered"` entries;
-   - a cross-group candidate direction may `create_topic` when at least two
-     existing source pages support it.
-2. Run the deterministic audit and publisher:
+     entries on the confirmed target topics (open entries, with the v2
+     detail fields), while gaps the mining found to be already resolved by
+     other groups become `status: "answered"` entries;
+   - a cross-group candidate direction may `create_topic` only with explicit
+     user confirmation and at least two existing source pages sharing the
+     same problem, mechanism, or evidence space; such pages stay
+     `status: stub`.
+   The candidate fields keep the exact names of the report entries so the
+   translation is mechanical; the miner never rewrites candidate text and
+   never edits wiki pages directly.
+3. Run the deterministic audit and publisher from the main agent:
 
 ```bash
 python "<REPO_ROOT>/scripts/audit_link_plan.py" \
