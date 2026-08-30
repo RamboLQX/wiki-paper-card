@@ -487,6 +487,102 @@ class PublishWikiTests(unittest.TestCase):
         self.assertIn("  - 怎么检验：跑基准", merged)
         self.assertIn("- gap2（来源：[[a|A]]", merged)
 
+    def test_merge_removes_named_questions_and_gaps(self) -> None:
+        existing = (
+            "---\n"
+            "tags: [topic]\n"
+            'created: "2026-01-01"\n'
+            'updated: "2026-01-01"\n'
+            "sources:\n"
+            '  - "wiki/sources/a.md"\n'
+            "aliases:\n"
+            'status: "stub"\n'
+            "---\n\n"
+            "# Shared Topic\n\n"
+            "## 概述\n\nsummary.\n\n"
+            "## 论文与方法对照\n\n"
+            "## 关键发现\n\n"
+            "## 争议与不确定\n\n"
+            "## 开放问题\n\n- Q1 完整问题句\n- Q2\n\n"
+            "## 研究空白与候选方向\n\n"
+            "- gap A（来源：[[a|a]]；可检验方向：d；承接：未来可答。）\n"
+            "- gap B\n"
+        )
+        action = {
+            "action": "update_topic",
+            "id": "topic-1",
+            "name": "Shared Topic",
+            "papers": ["wiki/sources/a.md"],
+            "summary": "",
+            "comparisons": [],
+            "key_findings": [],
+            "contradictions": [],
+            "open_questions": [],
+            "research_gaps": [],
+            "remove_open_questions": ["Q1"],
+            "remove_research_gaps": ["gap B"],
+            "annotate_research_gaps": [
+                {"match": "gap A", "note": "同类空白见 [[X]]"}
+            ],
+            "existing_page": "wiki/topics/Shared Topic.md",
+        }
+        merged = PUBLISH.merge_topic_page(
+            existing,
+            action,
+            {"wiki/sources/a.md": "Paper A"},
+            "2026-01-02",
+            {"wiki/sources/a.md": "A"},
+        )
+        self.assertNotIn("Q1", merged)
+        self.assertIn("- Q2", merged)
+        self.assertNotIn("gap B", merged)
+        self.assertIn("未来可答；同类空白见 [[X]]。）", merged)
+
+    def test_annotate_falls_back_to_sub_bullet(self) -> None:
+        existing = (
+            "---\n"
+            "tags: [topic]\n"
+            'created: "2026-01-01"\n'
+            'updated: "2026-01-01"\n'
+            "sources:\n"
+            '  - "wiki/sources/a.md"\n'
+            "aliases:\n"
+            'status: "stub"\n'
+            "---\n\n"
+            "# Shared Topic\n\n"
+            "## 概述\n\nsummary.\n\n"
+            "## 论文与方法对照\n\n"
+            "## 关键发现\n\n"
+            "## 争议与不确定\n\n"
+            "## 开放问题\n\n"
+            "## 研究空白与候选方向\n\n- gap C\n"
+        )
+        action = {
+            "action": "update_topic",
+            "id": "topic-1",
+            "name": "Shared Topic",
+            "papers": ["wiki/sources/a.md"],
+            "summary": "",
+            "comparisons": [],
+            "key_findings": [],
+            "contradictions": [],
+            "open_questions": [],
+            "research_gaps": [],
+            "annotate_research_gaps": [
+                {"match": "gap C", "note": "同类空白见 [[Y]]"}
+            ],
+            "existing_page": "wiki/topics/Shared Topic.md",
+        }
+        merged = PUBLISH.merge_topic_page(
+            existing,
+            action,
+            {"wiki/sources/a.md": "Paper A"},
+            "2026-01-02",
+            {"wiki/sources/a.md": "A"},
+        )
+        self.assertIn("- gap C", merged)
+        self.assertIn("相关空白：同类空白见 [[Y]]", merged)
+
     def test_topic_create_with_category(self) -> None:
         action = valid_plan()["topic_actions"][0]
         action["category"] = "评估框架"

@@ -780,6 +780,24 @@ def rebuild_page(
     return frontmatter + body.lstrip("\n")
 
 
+def annotate_gap_block(block: str, note: str) -> str:
+    """Append a cross-reference note to a gap's 承接 in place.
+
+    The note is inserted before the trailing 承接 period (。), so the gap
+    main line, source wikilinks, and any detail sub-bullets are preserved.
+    Blocks without the trailing marker fall back to a sub-bullet note.
+    """
+    lines = block.splitlines()
+    if not lines:
+        return block
+    main = lines[0].rstrip()
+    suffix = "。）"
+    if main.endswith(suffix):
+        lines[0] = main[: -len(suffix)] + f"；{note}" + suffix
+        return "\n".join(lines)
+    return block + f"\n  - 相关空白：{note}"
+
+
 def merge_topic_page(
     existing_text: str,
     action: dict[str, Any],
@@ -842,10 +860,15 @@ def merge_topic_page(
         for entry in normalize_questions(action.get("open_questions", []))
         if entry["status"] == "answered"
     ]
+    remove_q = [
+        re.sub(r"\s+", " ", text)
+        for text in string_list(action.get("remove_open_questions"))
+    ]
     kept_q = [
         line
         for line in existing_q
         if not any(line.startswith(text) for text in answered_q)
+        and not any(text in re.sub(r"\s+", " ", line) for text in remove_q)
     ]
     merged_q = [f"- {line}" for line in kept_q] + [
         line for line in q_open if bullet_text(line) not in kept_q
@@ -867,11 +890,34 @@ def merge_topic_page(
         for entry in normalize_gaps(action.get("research_gaps", []))
         if entry["status"] == "answered"
     }
+    remove_g = [
+        re.sub(r"\s+", " ", text)
+        for text in string_list(action.get("remove_research_gaps"))
+    ]
     kept_blocks = [
         block
         for block in existing_blocks
         if gap_key(block_root_text(block)) not in answered_keys
+        and not any(
+            text in re.sub(r"\s+", " ", block_root_text(block))
+            for text in remove_g
+        )
     ]
+    annotations = action.get("annotate_research_gaps")
+    if isinstance(annotations, list):
+        for annotation in annotations:
+            if not isinstance(annotation, dict):
+                continue
+            match = re.sub(r"\s+", " ", str(annotation.get("match", ""))).strip()
+            note = str(annotation.get("note", "")).strip()
+            if not match or not note:
+                continue
+            kept_blocks = [
+                annotate_gap_block(block, note)
+                if match in re.sub(r"\s+", " ", block_root_text(block))
+                else block
+                for block in kept_blocks
+            ]
     existing_keys = {gap_key(block_root_text(block)) for block in existing_blocks}
     merged_g = kept_blocks + [
         line for line in g_open if gap_key(block_root_text(line)) not in existing_keys

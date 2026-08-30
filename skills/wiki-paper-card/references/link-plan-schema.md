@@ -50,6 +50,11 @@ There are no hub actions: the linker writes topic actions only.
   ],
   "summary": "Short synthesis.",
   "category": "评估框架",
+  "remove_open_questions": ["Question fragment to remove"],
+  "remove_research_gaps": ["Gap fragment to remove"],
+  "annotate_research_gaps": [
+    {"match": "Existing gap text fragment", "note": "同类空白见 [[Other Topic]] 的…"}
+  ],
   "comparisons": [],
   "key_findings": [
     {
@@ -108,6 +113,7 @@ Rules:
 - `research_gaps` entries in a new plan must be objects with non-empty `gap`, `source_refs` (a non-empty list of the papers it traces to), `direction`, `continuity`, and optional `status` (`open` default / `answered`). Answered gaps additionally require non-empty `answered_by` and `answered_pointer`. The publisher retains legacy string rendering for historical compatibility, but `audit_link_plan.py` rejects strings in every newly submitted plan.
 - The six v2 detail fields `significance`, `evidence_boundary`, `experiment`, `success_criterion`, `risk`, and `priority` are all optional. The gap-mining miner fills them; the ingest linker is not required to. `priority` uses the labels 高/中/低 (audit rejects other values). An entry carrying any v2 field but lacking both `evidence_boundary` and `experiment` renders with a `[待验证]` tag (a tentative direction); entries without any v2 field render exactly as before. Empty optional fields should be omitted rather than set to `""` (audit warns).
 - Topic actions may carry an optional single-value `category` (for example `"评估框架"`): the publisher writes it into the topic frontmatter on create and on update (only when given), and the knowledge tree renders a category-first topic view from it. Omit it to leave a topic uncategorized. The category set is small and user-owned; proposing a new category requires user confirmation.
+- Semantic dedup fields (used by mining write-back, available to the linker as well): `remove_open_questions` and `remove_research_gaps` are lists of non-empty strings; the publisher drops existing bullets whose text contains the fragment (whitespace-normalized substring match). `annotate_research_gaps` is a list of `{match, note}` objects; the publisher appends `note` to the matching open gap's 承接 ending, or as a `- 相关空白：…` sub-bullet when there is no such ending. Fragments matching nothing are no-ops; audit rejects malformed shapes, and unknown fields on a topic action are ignored by the publisher, so name these exactly.
 - Classification between `key_findings` and `research_gaps` follows the two-question decision in `linker-brief.md`: findings change what a reader believes about the field's current state; gaps name something missing plus a direction and a way to check it. A statement satisfying both is recorded fully under `key_findings` and referenced by the gap. When a later paper answers an open item, record the answer's substance as a `key_findings` entry and mark the old item answered instead of silently dropping it.
 
 ## Publisher Boundary

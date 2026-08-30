@@ -185,6 +185,10 @@ After the user confirms candidates via the 待确认清单, write one
 - **Semantic dedup before writing**: read the target topic page's relevant
   sections; a candidate whose meaning is already present is rewritten into
   the existing entry or dropped as "no new content" instead of appended.
+  Express these edits deterministically through `remove_open_questions` /
+  `remove_research_gaps` (text fragments of the entries to drop) and
+  `annotate_research_gaps` (`match` + `note`, for cross-referencing the
+  same gap recorded on another topic).
 - Before any write, the publisher verifies that every page listed in `papers`,
   in a gap's `source_refs`, or in `answered_by` exists under `wiki/sources/`; a
   missing or invalid page blocks the complete mining publish instead of

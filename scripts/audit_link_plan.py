@@ -314,6 +314,54 @@ def audit_topic_action(
                         )
                     )
 
+    remove_open_questions = action.get("remove_open_questions")
+    if remove_open_questions is not None and (
+        not isinstance(remove_open_questions, list)
+        or not all(isinstance(item, str) and item.strip() for item in remove_open_questions)
+    ):
+        findings.append(
+            finding(
+                "error",
+                "remove_open_questions",
+                f"{label} remove_open_questions must be a list of non-empty strings.",
+            )
+        )
+
+    remove_research_gaps = action.get("remove_research_gaps")
+    if remove_research_gaps is not None and (
+        not isinstance(remove_research_gaps, list)
+        or not all(isinstance(item, str) and item.strip() for item in remove_research_gaps)
+    ):
+        findings.append(
+            finding(
+                "error",
+                "remove_research_gaps",
+                f"{label} remove_research_gaps must be a list of non-empty strings.",
+            )
+        )
+
+    annotate_research_gaps = action.get("annotate_research_gaps")
+    if annotate_research_gaps is not None:
+        if not isinstance(annotate_research_gaps, list):
+            findings.append(
+                finding(
+                    "error",
+                    "annotate_research_gaps",
+                    f"{label} annotate_research_gaps must be a list.",
+                )
+            )
+        else:
+            for index, annotation in enumerate(annotate_research_gaps, start=1):
+                if not isinstance(annotation, dict) or not str(annotation.get("match", "")).strip() or not str(annotation.get("note", "")).strip():
+                    findings.append(
+                        finding(
+                            "error",
+                            "annotate_research_gap_shape",
+                            f"{label} annotate_research_gap {index} must be an object "
+                            "with non-empty match and note.",
+                        )
+                    )
+
     category = action.get("category")
     if category is not None and (
         not isinstance(category, str) or not category.strip()

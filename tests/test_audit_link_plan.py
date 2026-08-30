@@ -334,6 +334,32 @@ class LinkPlanAuditTests(unittest.TestCase):
             any(item["code"] == "topic_category" for item in report["findings"])
         )
 
+    def test_remove_and_annotate_fields_validation(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["remove_open_questions"] = ["Q1"]
+        action["remove_research_gaps"] = ["gap fragment"]
+        action["annotate_research_gaps"] = [{"match": "gap", "note": "note"}]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        action["remove_open_questions"] = [1]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "remove_open_questions" for item in report["findings"])
+        )
+        action["remove_open_questions"] = ["Q1"]
+        action["remove_research_gaps"] = [""]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "remove_research_gaps" for item in report["findings"])
+        )
+        action["remove_research_gaps"] = ["gap fragment"]
+        action["annotate_research_gaps"] = [{"match": ""}]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "annotate_research_gap_shape" for item in report["findings"])
+        )
+
     def mining_plan(self) -> dict:
         return {
             "schema_version": "2.0",
