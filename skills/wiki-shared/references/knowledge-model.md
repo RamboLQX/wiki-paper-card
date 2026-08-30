@@ -24,6 +24,8 @@ Topic pages are the primary synthesis surface for:
 - listing open questions and research gaps;
 - proposing discriminating experiments.
 
+Topics also serve as the tree's intermediate signpost nodes: the publisher nests each topic's assigned papers, currently open questions, and research gaps under the topic node in `knowledge-tree.md` (human navigation), and lists the same topics with their one-line index descriptions in `agent-tree.md` (agent retrieval first hop), which is how retrieval prunes by topic before opening pages.
+
 Create or update a topic page when at least two papers share the same problem, mechanism, or evidence space, or when a single paper directly answers an existing open question.
 
 Research gaps and open questions are snapshots of the current corpus. Record a gap only when it carries a source anchor (which paper's limitation or uncovered setting) and a direction a future paper could advance; if a batch yields no genuine gap, leave the section empty rather than padding it.

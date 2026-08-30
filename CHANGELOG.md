@@ -2,6 +2,26 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.9.0] - 2026-08-30
+
+### 新增与改进
+
+- **知识树改为主题优先结构**：`wiki/meta/knowledge-tree.md` 从"领域 → 论文/主题/开放问题/研究空白四个扁平列表"重构为"领域 → 主题节点（带 index 一句话摘要作 signpost）→ 该主题的论文/开放问题/研究空白嵌套其下"；未归入任何主题的论文在领域级「未归入主题的论文」分组。多归属论文在每个所属主题下各列一次；空领域分组不再渲染。分类视图（按主题分类）保持原样。主题归属关系完全来自 topic frontmatter `sources`，零新增 LLM 索引成本、不新增页面或 meta 文件；索引与 research.md 不变。这使大模型产出的 topic 归纳成为树的中层导航节点，读者视图与 PageIndex 式逐层剪枝检索同时受益。
+- **分类集合起始草案文档化**：`wiki-schema.md` 的 category 说明补充推荐起始集合（评测基准与数据集 / 消解与干预方法 / 行为规律 / 机制解释 / 多模态冲突 / 跨域迁移与统一度量 / 综述与元评估 / 领域应用），标注为按 Vault 用户持有、发布器不强制；发布器只按 frontmatter 实际存在的分类分组。
+- **Agent 检索渐进式披露**：新增 `wiki/meta/agent-tree.md`——Agent 检索第一跳的 signpost 索引（领域 + 主题一句话摘要 + 未归属论文，不含叶子明细），发布器每次发布时与知识树一同确定性重建。`knowledge-tree.md` 定位为人读导航视图（主题优先嵌套全貌，结构不变），两个文件共用同一份确定性收集。`retrieval-protocol.md` 第一跳改为：只读 agent-tree 选分支（≤3 个主题），再逐层打开候选页面（topic 页 → source 页小节），实现 PageIndex 式逐层下降；agent-tree 不存在时回退读知识树再退 index。同步 CLAUDE/template 检索路由、gap-mining 读图入口、wiki-schema、knowledge-model、workflow-contract、README 中英文视图表。
+- **检索协议同步**：树中嵌套条目不再重复「来源」后缀、research.md 的领域平铺条目保留来源链接；定向问答第一跳不再首选人读导航树。
+
+### 修复方法
+
+- `audit_wiki_state.py`：`WIKILINK_RE` 的目标捕获组排除反斜杠并接受可选转义管道，表格单元格里 `[[A\|B]]` 形式的 wikilink 不再把目标解析成 `A\` 而误报 unresolved_link。实测一个 34 页 Vault 从 82 条误报降为 0（该库无真实未解析链接）。新增回归测试 `test_table_escaped_pipe_wikilink_resolves`（存在页转义链接通过、真实缺失目标仍报）。
+
+### 改动文件
+
+- `publish_wiki.py`：新增 `collect_topic_tree`（topic→论文归属收集）与 `gap_priority` 辅助函数；`render_knowledge_tree` 重写为主题优先渲染；新增 `render_agent_tree` / `build_agent_tree` 并随发布写回 `wiki/meta/agent-tree.md`；CLI 调用点同步。
+- `audit_wiki_state.py`：`WIKILINK_RE` 兼容表格转义管道 `\|`。
+- `wiki-schema.md` / `knowledge-model.md` / `workflow-contract.md`：同步主题优先树结构、agent-tree 与 topic 兼任 signpost 节点的职责。
+- 测试：改造 `test_cli_writes_knowledge_tree` 与 `test_knowledge_tree_groups_by_domain`，新增 `test_knowledge_tree_lists_paper_under_each_assigning_topic`、`test_agent_tree_signposts_only` 与 `test_table_escaped_pipe_wikilink_resolves`；稳定性测试同时覆盖知识树与 agent-tree；全量 117 个测试通过。
+
 ## [0.8.2] - 2026-08-30
 
 ### 文档与视觉

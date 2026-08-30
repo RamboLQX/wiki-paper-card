@@ -31,8 +31,9 @@ never writes `wiki/`, and never returns paper text to the parent agent.
 
 Follow the survey discipline of the retrieval protocol:
 
-1. Read `wiki/meta/knowledge-tree.md` and `wiki/meta/research.md` to get
-   the currently open questions and gaps in scope.
+1. Read `wiki/meta/agent-tree.md` (fallback: `wiki/meta/knowledge-tree.md`)
+   and `wiki/meta/research.md` to get the currently open questions and gaps
+   in scope.
 2. Enumerate the scoped topic pages: topics whose `sources` frontmatter
    intersects the selected domains (cross-domain topics included when any
    source is inside).

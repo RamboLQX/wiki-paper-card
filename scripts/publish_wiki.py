@@ -1237,6 +1237,15 @@ def section_bullets(body: str, section_name: str) -> list[str]:
     return bullets
 
 
+def gap_priority(block: str) -> str:
+    """Extract the optional `- 优先级：…` sub-bullet from a gap block."""
+    for line in block.splitlines()[1:]:
+        stripped = line.strip()
+        if stripped.startswith("- 优先级："):
+            return stripped[len("- 优先级：") :].strip()
+    return ""
+
+
 def page_domains(wiki_root: Path, path: str) -> str:
     try:
         text = (wiki_root / path).read_text(encoding="utf-8")
@@ -1289,12 +1298,7 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
                 bucket(domain)["questions"].append((question, label, path))
             for block in section_bullet_blocks(body, "研究空白与候选方向"):
                 root = block_root_text(block)
-                priority = ""
-                for line in block.splitlines()[1:]:
-                    stripped = line.strip()
-                    if stripped.startswith("- 优先级："):
-                        priority = stripped[len("- 优先级：") :].strip()
-                        break
+                priority = gap_priority(block)
                 bucket(domain)["gaps"].append((root, label, path, priority))
     return buckets
 
@@ -1331,6 +1335,83 @@ def collect_topic_categories(wiki_root: Path) -> dict[str, list[tuple[str, str, 
     return categories
 
 
+def collect_topic_tree(
+    wiki_root: Path,
+) -> dict[str, dict[str, list[Any]]] | None:
+    """Collect topic-first tree nodes for the knowledge tree.
+
+    Each domain holds its topic signpost nodes (path, label, index one-line
+    description, papers assigned through the topic frontmatter `sources`,
+    and the topic's currently open questions and research gaps) plus the
+    papers no topic assigns (per-domain unassigned group). A paper assigned
+    by any topic is never repeated in the unassigned group. Returns None
+    when the wiki has no index yet.
+    """
+    index_path = wiki_root / "wiki" / "index.md"
+    if not index_path.is_file():
+        return None
+    try:
+        entries = parse_index_entries(index_path.read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    if not entries:
+        return None
+
+    paper_index: dict[str, tuple[str, str]] = {}
+    topic_entries: list[tuple[str, str, str]] = []
+    for entry in entries:
+        path, label, description = entry["path"], entry["label"], entry["description"]
+        if path.startswith("wiki/sources/"):
+            paper_index[path] = (label, description)
+        elif path.startswith("wiki/topics/"):
+            topic_entries.append((path, label, description))
+
+    nodes: dict[str, dict[str, list[Any]]] = {}
+
+    def bucket(domain: str) -> dict[str, list[Any]]:
+        return nodes.setdefault(domain, {"topics": [], "unassigned": []})
+
+    assigned: set[str] = set()
+    for path, label, description in topic_entries:
+        text = ""
+        try:
+            text = (wiki_root / path).read_text(encoding="utf-8")
+        except OSError:
+            pass
+        _, lists, body = parse_frontmatter(text)
+        sources = lists.get("sources", [])
+        assigned.update(sources)
+        papers = [
+            (source, *paper_index[source])
+            for source in sources
+            if source in paper_index
+        ]
+        questions = section_bullets(body, "开放问题")
+        gaps = [
+            (block_root_text(block), gap_priority(block))
+            for block in section_bullet_blocks(body, "研究空白与候选方向")
+        ]
+        if not papers and not questions and not gaps:
+            continue
+        bucket(page_domains(wiki_root, path))["topics"].append(
+            {
+                "path": path,
+                "label": label,
+                "description": description,
+                "papers": papers,
+                "questions": questions,
+                "gaps": gaps,
+            }
+        )
+
+    for path, (label, description) in paper_index.items():
+        if path not in assigned:
+            bucket(source_domain(path))["unassigned"].append(
+                (path, label, description)
+            )
+    return nodes
+
+
 def ordered_domains(buckets: dict[str, dict[str, list[Any]]]) -> list[str]:
     special = {"跨领域", "未分类"}
     ordered = sorted(domain for domain in buckets if domain not in special)
@@ -1351,56 +1432,75 @@ def priority_sort_key(row: tuple[Any, ...]) -> tuple[int, str]:
 
 
 def render_knowledge_tree(
-    buckets: dict[str, dict[str, list[Any]]],
+    nodes: dict[str, dict[str, list[Any]]],
     categories: dict[str, list[tuple[str, str, str]]] | None = None,
 ) -> str:
-    """Render wiki/meta/knowledge-tree.md from collected buckets.
+    """Render wiki/meta/knowledge-tree.md from collected topic nodes.
 
-    Deterministic: identical buckets produce identical text. This is the
-    domain-first navigation view of the same topic-page data that
-    research.md shows question-type-first; the open-question and
-    research-gap bullets are shared between the two documents by design.
-    Only *currently open* items are aggregated; answered items stay in the
-    topic pages' archive sections. When categories are supplied, a
-    category-first topic view is appended after the domain view.
+    Deterministic: identical nodes produce identical text. Topic-first
+    navigation view: each domain groups its topics as intermediate signpost
+    nodes (one-line index description) with the topic's papers, currently
+    open questions, and research gaps nested under them; papers assigned to
+    no topic land in the per-domain unassigned group. When categories are
+    supplied, a category-first topic view is appended after the domain view.
+    Questions and gaps are open-only; answered items stay in the topic
+    pages' archive sections.
     """
     lines = [
         "# 知识树",
         "",
-        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航（领域优先视图；按主题分类视图随后；开放问题与研究空白与 research.md 为同一批数据的另一透视，只含仍开放的条目）。不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
+        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航（主题优先视图：每个主题节点带一句话摘要，其论文、开放问题与研究空白嵌套其下；未归入任何主题的论文在领域级单独分组；按主题分类视图随后。开放问题与研究空白与 research.md 为同一批数据的另一透视，只含仍开放的条目）。不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
         "",
     ]
-    for domain in ordered_domains(buckets):
-        data = buckets[domain]
+    for domain in ordered_domains(nodes):
+        data = nodes[domain]
+        topics = sorted(data["topics"], key=lambda row: row["label"])
+        unassigned = sorted(data["unassigned"], key=lambda row: row[1])
+        if not topics and not unassigned:
+            continue
         lines.append(f"## {domain}")
         lines.append("")
-        for kind, title, key in (
-            ("sources", "### 论文", "sources"),
-            ("topics", "### 主题", "topics"),
-        ):
-            items = sorted(data[key], key=lambda row: row[1])
-            if not items:
-                continue
-            lines.append(title)
+        for node in topics:
+            lines.append(f"### {node['label']}")
             lines.append("")
-            for row in items:
-                stem = Path(row[0]).stem
-                suffix = f" — {row[2]}" if row[2] else ""
-                lines.append(f"- [[{stem}|{row[1]}]]{suffix}")
+            if node["description"]:
+                lines.append(node["description"])
+                lines.append("")
+            if node["papers"]:
+                lines.append("#### 论文")
+                lines.append("")
+                for path, label, description in sorted(
+                    node["papers"], key=lambda row: row[1]
+                ):
+                    stem = Path(path).stem
+                    suffix = f" — {description}" if description else ""
+                    lines.append(f"- [[{stem}|{label}]]{suffix}")
+                lines.append("")
+            if node["questions"]:
+                lines.append("#### 开放问题")
+                lines.append("")
+                for question in sorted(node["questions"]):
+                    lines.append(f"- {question}")
+                lines.append("")
+            if node["gaps"]:
+                lines.append("#### 研究空白")
+                lines.append("")
+                for root, priority in sorted(
+                    node["gaps"],
+                    key=lambda row: (
+                        PRIORITY_ORDER.get(str(row[1]), 3),
+                        str(row[0]),
+                    ),
+                ):
+                    lines.append(f"- {root}")
+                lines.append("")
+        if unassigned:
+            lines.append("### 未归入主题的论文")
             lines.append("")
-        for title, key in (("### 开放问题", "questions"), ("### 研究空白", "gaps")):
-            if not data[key]:
-                continue
-            lines.append(title)
-            lines.append("")
-            seen: set[str] = set()
-            for row in sorted(data[key], key=priority_sort_key):
-                text_item, label, path = row[0], row[1], row[2]
-                line = f"- {text_item} — 来源：[[{Path(path).stem}|{label}]]"
-                if line in seen:
-                    continue
-                seen.add(line)
-                lines.append(line)
+            for path, label, description in unassigned:
+                stem = Path(path).stem
+                suffix = f" — {description}" if description else ""
+                lines.append(f"- [[{stem}|{label}]]{suffix}")
             lines.append("")
     if categories:
         lines.append("## 按主题分类")
@@ -1424,15 +1524,65 @@ def render_knowledge_tree(
 def build_knowledge_tree(wiki_root: Path) -> str | None:
     """Render wiki/meta/knowledge-tree.md from the current wiki state.
 
-    Deterministic: identical wiki state produces identical text. Grouped by
-    domain (first directory under wiki/sources/papers/), with per-domain
-    open questions and research gaps aggregated from topic pages, followed
-    by the category-first topic view.
+    Deterministic: identical wiki state produces identical text. Topic-first:
+    each domain groups its topics as signpost nodes with nested papers and
+    open items, followed by unassigned papers, then the category-first topic
+    view.
     """
-    buckets = collect_tree_buckets(wiki_root)
-    if buckets is None:
+    nodes = collect_topic_tree(wiki_root)
+    if nodes is None:
         return None
-    return render_knowledge_tree(buckets, collect_topic_categories(wiki_root))
+    return render_knowledge_tree(nodes, collect_topic_categories(wiki_root))
+
+
+def render_agent_tree(
+    nodes: dict[str, dict[str, list[Any]]],
+) -> str:
+    """Render wiki/meta/agent-tree.md: the signpost-only retrieval index.
+
+    This is the agent-facing counterpart of knowledge-tree.md. It contains
+    only domain names and their topic signposts (one-line index
+    descriptions) plus unassigned papers, with no nested leaf lists, so the
+    first retrieval hop stays small and the descent opens pages level by
+    level (progressive disclosure; see retrieval-protocol.md). Deterministic:
+    identical nodes produce identical text.
+    """
+    lines = [
+        "# Agent 检索索引",
+        "",
+        "> 本页由 publish_wiki.py 确定性生成，是 Agent 检索的第一跳：只含领域与主题 signpost（一句话摘要）及未归入主题的论文，不含叶子明细。检索时先读本页选分支，再打开候选页面逐层展开（见 wiki-shared 的 references/retrieval-protocol.md）。人读导航用 wiki/meta/knowledge-tree.md。不要手动编辑，每次发布后重建。",
+        "",
+    ]
+    for domain in ordered_domains(nodes):
+        data = nodes[domain]
+        topics = sorted(data["topics"], key=lambda row: row["label"])
+        unassigned = sorted(data["unassigned"], key=lambda row: row[1])
+        if not topics and not unassigned:
+            continue
+        lines.append(f"## {domain}")
+        lines.append("")
+        for node in topics:
+            stem = Path(node["path"]).stem
+            suffix = f" — {node['description']}" if node["description"] else ""
+            lines.append(f"- [[{stem}|{node['label']}]]{suffix}")
+        for path, label, description in unassigned:
+            stem = Path(path).stem
+            suffix = f" — {description}" if description else ""
+            lines.append(f"- [[{stem}|{label}]]{suffix}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def build_agent_tree(wiki_root: Path) -> str | None:
+    """Render wiki/meta/agent-tree.md from the current wiki state.
+
+    Deterministic: identical wiki state produces identical text. Signposts
+    only: domain names, topic one-line descriptions, and unassigned papers.
+    """
+    nodes = collect_topic_tree(wiki_root)
+    if nodes is None:
+        return None
+    return render_agent_tree(nodes)
 
 
 def parse_args() -> argparse.Namespace:
@@ -1660,10 +1810,13 @@ def main() -> int:
 
     buckets = collect_tree_buckets(wiki_root)
     categories = collect_topic_categories(wiki_root)
+    tree_nodes = collect_topic_tree(wiki_root)
     tree_path = wiki_root / "wiki" / "meta" / "knowledge-tree.md"
     try:
         tree_text = (
-            render_knowledge_tree(buckets, categories) if buckets is not None else None
+            render_knowledge_tree(tree_nodes, categories)
+            if tree_nodes is not None
+            else None
         )
         if tree_text is not None:
             tree_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1681,6 +1834,32 @@ def main() -> int:
                 )
     except (OSError, UnicodeDecodeError) as exc:
         errors.append(f"Failed to update knowledge tree: {exc}")
+
+    agent_tree_path = wiki_root / "wiki" / "meta" / "agent-tree.md"
+    try:
+        agent_tree_text = (
+            render_agent_tree(tree_nodes) if tree_nodes is not None else None
+        )
+        if agent_tree_text is not None:
+            agent_tree_path.parent.mkdir(parents=True, exist_ok=True)
+            existing_agent_tree = (
+                agent_tree_path.read_text(encoding="utf-8")
+                if agent_tree_path.is_file()
+                else None
+            )
+            if existing_agent_tree != agent_tree_text:
+                agent_tree_path.write_text(agent_tree_text, encoding="utf-8")
+                writes.append(
+                    {
+                        "kind": "agent-tree",
+                        "path": "wiki/meta/agent-tree.md",
+                        "action": (
+                            "create" if existing_agent_tree is None else "update"
+                        ),
+                    }
+                )
+    except (OSError, UnicodeDecodeError) as exc:
+        errors.append(f"Failed to update agent tree: {exc}")
 
     try:
         research_text = render_research_page(buckets, today, research_created)

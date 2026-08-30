@@ -22,7 +22,7 @@ link-plan-report.json
 publish-report.json
 wiki source pages
 optional topic pages
-wiki/meta/research.md (research dashboard: currently open questions and gaps, question-type-first view of the same topic-page data the knowledge tree shows domain-first)
+wiki/meta/research.md (research dashboard: currently open questions and gaps, question-type-first view of the same topic-page data the knowledge tree shows topic-first)
 updated index and log
 ```
 
@@ -208,7 +208,7 @@ The publisher:
 5. Updates `wiki/index.md` and `wiki/log.md`.
 6. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
 7. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
-8. Rebuilds `wiki/meta/knowledge-tree.md` (domain-grouped navigation tree) and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. Both aggregate only open items; answered items are archived on the topic pages and excluded.
+8. Rebuilds `wiki/meta/knowledge-tree.md` (human navigation tree: per domain, topics as signpost nodes with nested papers and open items, plus unassigned papers, then the category-first topic view), `wiki/meta/agent-tree.md` (agent retrieval first hop: domain and topic signposts only), and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. All three aggregate only open items; answered items are archived on the topic pages and excluded.
 
 After publishing, run the deterministic wiki-state audit. The Obsidian render
 smoke check is optional and soft-failing by default:

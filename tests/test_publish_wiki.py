@@ -952,12 +952,27 @@ class PublishWikiTests(unittest.TestCase):
             self.assertTrue(tree_path.is_file())
             text = tree_path.read_text(encoding="utf-8")
             self.assertIn("# 知识树", text)
+            self.assertIn("### Shared Topic", text)
+            self.assertIn("Compare the two approaches.", text)
+            self.assertIn("#### 论文", text)
             self.assertIn("[[a|a]]", text)
-            self.assertIn("[[Shared Topic|Shared Topic]]", text)
+            self.assertIn("#### 开放问题", text)
+            self.assertIn("- Topic question", text)
+            self.assertIn("#### 研究空白", text)
+            self.assertIn("- Missing benchmark", text)
+            # Nested open items carry no 来源 suffix (the topic is the parent).
+            self.assertNotIn("— 来源：", text)
             self.assertNotIn("### 实体", text)
-            self.assertIn("Topic question — 来源：[[Shared Topic|Shared Topic]]", text)
-            self.assertIn("Missing benchmark", text)
-            self.assertIn("来源：[[Shared Topic|Shared Topic]]", text)
+            # The agent tree is written alongside: signposts, no leaf lists.
+            agent_tree_path = root / "wiki" / "meta" / "agent-tree.md"
+            self.assertTrue(agent_tree_path.is_file())
+            agent_text = agent_tree_path.read_text(encoding="utf-8")
+            self.assertIn(
+                "- [[Shared Topic|Shared Topic]] — Compare the two approaches.",
+                agent_text,
+            )
+            self.assertNotIn("####", agent_text)
+            self.assertNotIn("Topic question", agent_text)
 
     def test_merge_topic_moves_resolved_items_to_archive(self) -> None:
         existing = (
@@ -1449,6 +1464,9 @@ class PublishWikiTests(unittest.TestCase):
             (wiki / "sources" / "papers" / "llm-opt" / "y.md").write_text(
                 "# Paper Y\n", encoding="utf-8"
             )
+            (wiki / "sources" / "papers" / "rag" / "z.md").write_text(
+                "# Paper Z\n", encoding="utf-8"
+            )
             (wiki / "topics" / "t.md").write_text(
                 "---\n"
                 "tags: [topic]\n"
@@ -1466,6 +1484,7 @@ class PublishWikiTests(unittest.TestCase):
                 "## 来源\n"
                 "- [[wiki/sources/papers/rag/x.md|x]] - paper x\n"
                 "- [[wiki/sources/papers/llm-opt/y.md|y]] - paper y\n"
+                "- [[wiki/sources/papers/rag/z.md|z]] - paper z\n"
                 "## 主题\n"
                 "- [[wiki/topics/t.md|T]] - topic t\n",
                 encoding="utf-8",
@@ -1473,11 +1492,116 @@ class PublishWikiTests(unittest.TestCase):
             tree = PUBLISH.build_knowledge_tree(root)
             self.assertIsNotNone(tree)
             assert tree is not None
+            # Topic t spans rag and llm-opt sources -> cross-domain section
+            # with papers, questions, and gaps nested under the topic node.
+            self.assertIn("## 跨领域", tree)
+            self.assertIn("### T", tree)
+            self.assertIn("topic t", tree)
+            self.assertIn("#### 论文", tree)
+            self.assertIn("[[x|x]] — paper x", tree)
+            self.assertIn("[[y|y]] — paper y", tree)
+            self.assertIn("#### 开放问题", tree)
+            self.assertIn("- Q1", tree)
+            self.assertIn("#### 研究空白", tree)
+            self.assertIn("- gap1", tree)
+            # Nested open items carry no 来源 suffix (the topic is the parent).
+            self.assertNotIn("— 来源：", tree)
+            # Unassigned paper z stays grouped in its own domain.
             self.assertIn("## rag", tree)
-            self.assertIn("## llm-opt", tree)
-            self.assertIn("Q1 — 来源：[[t|T]]", tree)
-            self.assertIn("gap1 — 来源：[[t|T]]", tree)
+            self.assertIn("### 未归入主题的论文", tree)
+            self.assertIn("[[z|z]] — paper z", tree)
+            # llm-opt has no topics and no unassigned papers -> skipped.
+            self.assertNotIn("## llm-opt", tree)
             self.assertLess(tree.index("## rag"), tree.index("## 跨领域"))
+
+    def test_agent_tree_signposts_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wiki = root / "wiki"
+            for sub in ("sources/papers/rag", "topics"):
+                (wiki / sub).mkdir(parents=True)
+            (wiki / "sources" / "papers" / "rag" / "x.md").write_text(
+                "# Paper X\n", encoding="utf-8"
+            )
+            (wiki / "sources" / "papers" / "rag" / "z.md").write_text(
+                "# Paper Z\n", encoding="utf-8"
+            )
+            (wiki / "topics" / "t.md").write_text(
+                "---\n"
+                "tags: [topic]\n"
+                'sources:\n  - "wiki/sources/papers/rag/x.md"\n'
+                "aliases:\n"
+                "status: stub\n"
+                "---\n\n"
+                "# T\n\n"
+                "## 开放问题\n\n- Q1\n",
+                encoding="utf-8",
+            )
+            (wiki / "index.md").write_text(
+                "# Wiki 索引\n\n"
+                "## 来源\n"
+                "- [[wiki/sources/papers/rag/x.md|x]] - paper x\n"
+                "- [[wiki/sources/papers/rag/z.md|z]] - paper z\n"
+                "## 主题\n"
+                "- [[wiki/topics/t.md|T]] - topic t\n",
+                encoding="utf-8",
+            )
+            agent_tree = PUBLISH.build_agent_tree(root)
+            self.assertIsNotNone(agent_tree)
+            assert agent_tree is not None
+            # Signposts only: topic description and unassigned paper are
+            # listed; no nested leaf lists, open items, or category view.
+            self.assertIn("## rag", agent_tree)
+            self.assertIn("[[t|T]] — topic t", agent_tree)
+            self.assertIn("[[z|z]] — paper z", agent_tree)
+            self.assertNotIn("####", agent_tree)
+            self.assertNotIn("Q1", agent_tree)
+            self.assertNotIn("按主题分类", agent_tree)
+            # The human-facing knowledge tree keeps the full nested view.
+            tree = PUBLISH.build_knowledge_tree(root)
+            assert tree is not None
+            self.assertIn("#### 开放问题", tree)
+            self.assertIn("- Q1", tree)
+
+    def test_knowledge_tree_lists_paper_under_each_assigning_topic(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wiki = root / "wiki"
+            for sub in ("sources/papers/rag", "topics"):
+                (wiki / sub).mkdir(parents=True)
+            (wiki / "sources" / "papers" / "rag" / "x.md").write_text(
+                "# Paper X\n", encoding="utf-8"
+            )
+            for name in ("t1", "t2"):
+                (wiki / "topics" / f"{name}.md").write_text(
+                    "---\n"
+                    "tags: [topic]\n"
+                    'sources:\n  - "wiki/sources/papers/rag/x.md"\n'
+                    "aliases:\n"
+                    "status: stub\n"
+                    "---\n\n"
+                    f"# {name.capitalize()}\n\n",
+                    encoding="utf-8",
+                )
+            (wiki / "index.md").write_text(
+                "# Wiki 索引\n\n"
+                "## 来源\n"
+                "- [[wiki/sources/papers/rag/x.md|x]] - paper x\n"
+                "## 主题\n"
+                "- [[wiki/topics/t1.md|t1]] - topic one\n"
+                "- [[wiki/topics/t2.md|t2]] - topic two\n",
+                encoding="utf-8",
+            )
+            tree = PUBLISH.build_knowledge_tree(root)
+            self.assertIsNotNone(tree)
+            assert tree is not None
+            # Multi-membership: the paper is listed once per assigning topic.
+            self.assertEqual(tree.count("[[x|x]]"), 2)
+            first = tree.index("[[x|x]]")
+            self.assertLess(tree.index("### t1"), first)
+            self.assertLess(tree.index("### t2"), tree.index("[[x|x]]", first + 1))
+            # The paper is assigned by both topics -> no unassigned group.
+            self.assertNotIn("未归入主题的论文", tree)
 
     def test_legacy_concepts_dir_is_not_written_or_listed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1560,10 +1684,15 @@ class PublishWikiTests(unittest.TestCase):
             first = subprocess.run(command, check=False, capture_output=True, text=True)
             self.assertEqual(first.returncode, 0, first.stderr)
             tree_path = root / "wiki" / "meta" / "knowledge-tree.md"
+            agent_tree_path = root / "wiki" / "meta" / "agent-tree.md"
             original = tree_path.read_text(encoding="utf-8")
+            original_agent = agent_tree_path.read_text(encoding="utf-8")
             second = subprocess.run(command, check=False, capture_output=True, text=True)
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(tree_path.read_text(encoding="utf-8"), original)
+            self.assertEqual(
+                agent_tree_path.read_text(encoding="utf-8"), original_agent
+            )
 
 
 if __name__ == "__main__":

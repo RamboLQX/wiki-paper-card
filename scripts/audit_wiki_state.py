@@ -28,7 +28,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
-WIKILINK_RE = re.compile(r"!?\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
+WIKILINK_RE = re.compile(r"!?\[\[([^\]|\\]+)(?:\\?\|[^\]]+)?\]\]")
 RAW_HTML_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9-]*\s*/?>")
 HTML_COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
 CODE_SPAN_RE = re.compile(r"`[^`\n]*`")

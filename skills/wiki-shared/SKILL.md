@@ -12,7 +12,7 @@ Before any wiki write:
 1. Read [references/wiki-schema.md](references/wiki-schema.md).
 2. Read [references/knowledge-model.md](references/knowledge-model.md) before deciding whether to create or update topic pages.
 
-When answering questions over the wiki, follow [references/retrieval-protocol.md](references/retrieval-protocol.md): start from the knowledge tree and descend by lookup or survey mode.
+When answering questions over the wiki, follow [references/retrieval-protocol.md](references/retrieval-protocol.md): start from the agent-tree signposts and descend by lookup or survey mode.
 
 Do not invoke `wiki-shared` as a standalone workflow.
 

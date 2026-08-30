@@ -63,7 +63,7 @@ Open questions are questions raised by existing papers that remain insufficientl
 |---|---|---|
 | **Deep paper analysis** | A structured Paper Card with the research question, method conditions, experimental evidence, key conclusions, limitations, and source locations | Restore the paper's context quickly and verify a claim at its source |
 | **Cross-paper knowledge connections** | A Topic organized around a shared research problem, including method comparisons, evidence relations, disagreements, and applicability boundaries | View the state of a research direction without rebuilding the comparison |
-| **Knowledge-base questions** | Answers, comparisons, or surveys grounded in relevant Paper Cards and Topics located through the knowledge tree | Reuse accumulated research knowledge and reduce repeated reading and organization |
+| **Knowledge-base questions** | Answers, comparisons, or surveys grounded in relevant Paper Cards and Topics located through the knowledge tree and Agent Tree | Reuse accumulated research knowledge and reduce repeated reading and organization |
 | **Research-gap mining** | A Gap Report with open questions, missing evidence, and candidate research directions | Identify questions that still need evidence and inform the next reading, experiment, or topic decision |
 
 Paper Cards preserve the full context of individual papers. Topics maintain the understanding formed across papers around a shared question. The knowledge tree connects existing pages and supports retrieval, questions, and gap mining. Key claims retain page, figure, table, or equation locators for source verification.
@@ -72,7 +72,7 @@ Paper Cards preserve the full context of individual papers. Topics maintain the 
 
 ![The complete flow from paper input to accumulated knowledge, questions, and research-gap mining](assets/readme-workflow-en.svg)
 
-Each paper first enters an independent analysis workflow and produces an audited Paper Card. When related papers meet the admission rules, the framework creates or updates a Topic and refreshes the index, knowledge tree, and log. Researchers can ask questions, verify findings, retrieve survey material, and mine gaps across existing topics.
+Each paper first enters an independent analysis workflow and produces an audited Paper Card. When related papers meet the admission rules, the framework creates or updates a Topic and refreshes the index, knowledge tree, Agent Tree, and log. Researchers can ask questions, verify findings, retrieve survey material, and mine gaps across existing topics.
 
 Source papers stay under `raw/`. Intermediate reports go to `work/`. Audited knowledge pages are published to `wiki/`. This layout keeps source material, processing artifacts, and final knowledge separate.
 
@@ -177,6 +177,9 @@ vault/
     │   └── papers/
     ├── topics/
     ├── meta/
+    │   ├── agent-tree.md
+    │   ├── knowledge-tree.md
+    │   └── research.md
     ├── index.md
     └── log.md
 ```
@@ -189,7 +192,8 @@ Researchers organize the topic directories under `raw/papers/`. The framework do
 |---|---|
 | **Paper Card** | Preserves the full analysis, evidence locators, limitations, and research ideas for one paper |
 | **Topic** | Synthesizes at least two related papers and maintains method comparisons, findings, disagreements, open questions, and research gaps |
-| **Knowledge Tree** | Exposes the Wiki structure and guides retrieval, questions, and surveys |
+| **Knowledge Tree** | Exposes the Wiki structure (topic-first nested overview) and guides retrieval, questions, and surveys |
+| **Agent Tree** | Progressive-disclosure entry for agent retrieval: domain and topic signposts only, descending level by level |
 | **Research Dashboard** | Collects the currently open questions and research gaps |
 | **Index / Log** | Records knowledge-page entry points and processing updates |
 
@@ -200,7 +204,7 @@ One paper does not create a Topic by itself. A Topic is created or updated only 
 - Every paper produces an independent Paper Card that passes structural, evidence, and source-locator checks.
 - Batch processing completes all paper analyses before creating cross-paper relationships.
 - An unchanged PDF is skipped unless the researcher explicitly requests reprocessing.
-- Knowledge-base questions use the knowledge tree to locate existing pages and retain the relevant source evidence.
+- Knowledge-base questions descend level by level through the Agent Tree signposts (the knowledge tree is the human navigation view) and retain the relevant source evidence.
 - Gap mining first writes `work/gap-mining-report.md`. Confirmed items are then written back through the deterministic publisher.
 - Final knowledge pages go to `wiki/`. Intermediate files and audit reports remain under `work/`.
 
@@ -217,7 +221,7 @@ See [Architecture](docs/architecture.md) for the detailed admission rules, page 
 - Source papers remain traceable under `raw/`.
 - Paper Cards preserve paper-level analysis and evidence.
 - Topics maintain synthesis across papers.
-- The knowledge tree supports questions, retrieval, verification, and surveys.
+- The knowledge tree (human navigation) and the Agent Tree (retrieval first hop) support questions, retrieval, verification, and surveys.
 - Open questions and research gaps change as new papers arrive.
 
 Researchers select sources, ask questions, and judge research value. Agents organize pages, maintain relationships, and run consistency checks.

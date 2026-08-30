@@ -60,7 +60,7 @@ state this in the report's 范围与日期 section and suggest organizing
 
 ### Phase A: Read And Mine (read-only)
 
-1. Build the read map: read `wiki/meta/knowledge-tree.md` and
+1. Build the read map: read `wiki/meta/agent-tree.md` and
    `wiki/meta/research.md` to get the currently open questions and gaps.
 2. Descend breadth-first over the scoped topic pages: 概述, 论文与方法对照,
    关键发现, 争议与不确定, 开放问题, 研究空白与候选方向, and the archive

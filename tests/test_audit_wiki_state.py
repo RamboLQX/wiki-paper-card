@@ -92,6 +92,35 @@ class AuditWikiStateTests(unittest.TestCase):
             self.assertIn("raw_html_tag", codes)
             self.assertIn("unresolved_backlink", codes)
 
+    def test_table_escaped_pipe_wikilink_resolves(self) -> None:
+        # In Markdown tables the alias pipe of a wikilink is written `\|`;
+        # the audit must read the target as the part before the escape, not
+        # flag `target\` as unresolved.
+        with tempfile.TemporaryDirectory() as directory:
+            wiki = prepare_wiki(Path(directory))
+            (wiki / "sources/papers/x/p.md").write_text("# Paper P\n", encoding="utf-8")
+            (wiki / "topics" / "T.md").write_text(
+                "# T\n\n"
+                "## 论文与方法对照\n\n"
+                "| 论文 | 方法 |\n"
+                "|---|---|\n"
+                "| [[p\\|p]] | method |\n"
+                "| [[missing\\|missing]] | method |\n",
+                encoding="utf-8",
+            )
+            (wiki / "log.md").write_text("# 操作日志\n", encoding="utf-8")
+            report = WIKI_STATE.audit(Path(directory))
+            # The escaped-pipe link to the existing page resolves cleanly;
+            # only the genuinely missing target is reported.
+            unresolved = [
+                item
+                for item in report["findings"]
+                if item["code"] == "unresolved_link"
+            ]
+            self.assertEqual(len(unresolved), 1, report["findings"])
+            self.assertEqual(unresolved[0]["details"]["target"], "missing")
+            self.assertEqual(report["summary"]["errors"], 0)
+
     def test_detects_duplicate_log_entries(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             wiki = prepare_wiki(Path(directory))

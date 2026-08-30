@@ -16,9 +16,11 @@ The agent never modifies `raw/`.
 
 Legacy `wiki/entities/` and `wiki/concepts/` directories from older installs are ignored by the publisher: it never writes or lists their pages. They may be marked `archived` or kept as read-only references.
 
-`wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, grouped by domain (first directory under `wiki/sources/papers/`). It is the question-type-first view of the same topic-page data that the knowledge tree shows domain-first, so the two documents intentionally share the same open-item bullets. It aggregates only *currently open* items; answered items live in the topic pages' archive sections. When no open item remains, the dashboard shows a placeholder instead of stale content.
+`wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, grouped by domain (first directory under `wiki/sources/papers/`). It is the question-type-first view of the same topic-page data that the knowledge tree shows topic-nested, so the two documents share the same open items. It aggregates only *currently open* items; answered items live in the topic pages' archive sections. When no open item remains, the dashboard shows a placeholder instead of stale content.
 
-`wiki/meta/knowledge-tree.md` is the machine-maintained navigation tree for LLM retrieval. The publisher rebuilds it deterministically after each publish, grouped by domain (first directory under `wiki/sources/papers/`), with per-node summaries and per-domain open questions and research gaps aggregated from topic pages (same open-item bullets as the dashboard, open-only). Retrieval follows the two-mode protocol in `retrieval-protocol.md` (lookup pruning / survey expansion).
+`wiki/meta/agent-tree.md` is the machine-maintained first hop for LLM retrieval (progressive disclosure). The publisher rebuilds it deterministically after each publish: domain names with their topic signposts (one-line index description) and papers assigned to no topic — no nested leaf lists. The agent reads it to pick branches, then descends into the referenced pages level by level per `retrieval-protocol.md`.
+
+`wiki/meta/knowledge-tree.md` is the machine-maintained human navigation tree. The publisher rebuilds it deterministically after each publish: topic-first — each domain groups its topics as signpost nodes (one-line index description), with the topic's assigned papers, currently open questions, and research gaps nested under each topic; papers assigned to no topic land in the per-domain unassigned group; a category-first topic view follows. It aggregates only *currently open* items; answered items live in the topic pages' archive sections.
 
 ## Frontmatter
 
@@ -111,7 +113,12 @@ Topic frontmatter may carry an optional single-value `category` (for example
 `"模型优化"` or `"评估框架"`), written by the publisher when a topic action
 provides it. The category classifies the topic by research question type and
 is orthogonal to the source-paper domain axis; the knowledge tree renders a
-category-first topic view from it. Omit it for uncategorized topics.
+category-first topic view from it. Omit it for uncategorized topics. The
+category set is small and user-owned: the publisher groups whatever values
+exist in frontmatter and never proposes categories itself. A recommended
+starting set (per-vault, not enforced): 评测基准与数据集 / 消解与干预方法 /
+行为规律 / 机制解释 / 多模态冲突 / 跨域迁移与统一度量 / 综述与元评估 /
+领域应用.
 
 ```markdown
 # 页面名

@@ -13,7 +13,7 @@
 Vault 运行时规范以 `template/CLAUDE.md` 为准（`install.sh` 会把它复制到 Vault 根目录；本仓库与 Vault 是两个不同文件）。核心路由规则：
 
 1. 处理论文（单篇或批量、PDF 或 source map）→ 调用 `wiki-paper-card` skill。
-2. 在知识库上提问、检索、查证或写综述 → 不调用 `wiki-paper-card`，遵循 `skills/wiki-shared/references/retrieval-protocol.md`：先读 `wiki/meta/knowledge-tree.md`（选题类查询同时读 `wiki/meta/research.md`），按 lookup 或 survey 模式检索，结论必须带页面与证据指针。检索与综述只读，不回写 wiki。
+2. 在知识库上提问、检索、查证或写综述 → 不调用 `wiki-paper-card`，遵循 `skills/wiki-shared/references/retrieval-protocol.md`：先读 `wiki/meta/agent-tree.md`（不存在时读 `wiki/meta/knowledge-tree.md`；选题类查询同时读 `wiki/meta/research.md`），按 lookup 或 survey 模式检索，结论必须带页面与证据指针。检索与综述只读，不回写 wiki。
 3. 跨组或全库挖掘研究空白与候选方向 → 调用 `wiki-gap-mining` skill：先读后挖掘，报告经用户确认后才生成 link-plan 并走 `publish_wiki.py` 写回。
 4. 修改 wiki 结构（建页、合并、别名、矛盾记录）→ 先读 knowledge-model 与 wiki-schema，所有 wiki 写入最终由确定性 `publish_wiki.py` 执行。
 5. 与论文处理、知识库检索或空白挖掘无关的请求 → 不调用本框架任何 skill。
