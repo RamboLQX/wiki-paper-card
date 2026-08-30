@@ -6,7 +6,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.8.2-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.9.1-f59e0b"></a>
     <a href="#31-requirements"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
     <a href="#3-installation"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -29,6 +29,7 @@ In the age of Agents, research accumulation is moving from file storage to the d
 - [2. Quick Start](#2-quick-start)
 - [3. Installation](#3-installation)
 - [4. Framework Structure and Operating Rules](#4-framework-structure-and-operating-rules)
+  - [4.4 Artifacts and Workflows](#44-artifacts-and-workflows)
 - [5. Technical Design](#5-technical-design)
 - [6. Contributing](#6-contributing)
 - [7. License](#7-license)
@@ -205,10 +206,21 @@ One paper does not create a Topic by itself. A Topic is created or updated only 
 - Batch processing completes all paper analyses before creating cross-paper relationships.
 - An unchanged PDF is skipped unless the researcher explicitly requests reprocessing.
 - Knowledge-base questions descend level by level through the Agent Tree signposts (the knowledge tree is the human navigation view) and retain the relevant source evidence.
-- Gap mining first writes `work/gap-mining-report.md`. Confirmed items are then written back through the deterministic publisher.
+- Gap mining first writes a read-only report `work/gap-mining-report.md`. Only after you confirm its candidates item by item does the deterministic publisher write the open questions and research gaps back into topic pages and the dashboard.
 - Final knowledge pages go to `wiki/`. Intermediate files and audit reports remain under `work/`.
 
 See [Architecture](docs/architecture.md) for the detailed admission rules, page schemas, and publishing flow.
+
+### 4.4 Artifacts and Workflows
+
+Each run produces three kinds of files. `wiki/` holds the published knowledge pages, `work/` holds drafts, audit reports, and plans, and `raw/` always stays your untouched source material. For the meaning of every artifact, who generates it, and which ones you need to look at, plus the complete flows of both workflows (paper processing and gap mining), see [docs/artifacts.md](docs/artifacts.md) (written in Chinese).
+
+Two essentials:
+
+- Paper processing requires no decisions from you. Topics are created or updated automatically by the admission rules, and the agent reports the produced pages when the run finishes.
+- Gap mining requires your decisions. The 待确认清单 at the end of the report lists each candidate, and topic pages change only after you confirm them. `work/gap-mining-notes.md` is the miner's intermediate notes and needs no reading.
+
+At the end of every run the agent explains which files were produced and whether anything awaits your decision.
 
 ## 5. Technical Design
 

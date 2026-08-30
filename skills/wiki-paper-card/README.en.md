@@ -30,6 +30,8 @@ Use wiki-paper-card to reprocess raw/papers/example.pdf.
 - Updated index, knowledge tree, and log.
 - Intermediate reports and audits under `work/`.
 
+See [docs/artifacts.md](../../docs/artifacts.md) (written in Chinese) for the meaning of every artifact and the complete workflows.
+
 ## Processing rules
 
 - Paper Cards preserve the research question, methods, experiments, conclusions, limitations, and source locators.

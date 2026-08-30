@@ -12,6 +12,7 @@ Before mining, read completely:
 3. [The local knowledge model](../../wiki-shared/references/knowledge-model.md).
 4. [The link plan schema](../../wiki-paper-card/references/link-plan-schema.md)
    and [the wiki integration contract](../../wiki-paper-card/references/wiki-integration.md).
+5. [The writing guide](../../wiki-shared/references/writing-guide.md).
 
 ## Inputs
 
@@ -57,7 +58,9 @@ The value discipline from the linker brief applies with a wider lens:
   existing topic, or a new cross-group topic), and the v2 detail fields —
   `significance`, `evidence_boundary`, `experiment`, `success_criterion`,
   `risk`, and `priority` (高/中/低) — filled from evidence already in the
-  wiki. A candidate missing both `evidence_boundary` and `experiment` is a
+  wiki. The `significance` must name the judgment or choice the gap would
+  change (see the writing guide); empty praise is not a motivation. A
+  candidate missing both `evidence_boundary` and `experiment` is a
   tentative direction and is reported as such.
 - **Three patterns to look for**, in order of value:
   1. cross-group common gaps: the same missing setting or benchmark shows

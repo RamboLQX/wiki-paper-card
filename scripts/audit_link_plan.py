@@ -236,8 +236,6 @@ def audit_topic_action(
                     )
                 )
             for field_name in (
-                "significance",
-                "evidence_boundary",
                 "experiment",
                 "success_criterion",
                 "risk",
@@ -282,6 +280,28 @@ def audit_topic_action(
                             "error",
                             "research_gap_answer_pointer",
                             f"{gap_label} is answered but lacks answered_pointer.",
+                        )
+                    )
+            else:
+                significance = item.get("significance", "")
+                if not isinstance(significance, str) or not significance.strip():
+                    findings.append(
+                        finding(
+                            "error",
+                            "research_gap_significance",
+                            f"{gap_label} is open but lacks significance; state "
+                            "which judgment or choice the gap would change (see "
+                            "skills/wiki-shared/references/writing-guide.md).",
+                        )
+                    )
+                evidence_boundary = item.get("evidence_boundary", "")
+                if not isinstance(evidence_boundary, str) or not evidence_boundary.strip():
+                    findings.append(
+                        finding(
+                            "warning",
+                            "research_gap_evidence_boundary",
+                            f"{gap_label} lacks evidence_boundary and will render "
+                            "as a tentative direction with the [待验证] tag.",
                         )
                     )
 

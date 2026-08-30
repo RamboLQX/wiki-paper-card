@@ -242,6 +242,19 @@ updated page counts
 
 On failure, report which phase failed. A partial file must not be described as a complete ingest.
 
+### User-Facing Closing Summary
+
+When the run settles, the main agent explains to the user, in the user's
+language:
+
+- which pages were created or updated under `wiki/`, listed with wikilinks;
+- which `work/` files were produced, one line each, and which intermediate
+  files the user does not need to read;
+- whether anything awaits the user's decision (an ingest run normally has
+  none).
+
+When the user asks what a file means, point them to `docs/artifacts.md`.
+
 ## Context Budget
 
 - Full paper text stays inside the processor.

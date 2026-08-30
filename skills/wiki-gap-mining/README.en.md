@@ -25,9 +25,11 @@ Use wiki-gap-mining to mine research gaps and candidate directions across the wh
 
 ## Main outputs
 
-- `work/gap-mining-notes.md`: structured mining notes.
-- `work/gap-mining-report.md`: source-grounded gaps, testable directions, and suggested landing pages.
-- A write-back plan after user confirmation.
+- `work/gap-mining-notes.md`: the mining agent's working notes. This is an intermediate artifact; you do not need to read it.
+- `work/gap-mining-report.md`: the gap report for you, with source evidence, testable directions, and suggested landing pages. The 待确认清单 at the end lists each candidate for your confirmation.
+- After you confirm, the deterministic publisher writes the results back into the 开放问题 and 研究空白与候选方向 sections of topic pages and refreshes the research dashboard.
+
+Without your confirmation nothing in `wiki/` changes. See [docs/artifacts.md](../../docs/artifacts.md) (written in Chinese) for the complete explanation of every artifact.
 
 ## Processing rules
 

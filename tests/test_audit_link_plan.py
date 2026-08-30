@@ -178,6 +178,7 @@ class LinkPlanAuditTests(unittest.TestCase):
                 "source_refs": ["wiki/sources/a.md"],
                 "direction": "Run a unified benchmark.",
                 "continuity": "A future paper can test it.",
+                "significance": "It would change which benchmark the field trusts.",
                 "status": "open",
             },
             {
@@ -248,6 +249,7 @@ class LinkPlanAuditTests(unittest.TestCase):
             "source_refs": ["wiki/sources/a.md"],
             "direction": "Run a targeted experiment.",
             "continuity": "A future paper can answer it.",
+            "significance": "It would change which methods are considered reliable.",
             "status": "open",
         }
         for field, code in (
@@ -264,7 +266,7 @@ class LinkPlanAuditTests(unittest.TestCase):
                     any(finding["code"] == code for finding in report["findings"])
                 )
 
-    def test_research_gap_v2_fields_are_optional(self) -> None:
+    def test_research_gap_full_v2_fields_pass_clean(self) -> None:
         plan = valid_link_plan()
         action = plan["topic_actions"][0]
         action["research_gaps"] = [
@@ -285,9 +287,22 @@ class LinkPlanAuditTests(unittest.TestCase):
         self.assertEqual(report["summary"]["errors"], 0)
         self.assertEqual(report["summary"]["warnings"], 0)
 
-    def test_research_gap_v2_empty_fields_warn_not_block(self) -> None:
+    def test_research_gap_open_requires_significance(self) -> None:
         plan = valid_link_plan()
         action = plan["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "G1",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "d",
+                "continuity": "c",
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 1)
+        self.assertTrue(
+            any(item["code"] == "research_gap_significance" for item in report["findings"])
+        )
         action["research_gaps"] = [
             {
                 "gap": "G1",
@@ -298,9 +313,47 @@ class LinkPlanAuditTests(unittest.TestCase):
             }
         ]
         report = LINK_AUDIT.audit(plan)
-        self.assertEqual(report["summary"]["errors"], 0)
         self.assertTrue(
             any(item["code"] == "research_gap_significance" for item in report["findings"])
+        )
+
+    def test_research_gap_answered_is_exempt_from_significance(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "G1",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "d",
+                "continuity": "c",
+                "status": "answered",
+                "answered_by": ["wiki/sources/b.md"],
+                "answered_pointer": "[Paper: PDF p. 4]",
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        self.assertFalse(
+            any(item["code"] == "research_gap_significance" for item in report["findings"])
+        )
+
+    def test_research_gap_empty_optional_v2_fields_warn_not_block(self) -> None:
+        plan = valid_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"] = [
+            {
+                "gap": "G1",
+                "source_refs": ["wiki/sources/a.md"],
+                "direction": "d",
+                "continuity": "c",
+                "significance": "Why it matters.",
+                "experiment": "",
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0)
+        self.assertTrue(
+            any(item["code"] == "research_gap_experiment" for item in report["findings"])
         )
 
     def test_research_gap_priority_must_be_label(self) -> None:
@@ -312,6 +365,7 @@ class LinkPlanAuditTests(unittest.TestCase):
                 "source_refs": ["wiki/sources/a.md"],
                 "direction": "d",
                 "continuity": "c",
+                "significance": "Why it matters.",
                 "priority": "P1",
             }
         ]

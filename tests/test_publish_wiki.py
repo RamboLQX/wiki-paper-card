@@ -95,6 +95,7 @@ def valid_plan() -> dict:
                         "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
                         "direction": "Evaluate both papers on one benchmark.",
                         "continuity": "A future paper can run the comparison.",
+                        "significance": "It would change which benchmark the field trusts.",
                     }
                 ],
                 "existing_page": None,
@@ -1188,6 +1189,7 @@ class PublishWikiTests(unittest.TestCase):
                                 ],
                                 "direction": "在同一基准上重跑两组方法",
                                 "continuity": "未来论文可承接",
+                                "significance": "会改变跨组方法如何比较的结论",
                                 "status": "open",
                             }
                         ],
@@ -1209,6 +1211,7 @@ class PublishWikiTests(unittest.TestCase):
                                 "source_refs": ["wiki/sources/a.md"],
                                 "direction": "d",
                                 "continuity": "c",
+                                "significance": "会改变该方向的选题判断",
                             }
                         ],
                         "existing_page": None,
@@ -1323,6 +1326,7 @@ class PublishWikiTests(unittest.TestCase):
                                 "source_refs": ["wiki/sources/gone.md"],
                                 "direction": "Run a probe.",
                                 "continuity": "A future paper can answer it.",
+                                "significance": "It would change which page the gap traces to.",
                             }
                         ],
                         "existing_page": None,

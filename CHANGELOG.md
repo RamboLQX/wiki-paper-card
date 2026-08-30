@@ -2,6 +2,22 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.9.1] - 2026-08-30
+
+### 新增与改进
+
+- **产物与工作流说明**：新增 `docs/artifacts.md`，按"面向用户 / 面向机器 / 中间过程"三层解释全部产物，讲清处理论文与挖掘研究空白两个工作流的完整过程，重点说明 gap-mining 的决策闭环（报告待确认清单 → 用户逐项确认 → 写回 Topic 页与仪表盘；不确认则 wiki 无变化）。README 中英文新增 4.4 小节作入口，四个 skill README 的产物小节同步指向该文档。
+- **收尾说明要求**：`workflow-contract.md` 与 `wiki-gap-mining/SKILL.md` 新增 User-Facing Closing Summary 契约，要求 Agent 收尾时向用户列出本次产物、各文件含义、是否需要用户决策。
+- **Topic 页写作规范**：新增 `skills/wiki-shared/references/writing-guide.md`，确立"动机优先于细节"原则。概述写 3-5 句并覆盖研究问题、动机、进展与分歧；关键发现必须说明对读者意味着什么；正文散文禁止用分号连接两个命题、禁止破折号插入从句，压缩条目（对照表、gap 主行、仪表盘行）一行一意，术语内连字符与公式代码不受影响。
+- **研究空白动机字段必填**：open 状态的研究空白必须携带非空 `significance`（为什么值得做：改变什么判断或选择），`audit_link_plan.py` 缺失即报错；`evidence_boundary` 缺失降级为 `[待验证]` 方向并给出 warning；answered 归档条目豁免。`linker-brief.md`、`mining-brief.md`、`link-plan-schema.md`、`wiki-schema.md` 同步，linker 与 miner 的 Required Reads 加入 writing-guide。
+
+### 改动文件
+
+- 新增：`docs/artifacts.md`、`skills/wiki-shared/references/writing-guide.md`。
+- `audit_link_plan.py`：open gap 缺 significance 报 `research_gap_significance` 错误；缺 evidence_boundary 报 warning。
+- `README.md` / `README.en.md`、`skills/wiki-paper-card/README{,.en}.md`、`skills/wiki-gap-mining/README{,.en}.md`、`skills/wiki-paper-card/references/{workflow-contract,linker-brief,link-plan-schema}.md`、`skills/wiki-gap-mining/{SKILL,references/mining-brief}.md`、`skills/wiki-shared/references/wiki-schema.md`：上述契约与入口同步。
+- 测试：更新 `test_audit_link_plan.py`（significance 必填、answered 豁免、v2 可选字段降级为 experiment 等）与 `test_publish_wiki.py` 两处 mining plan 构造；全量 119 个测试通过。
+
 ## [0.9.0] - 2026-08-30
 
 ### 新增与改进

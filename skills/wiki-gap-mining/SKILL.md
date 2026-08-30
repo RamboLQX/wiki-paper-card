@@ -120,6 +120,22 @@ The miner never edits wiki pages directly.
 
 Match the user's language. Preserve canonical technical terms.
 
+## User-Facing Closing Summary
+
+When the run settles, the main agent explains to the user, in the user's
+language:
+
+- where `work/gap-mining-report.md` is and what it contains in one paragraph;
+- that `work/gap-mining-notes.md` is the miner's intermediate note and needs
+  no reading;
+- the top candidates from the report's 待确认清单, and that confirming them
+  is what triggers the write-back into topic pages and the dashboard
+  (nothing in `wiki/` changes without confirmation);
+- when a write-back ran: the produced link plan and publish report, and the
+  topic pages that changed.
+
+When the user asks what a file means, point them to `docs/artifacts.md`.
+
 ## Platform Support
 
 Supported hosts are Claude Code and DeepSeek Harness (DSH).

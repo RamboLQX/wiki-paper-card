@@ -143,6 +143,11 @@ starting set (per-vault, not enforced): 评测基准与数据集 / 消解与干�
 ## 已解决的研究空白
 ```
 
+The `## 概述` opens the page with 3-5 sentences written per the shared
+[writing guide](writing-guide.md). It answers four questions: what problem
+the topic studies, why the problem matters, how far the field has come, and
+where the main disagreement sits.
+
 The `## 关键发现` section is rendered from the plan's `key_findings`, each marked 共识 / 单篇主张 / 分歧 with source pointers.
 
 The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. When a later paper answers an open item, the publisher removes it from the open section and appends it to the archive sections `## 已解决的问题` / `## 已解决的研究空白` (rendered only when they have content, never aggregated into the dashboards).
@@ -162,7 +167,9 @@ fields that were written appear:
   - 优先级：高/中/低 + 理由
 ```
 
-An entry that carries v2 detail fields but lacks both `现有方法卡在哪` and
+Every open gap carries a 为什么值得做 sub-bullet (the plan's
+`significance`); the link-plan audit rejects an open gap without it. An
+entry that carries v2 detail fields but lacks both `现有方法卡在哪` and
 `怎么检验` is a tentative direction and its main line gains a `[待验证]` tag.
 Entries without any detail field render as the legacy single line. The main
 line stays the compact summary; the dashboards aggregate only main lines,

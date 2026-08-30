@@ -6,7 +6,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.8.2-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.9.1-f59e0b"></a>
     <a href="#31-运行前提"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
     <a href="#3-安装"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.en.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -29,6 +29,7 @@
 - [2. 快速开始](#2-快速开始)
 - [3. 安装](#3-安装)
 - [4. 框架结构与运行约定](#4-框架结构与运行约定)
+  - [4.4 工作产物与工作流](#44-工作产物与工作流)
 - [5. 技术设计](#5-技术设计)
 - [6. 贡献](#6-贡献)
 - [7. 许可证](#7-许可证)
@@ -83,7 +84,7 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 | 技能 | 状态 | 用途 | 触发词 | 详情页 |
 |---|---|---|---|---|
 | [`wiki-paper-card`](skills/wiki-paper-card/README.md) | **Stable** | 分析单篇论文或批量处理主题目录，生成 Paper Card，并更新满足条件的 Topic、索引和日志 | `处理论文`、`分析这篇论文`、`批量处理这个主题`、`重新生成卡片` | [查看详情](skills/wiki-paper-card/README.md) |
-| [`wiki-gap-mining`](skills/wiki-gap-mining/README.md) | **Beta** | 基于已有研究 Wiki 挖掘开放问题、研究空白和候选方向 | `挖掘研究空白`、`寻找研究方向`、`分析整个知识库` | [查看详情](skills/wiki-gap-mining/README.md) |
+| [`wiki-gap-mining`](skills/wiki-gap-mining/README.md) | **Beta** | 基于已有研究 Wiki 挖掘开放问题、研究空白和候选方向，确认后写回 Topic 页 | `挖掘研究空白`、`寻找研究方向`、`分析整个知识库` | [查看详情](skills/wiki-gap-mining/README.md) |
 
 知识库问答、信息查证和综述检索由 [`wiki-shared` 的共享检索协议](skills/wiki-shared/references/retrieval-protocol.md) 提供。该协议供两个 Skill 共用，不作为独立 Skill 计入索引。
 
@@ -205,10 +206,21 @@ vault/
 - 批量处理先完成全部单篇分析，再建立跨论文关系。
 - 相同且未发生变化的 PDF 会跳过。明确提出重新处理时才重新生成。
 - 知识库问答通过 Agent Tree 的 signpost 索引逐层定位页面（人读导航用知识树），回答中保留相关来源依据。
-- 研究空白挖掘先生成 `work/gap-mining-report.md`，确认后再通过确定性发布流程写回。
+- 研究空白挖掘先产出只读报告 `work/gap-mining-report.md`。你逐项确认报告中的候选后，才通过确定性发布流程把开放问题与研究空白写回 Topic 页和仪表盘。
 - 最终知识页面写入 `wiki/`，中间文件和审计报告保留在 `work/`。
 
 更详细的准入条件、页面 schema 和发布流程见[架构说明](docs/architecture.md)。
+
+### 4.4 工作产物与工作流
+
+框架运行过程中会产生三类文件。`wiki/` 下是正式知识页面，`work/` 下是处理草稿、审计报告与计划文件，`raw/` 始终是你的原始资料。每个产物的含义、由谁生成、哪些需要你关注，以及处理论文和挖掘研究空白两个工作流的完整过程，见[工作产物与工作流说明](docs/artifacts.md)。
+
+两个要点：
+
+- 处理论文不需要你做决策。Topic 的创建与更新由准入规则自动判断，Agent 收尾时会汇报本次产出的页面。
+- 挖掘研究空白需要你做决策。报告末尾的待确认清单逐条列出候选，只有你确认后才写回 Topic 页。`work/gap-mining-notes.md` 是挖掘过程的中间笔记，不需要阅读。
+
+每次工作结束时，Agent 会说明本次产出的文件和是否需要你决策的事项。
 
 ## 5. 技术设计
 
