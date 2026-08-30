@@ -1,143 +1,121 @@
 <div align="center">
+  <h1>wiki-paper-card</h1>
+  <p><strong>Turn paper reading into a personal research Wiki that keeps accumulating, answering questions, and revealing research directions.</strong></p>
   <p>
-    <img src="assets/readme-banner-en.svg" alt="wiki-paper-card — Turn papers into verifiable, connected, reusable research knowledge" width="100%">
+    <img src="assets/readme-hero-v2.png" alt="wiki-paper-card turns papers into Paper Cards, connected topics, grounded answers, and research gaps" width="100%">
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.7.3-f59e0b"></a>
-    <a href="#runtime-and-entry-points"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
-    <a href="#quick-start"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.8.2-f59e0b"></a>
+    <a href="#31-requirements"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
+    <a href="#3-installation"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
-  </p>
-  <p>
-    <a href="#project-positioning">Positioning</a>
-    · <a href="#knowledge-loop">Knowledge Loop</a>
-    · <a href="#core-capabilities">Capabilities</a>
-    · <a href="#capability-entry-points">Entry Points</a>
-    · <a href="#quick-start">Quick Start</a>
-    · <a href="#usage">Usage</a>
-    · <a href="#workflow">Workflow</a>
-    · <a href="#project-layout">Project Layout</a>
-    · <a href="README.md">中文</a>
   </p>
 </div>
 
 ---
 
-**`wiki-paper-card` is a paper knowledge framework for long-term research.** It turns each paper into a source-grounded Paper Card and uses Topic pages to synthesize methods, results, boundaries, consensus, disagreement, and research gaps around a shared question. As new papers arrive, the Wiki's pages, relationships, indexes, and research dashboard evolve together to support paper review, cross-paper comparison, survey writing, and research planning.
+In the age of Agents, research accumulation is moving from file storage to the digital accumulation of knowledge and experience.
 
-> Status: the core workflow is stable and tested; workflow contracts and knowledge rules will keep refining.
+`wiki-paper-card` turns research questions, methods, evidence, conclusions, and limitations into verifiable knowledge pages, then connects findings across papers. Researchers can ask the knowledge base questions and use the accumulated Wiki to identify open questions and research gaps.
 
-## Project Positioning
+## Contents
 
-`wiki-paper-card` supports researchers who continuously read, compare, and reuse academic papers. It organizes source-grounded close reading, knowledge connection, cross-paper synthesis, and incremental Wiki maintenance into one continuous workflow.
+- [1. Project Value](#1-project-value)
+  - [1.1 Common Research Problems](#11-common-research-problems)
+  - [1.2 What the Framework Produces](#12-what-the-framework-produces)
+  - [1.3 From Papers to a Research Wiki](#13-from-papers-to-a-research-wiki)
+  - [1.4 Skill Index](#14-skill-index)
+- [2. Quick Start](#2-quick-start)
+- [3. Installation](#3-installation)
+- [4. Framework Structure and Operating Rules](#4-framework-structure-and-operating-rules)
+- [5. Technical Design](#5-technical-design)
+- [6. Contributing](#6-contributing)
+- [7. License](#7-license)
 
-Each paper first becomes a complete Paper Card covering its research question, methods, experiments, conclusion boundaries, limitations, and research ideas, with key claims anchored to a page, figure, table, or equation. Batch processing then connects research topics across papers: related methods, results, and disagreements accumulate and compare on Topic pages. Researchers can move from any knowledge page back to the source paper for verification, then use existing questions and research gaps to organize the next round of reading.
+## 1. Project Value
 
-## Knowledge Loop
+### 1.1 Common Research Problems
 
-Three page types organize paper-level detail, knowledge objects, and research questions. Source evidence and Wiki links connect them, and each page can be updated as new papers enter the collection.
+**Reading does not remain reusable**
 
-| Page | What it contains | Research value |
+After finishing a paper, researchers often remember only its main conclusion. The research question, method assumptions, experimental support, and applicability boundaries gradually fade. Writing a survey, planning an experiment, or checking a citation still requires reopening the original paper. The time spent reading has not become knowledge that can be called upon directly.
+
+**Multiple papers do not form a systematic view**
+
+A research problem is usually advanced by many papers. Some reach similar findings under different datasets or experimental conditions. Some report different results. Others extend, revise, or limit earlier methods. Researchers need to know which findings receive support from multiple papers, where results disagree, which experimental conditions cause the difference, and where each method applies. Folders and isolated notes do not maintain these relationships.
+
+**Research questions and gaps are not maintained over time**
+
+Open questions are questions raised by existing papers that remain insufficiently answered. Research gaps are areas where evidence is still missing from methods, data, evaluation, or scope. New papers may answer an existing question or reveal a new limitation. Without continued maintenance, researchers must inspect the field again before writing a survey or choosing a direction.
+
+`wiki-paper-card` addresses these problems by organizing paper analysis, knowledge connections, knowledge-base questions, and research-gap mining into a continuously updated research Wiki.
+
+### 1.2 What the Framework Produces
+
+<p align="center">
+  <img src="assets/readme-product-demo-v2.png" alt="Product concept with Obsidian-style pages, paper analysis, cross-paper relations, knowledge-base questions, and research gaps" width="100%">
+</p>
+
+<p align="center"><sub>The concept uses landmark AI paper titles and substitute content to show the product experience. It contains no real vault or private research material.</sub></p>
+
+| Core capability | What you get | Research value |
 |---|---|---|
-| **Paper Card** | A paper's research question, core idea, method modules, formulas, experiment-to-claim evidence chain, limitations, critical analysis, and research ideas | Restores the paper's full context quickly and links every key claim back to a page, figure, table, or equation |
-| **Topic** | Paper comparisons, key findings, consensus, disagreement, open questions, and research gaps around a shared problem, mechanism, or evidence space | Synthesizes the evidence for a research direction and compares methods, results, and boundaries for survey writing, research planning, and experiment design |
+| **Deep paper analysis** | A structured Paper Card with the research question, method conditions, experimental evidence, key conclusions, limitations, and source locations | Restore the paper's context quickly and verify a claim at its source |
+| **Cross-paper knowledge connections** | A Topic organized around a shared research problem, including method comparisons, evidence relations, disagreements, and applicability boundaries | View the state of a research direction without rebuilding the comparison |
+| **Knowledge-base questions** | Answers, comparisons, or surveys grounded in relevant Paper Cards and Topics located through the knowledge tree | Reuse accumulated research knowledge and reduce repeated reading and organization |
+| **Research-gap mining** | A Gap Report with open questions, missing evidence, and candidate research directions | Identify questions that still need evidence and inform the next reading, experiment, or topic decision |
 
-`index.md`, the research dashboard, the knowledge tree, and `log.md` form the maintenance layer for entry points, open-question and research-gap aggregation, navigation, and update history. New papers can create pages or add evidence that supports or challenges existing conclusions, closing the loop from reading and verification through connection and synthesis to later retrieval.
+Paper Cards preserve the full context of individual papers. Topics maintain the understanding formed across papers around a shared question. The knowledge tree connects existing pages and supports retrieval, questions, and gap mining. Key claims retain page, figure, table, or equation locators for source verification.
 
-## Core Capabilities
+### 1.3 From Papers to a Research Wiki
 
-The core goal is to turn papers you have read into research knowledge that remains searchable, verifiable, comparable, and extensible over time.
+![The complete flow from paper input to accumulated knowledge, questions, and research-gap mining](assets/readme-workflow-en.svg)
 
-| The problem you hit | How wiki-paper-card solves it |
-|---|---|
-| You finish a paper, then forget it and can't find it when writing a survey | Each paper becomes a structured card whose claims, formulas, and figures point back to the source for one-click verification |
-| Papers accumulate while methods and research objects stay scattered | Topic pages compare papers under one question so the same research question stays connected |
-| Comparing papers and forming a research judgment takes repeated manual work | Topic pages compare methods, results, and boundaries under a shared question while preserving consensus, single-paper claims, disagreements, and source evidence |
-| You worry AI output is padded or unreliable | Every claim must land on a page / figure / table / equation anchor, enforced by deterministic audits; sections stay empty when there is nothing of value |
-| A growing knowledge base becomes difficult to navigate and maintain | Deterministic scripts write incrementally, repeated runs create no duplicates, and the index, research dashboard, knowledge tree, and log stay maintained automatically |
+Each paper first enters an independent analysis workflow and produces an audited Paper Card. When related papers meet the admission rules, the framework creates or updates a Topic and refreshes the index, knowledge tree, and log. Researchers can ask questions, verify findings, retrieve survey material, and mine gaps across existing topics.
 
-Topic pages are created or updated when they have independent source support or a direct connection to existing knowledge. Material without cross-paper value remains in its Paper Card.
+Source papers stay under `raw/`. Intermediate reports go to `work/`. Audited knowledge pages are published to `wiki/`. This layout keeps source material, processing artifacts, and final knowledge separate.
 
-## Capability Entry Points
+### 1.4 Skill Index
 
-The framework offers three connected entry points covering the full loop from paper ingestion to knowledge retrieval to gap mining:
+The following triggerable Skills are available under `skills/`. `skills/wiki-shared/` is a shared-content directory and is not included in the Skill index. Select a Skill name or its Details link for the dedicated page.
 
-| What you want | Entry point | Output |
-|---|---|---|
-| Read or batch-process papers | `wiki-paper-card` | Paper Cards, topic pages, index/log |
-| Ask, retrieve, verify, or survey the knowledge base | Retrieval protocol (`wiki-shared`) | Knowledge-tree lookup / survey, read-only |
-| Mine research gaps and candidate directions across groups or the whole wiki | `wiki-gap-mining` | Gap-mining report, written back after confirmation |
+| Skill | Status | Purpose | Trigger phrases | Details |
+|---|---|---|---|---|
+| [`wiki-paper-card`](skills/wiki-paper-card/README.en.md) | **Stable** | Analyze one paper or batch-process a topic folder, generate Paper Cards, and update admitted Topics, the index, and the log | `process this paper`, `analyze this paper`, `batch-process this topic`, `regenerate this card` | [View details](skills/wiki-paper-card/README.en.md) |
+| [`wiki-gap-mining`](skills/wiki-gap-mining/README.en.md) | **Beta** | Mine open questions, research gaps, and candidate directions from the existing Wiki | `mine research gaps`, `find research directions`, `analyze the whole knowledge base` | [View details](skills/wiki-gap-mining/README.en.md) |
 
-- `wiki-paper-card` handles paper processing: it turns each paper into a source-grounded Paper Card and creates or updates topic pages when cross-paper evidence justifies it.
-- Retrieval follows [skills/wiki-shared/references/retrieval-protocol.md](skills/wiki-shared/references/retrieval-protocol.md): for questions and surveys over the existing knowledge base, read `wiki/meta/knowledge-tree.md` first, then retrieve in lookup (budgeted pruning) or survey (whole-domain expansion) mode; it is read-only and never writes back to the wiki.
-- `wiki-gap-mining` handles gap mining: it mines research gaps and candidate directions within a scope or across the whole wiki, produces `work/gap-mining-report.md`, and writes back to topic pages through deterministic audits after you confirm.
+Knowledge-base questions, verification, and survey retrieval use the shared [`wiki-shared` retrieval protocol](skills/wiki-shared/references/retrieval-protocol.md). It is shared by both Skills and is not indexed as a standalone Skill.
 
-All three share one knowledge model and one deterministic publishing pipeline: processing writes, retrieval reads, and gap mining discovers what to read next.
+## 2. Quick Start
 
-## Table Of Contents
-
-- [Project Positioning](#project-positioning)
-- [Knowledge Loop](#knowledge-loop)
-- [Core Capabilities](#core-capabilities)
-- [Capability Entry Points](#capability-entry-points)
-- [Runtime And Entry Points](#runtime-and-entry-points)
-- [Relationship To Upstream nature-skills](#relationship-to-upstream-nature-skills)
-- [Design Reference](#design-reference)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-- [Agent Quick Setup](#agent-quick-setup)
-- [Workflow](#workflow)
-- [Output Layout](#output-layout)
-- [Supported Scope](#supported-scope)
-- [Project Layout](#project-layout)
-- [Documentation](#documentation)
-- [Verification](#verification)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Runtime And Entry Points
-
-This project supports two runtime hosts:
-
-- 🖥️ [Claude Code](https://code.claude.com/docs/en/overview): used inside [Obsidian](https://obsidian.md/download) with the [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin. The official Claudian repository is on [GitHub](https://github.com/YishenTu/claudian).
-- 🤖 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness): start a DSH session inside the vault directory — no Obsidian plugin required. See [adapters/dsh/](adapters/dsh/) for the adapter and orchestration mapping.
-
-Open a standalone vault initialized from `template/` in Obsidian, not this repository's root directory. The repository root also contains implementation files such as `vendor/`, `scripts/`, and `tests/`.
-
-## Relationship To Upstream nature-skills
-
-The analysis core and shared rules come from the [nature-skills](https://github.com/Yuan1z0825/nature-skills) project. The upstream directories are pinned in `vendor/nature-paper-card` and `vendor/nature-shared`.
-
-| Responsibility | Source |
-|---|---|
-| Sections 01-16 card structure, source bundles, evidence grounding, paper-type lenses, upstream audits | `nature-skills` |
-| Obsidian path mapping, KB context, batch orchestration, digests, link plans and topic decisions, Wiki publishing, idempotency | This project |
-
-This project adds an orchestration and knowledge-crystallization layer for Obsidian LLM Wikis on top of the upstream paper-analysis core. See [UPSTREAM.md](UPSTREAM.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the pinned version, upstream commit, synchronization policy, and third-party notices.
-
-## Design Reference
-
-This project follows Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern, using Wiki layering, agent-maintained knowledge, and `index.md`/`log.md` to organize a long-lived knowledge base.
-
-## Quick Start
-
-Once installed, copy these prompts straight to your Agent:
+After installation, send one of the following prompts to your Agent. Replace the example path or question with your own.
 
 | What you want | What to say |
 |---|---|
-| Process one paper | `Use wiki-paper-card to process raw/papers/example.pdf.` |
-| Batch-process a directory | `Use wiki-paper-card to batch-process raw/papers/knowledge-conflict/.` |
+| Analyze one paper | `Use wiki-paper-card to process raw/papers/example.pdf.` |
+| Batch-process a research topic | `Use wiki-paper-card to batch-process every paper under raw/papers/<topic-name>/.` |
+| Ask the knowledge base | `Using the existing research Wiki, answer: ... Include the relevant Paper Cards, Topics, and source evidence.` |
+| Review a research direction | `Using the existing research Wiki, compare the main methods, experimental results, and applicability boundaries for this topic.` |
+| Mine research gaps | `Use wiki-gap-mining to mine research gaps and candidate directions across the whole research Wiki.` |
 | Regenerate an existing card | `Use wiki-paper-card to reprocess raw/papers/example.pdf.` |
 
-Prerequisites:
+Questions and survey retrieval are read-only by default. Gap mining first creates a read-only report and writes back to Topics only after researcher confirmation.
 
-- [Claude Code](https://code.claude.com/docs/en/overview) or [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (one or both)
-- [Obsidian](https://obsidian.md/download) (the Claude Code host also needs the [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin)
-- Python 3
-- PyMuPDF when processing PDF files
+## 3. Installation
 
-Create or select a standalone vault and link it with the install script:
+### 3.1 Requirements
+
+| Item | Requirement |
+|---|---|
+| Runtime host | [Claude Code](https://code.claude.com/docs/en/overview), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), or both |
+| Knowledge base | An [Obsidian](https://obsidian.md/download) vault |
+| Claude Code inside Obsidian | The [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin |
+| Local environment | Python 3. PyMuPDF is required for PDF processing |
+
+Use a standalone vault. Do not open this repository root as the vault because it also contains scripts, tests, and pinned upstream implementation files.
+
+### 3.2 Manual Installation
 
 ```bash
 git clone https://github.com/RamboLQX/wiki-paper-card.git wiki-paper-card
@@ -146,238 +124,123 @@ cd wiki-paper-card
 VAULT=/path/to/vault
 mkdir -p "$VAULT"
 
-# --host can be claude | dsh | both (default: both)
-scripts/install.sh --host dsh "$VAULT"
-# or connect both hosts at once:
+# --host accepts claude | dsh | both (default: both)
 scripts/install.sh --host both "$VAULT"
 
 export WIKI_PAPER_CARD_ROOT="$PWD"
 ```
 
-The install script is idempotent: it only creates missing directories, templates, and skill links, and never overwrites an existing `CLAUDE.md`, knowledge pages, or `raw/` files in the vault. The Claude Code host links skills into `$VAULT/.claude/skills/` and copies subagents; the DSH host links skills into `$VAULT/.dsh/skills/` (DSH auto-discovers that directory and the vault-root `CLAUDE.md`).
+The installer creates only missing directories, templates, and Skill links. It does not overwrite an existing `CLAUDE.md`, knowledge page, or source file under `raw/`.
 
-Open `$VAULT` in Obsidian (for the DSH host, start a DSH session in the vault directory), not this repository's root directory. After setting `WIKI_PAPER_CARD_ROOT`, the host can discover `wiki-paper-card`, `wiki-shared`, and the subagents from the vault, and resolve the repository scripts and pinned upstream files through that environment variable. Copying the template alone does not make the skills appear.
+Open `$VAULT` in Obsidian after installation. For DSH, start the session inside the vault directory. Place papers under `raw/papers/` and use a prompt from [Quick Start](#2-quick-start).
 
-Place a paper under `raw/papers/` in the vault and invoke the skill:
+### 3.3 Agent-Assisted Installation
+
+An Agent with network, terminal, and local filesystem access can follow the project setup guide. Replace the paths and runtime host first:
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Read /absolute/path/to/wiki-paper-card/docs/agent-quick-setup.md and configure wiki-paper-card.
+
+Project repository: /absolute/path/to/wiki-paper-card
+Obsidian vault: /absolute/path/to/vault
+Runtime host: claude / dsh / both
+
+Check the paths and runtime first, then run the installer and smoke test.
+Do not overwrite existing files in the vault. Report completed items separately from steps that still require user action.
 ```
 
-See [docs/installation.md](docs/installation.md) for the full installation, environment configuration, and troubleshooting notes.
+For a first-time clone, use the [remote setup guide](https://raw.githubusercontent.com/RamboLQX/wiki-paper-card/main/docs/agent-quick-setup.md).
 
-## Usage
+### 3.4 Verification and Troubleshooting
 
-Send `Use wiki-paper-card ...` directly in a Claudian session. If the plugin provides a skill picker, you can also select `wiki-paper-card` first and then give the processing target.
+Run this from the repository root:
 
-### 1. Place Inputs
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/smoke_test.py
+```
 
-- Place paper PDFs and `nature-reader` source-map JSON files under `raw/papers/` in the Obsidian vault.
-- `raw/` is read-only. Do not move, overwrite, or delete source files during processing.
-- Users must organize `raw/` into their own topic directories; the workflow does not classify papers automatically. For example, use `raw/papers/knowledge-conflict/`.
+See the [installation guide](docs/installation.md) for environment variables, host differences, and troubleshooting.
+
+## 4. Framework Structure and Operating Rules
+
+### 4.1 Vault Layout
 
 ```text
 vault/
 ├── raw/
 │   └── papers/
 │       ├── example.pdf
-│       └── example.source-map.json
-├── wiki/
-│   ├── sources/
-│   ├── topics/
-│   ├── index.md
-│   └── log.md
-└── work/
-```
-
-For example, `raw/papers/example.pdf` produces the source page `wiki/sources/papers/example.md`.
-
-### 2. Process One Paper
-
-```text
-Use wiki-paper-card to process raw/papers/example.pdf.
-```
-
-Process a `nature-reader` source map:
-
-```text
-Use wiki-paper-card to process raw/papers/example.source-map.json.
-```
-
-A single paper produces at least a Paper Card source page under `wiki/sources/`. One paper alone does not create a new topic.
-
-### 3. Process A Batch
-
-Process all PDFs under a specific directory:
-
-```text
-Use wiki-paper-card to batch-process raw/papers/knowledge-conflict/.
-```
-
-Process all PDFs under `raw/papers/`:
-
-```text
-Use wiki-paper-card to batch-process raw/papers/.
-```
-
-Batch processing creates all source pages first and performs cross-paper linking only after every audit passes. We recommend at most 15 papers per batch. The system runs at most three processors concurrently.
-
-### 4. Topics And Cross-Paper Pages
-
-A topic is created or updated only when at least two papers share the same problem, mechanism, or evidence space, or when a new paper answers or challenges an existing topic's open questions. Public datasets, benchmarks, model families, and metrics stay in each Paper Card's Sections 14-15; there are no entity pages.
-
-You can state the synthesis goal explicitly:
-
-```text
-Use wiki-paper-card to batch-process raw/papers/knowledge-conflict/ and create or update topic pages where at least two papers share the same problem, mechanism, or evidence space.
-```
-
-The framework does not force-create topic pages when those conditions are not satisfied.
-
-Legacy concept pages and legacy entity pages from older installs are no longer written or updated by the publisher and no longer appear in the knowledge tree; mark them `archived` or keep them as read-only references.
-
-### 5. Cross-Group And Whole-Wiki Gap Mining
-
-Once the knowledge base has accumulated several paper groups, you can ask the framework to mine research gaps and candidate directions within a scope, and to synthesize already-solved questions:
-
-```text
-Use wiki-gap-mining to mine research gaps and candidate directions across
-the knowledge-conflict and safety groups.
-
-Use wiki-gap-mining to mine research gaps across the whole wiki.
-```
-
-Mining is read-only at first: it produces `work/gap-mining-report.md` with candidate gaps (each carrying a source anchor, a testable direction, and a suggested landing page), plus cross-group solved relationships and resolution trails. After you confirm adoption, the framework generates a `purpose: "mining"` link plan that passes deterministic audits and is written back to topic pages via `publish_wiki.py` — cross-group directions may create a new topic (requiring at least two existing papers), and the research dashboard and knowledge tree refresh after the write.
-
-### 6. Updates And Reprocessing
-
-Unchanged PDFs are skipped when the same path is processed again. To regenerate one:
-
-```text
-Use wiki-paper-card to reprocess raw/papers/example.pdf.
-```
-
-Processing updates `wiki/index.md`, `wiki/log.md`, and existing pages without deleting knowledge pages. Batch reports go under `work/`; final knowledge pages go under `wiki/`.
-
-## Agent Quick Setup
-
-An Agent with network access, terminal execution, and local filesystem write permissions can clone the repository, configure the vault, and run the smoke test. For a first-time installation, replace the repository destination, vault path, and runtime host below with actual values:
-
-```text
-Configure wiki-paper-card by following these setup instructions:
-
-Setup instructions:
-https://raw.githubusercontent.com/RamboLQX/wiki-paper-card/main/docs/agent-quick-setup.md
-
-Project repository:
-https://github.com/RamboLQX/wiki-paper-card.git
-
-Repository destination:
-/absolute/path/to/wiki-paper-card
-
-Obsidian vault:
-/absolute/path/to/vault
-
-Runtime host:
-claude / dsh / both
-
-Check the paths and runtime first. If the repository does not exist locally, clone it to the specified destination.
-Then run the installer and smoke test, and report completed items separately from steps that still require user action.
-Do not overwrite existing files in the vault.
-```
-
-If the repository is already cloned, the Agent can read the local instructions directly:
-
-```text
-Read /absolute/path/to/wiki-paper-card/docs/agent-quick-setup.md and configure wiki-paper-card.
-Project repository: /absolute/path/to/wiki-paper-card
-Obsidian vault: /absolute/path/to/vault
-Runtime host: claude / dsh / both
-```
-
-The Agent creates missing vault directories, links the skills, merges `CLAUDE.md`, sets the environment variable for the current session, and runs the smoke test. Installing Obsidian or Claudian through a graphical interface and persisting the environment variable may still require user confirmation or manual action. See [docs/agent-quick-setup.md](docs/agent-quick-setup.md) for the execution rules and safety boundaries.
-
-## Workflow
-
-![Research loop from close reading to knowledge reuse](assets/readme-workflow-en.svg)
-
-New papers produce source-grounded Paper Cards; cross-paper evidence updates Topic pages; indexes and the research dashboard stay synchronized; existing questions and research gaps guide later reading. For the deterministic pipeline behind the scenes (prepare → finalize → audit → publish) and per-script details, see [docs/architecture.md](docs/architecture.md).
-
-## Output Layout
-
-```text
-vault/
-├── raw/
-│   └── papers/
-│       └── example.pdf
+│       └── <topic-name>/
+├── work/
 └── wiki/
     ├── sources/
     │   └── papers/
-    │       └── example.md
     ├── topics/
     ├── meta/
     ├── index.md
     └── log.md
 ```
 
-Paper Cards keep the detailed record, and topic pages carry cross-paper synthesis. Audit reports and intermediate files stay in the batch work directory.
+Researchers organize the topic directories under `raw/papers/`. The framework does not move or classify source papers automatically. `raw/` remains read-only during processing.
 
-## Supported Scope
+### 4.2 Knowledge Pages
 
-| Area | Current support |
+| Page or view | Purpose |
 |---|---|
-| Runtime host | Claude Code, DeepSeek Harness (DSH) |
-| Obsidian entry point | Claudian (Claude Code host) |
-| Primary inputs | PDF and `nature-reader` source maps |
-| Wiki writes | Local vault only |
-| Output language | Follows the user's language |
+| **Paper Card** | Preserves the full analysis, evidence locators, limitations, and research ideas for one paper |
+| **Topic** | Synthesizes at least two related papers and maintains method comparisons, findings, disagreements, open questions, and research gaps |
+| **Knowledge Tree** | Exposes the Wiki structure and guides retrieval, questions, and surveys |
+| **Research Dashboard** | Collects the currently open questions and research gaps |
+| **Index / Log** | Records knowledge-page entry points and processing updates |
 
-## Project Layout
+One paper does not create a Topic by itself. A Topic is created or updated only when multiple papers share a research problem, mechanism, or evidence space, or when a new paper answers or challenges an existing Topic question.
 
-```text
-skills/wiki-paper-card/    Workflow entry point, contracts, and subagent briefs
-skills/wiki-shared/        Wiki schema, templates, and knowledge rules
-adapters/claude-code/      Claude Code subagent wrappers
-adapters/dsh/              DeepSeek Harness adapter and orchestration mapping
-vendor/nature-paper-card/  Pinned upstream analysis core
-vendor/nature-shared/      Pinned upstream shared rules
-template/                  Minimal Obsidian vault example
-scripts/                   Local deterministic checks, packaging, install, and publishing
-docs/                      Installation and architecture documentation
-tests/                     Tests for local scripts
-```
+### 4.3 Processing, Updates, and Writes
 
-## Documentation
+- Every paper produces an independent Paper Card that passes structural, evidence, and source-locator checks.
+- Batch processing completes all paper analyses before creating cross-paper relationships.
+- An unchanged PDF is skipped unless the researcher explicitly requests reprocessing.
+- Knowledge-base questions use the knowledge tree to locate existing pages and retain the relevant source evidence.
+- Gap mining first writes `work/gap-mining-report.md`. Confirmed items are then written back through the deterministic publisher.
+- Final knowledge pages go to `wiki/`. Intermediate files and audit reports remain under `work/`.
 
-- [Installation](docs/installation.md)
-- [Architecture](docs/architecture.md)
-- [Workflow contract](skills/wiki-paper-card/references/workflow-contract.md)
-- [Wiki integration](skills/wiki-paper-card/references/wiki-integration.md)
-- [Knowledge model](skills/wiki-shared/references/knowledge-model.md)
-- [Retrieval protocol](skills/wiki-shared/references/retrieval-protocol.md)
-- [DSH adapter](adapters/dsh/dsh-mode.md)
-- [Changelog](CHANGELOG.md)
+See [Architecture](docs/architecture.md) for the detailed admission rules, page schemas, and publishing flow.
 
-## Verification
+## 5. Technical Design
 
-```bash
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
-PYTHONDONTWRITEBYTECODE=1 python3 scripts/smoke_test.py
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s vendor/nature-paper-card/tests -v
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s vendor/nature-shared/tests -v
-```
+### 5.1 Applying LLM Wiki to Research Knowledge
 
-## Contributing
+[Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) proposes that an LLM continuously build and maintain an interlinked Markdown Wiki. Each new source updates existing pages, cross-references, contradictions, and synthesis. The Wiki becomes a persistent artifact that compounds over time.
+
+`wiki-paper-card` applies this idea to academic research:
+
+- Source papers remain traceable under `raw/`.
+- Paper Cards preserve paper-level analysis and evidence.
+- Topics maintain synthesis across papers.
+- The knowledge tree supports questions, retrieval, verification, and surveys.
+- Open questions and research gaps change as new papers arrive.
+
+Researchers select sources, ask questions, and judge research value. Agents organize pages, maintain relationships, and run consistency checks.
+
+### 5.2 Relationship to nature-skills
+
+The paper-analysis core and shared rules come from [nature-skills](https://github.com/Yuan1z0825/nature-skills). Pinned upstream snapshots live under `vendor/nature-paper-card/` and `vendor/nature-shared/`.
+
+nature-skills provides the Sections 01–16 paper-analysis structure, evidence constraints, source boundaries, and quality checks. `wiki-paper-card` adds Obsidian Wiki integration, topic-folder batch processing, cross-paper Topics, knowledge-base questions, gap mining, and deterministic publishing.
+
+See [UPSTREAM.md](UPSTREAM.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the pinned version, synchronization policy, and third-party notices.
+
+## 6. Contributing
 
 Issues and pull requests are welcome.
 
 - Do not commit personal paper PDFs, private vault content, or real API keys.
-- Keep knowledge admission rule changes in `skills/wiki-shared/references/knowledge-model.md`.
+- Keep knowledge-admission rule changes in `skills/wiki-shared/references/knowledge-model.md`.
 - Record the reason and update `UPSTREAM.md` before changing `vendor/`.
 - Define acceptance criteria in the relevant workflow contract before adding a new flow.
 
-## License
+## 7. License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
-`vendor/nature-paper-card` and `vendor/nature-shared` come from the Apache-2.0 licensed `nature-skills` project. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+`vendor/nature-paper-card` and `vendor/nature-shared` come from the Apache-2.0 licensed nature-skills project. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
