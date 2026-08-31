@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### 新增与改进
+
+- **Codex 正式适配**：新增 `.agents/skills/` 安装布局、Vault 级 `AGENTS.md`、`.agents/WIKI_PAPER_CARD_ROOT` 指针与 Codex 编排映射。`install.sh` 新增 `--host codex` 和 `--host all`，并保持默认值及 `both=claude+dsh` 的旧语义。Codex 每篇论文使用一个 fresh processor，同时最多三个且受当前会话可用子 Agent 槽位限制；全批次审计通过后只创建一个 linker。
+- **多宿主入口一致性**：`template/CLAUDE.md` 与新增的 `template/AGENTS.md` 使用字节一致的宿主无关 Vault 规则；安装器对已有入口文件继续 no-clobber，`all` 模式下两份最终内容不一致时明确警告。
+- **Topic schema 3.0 与可读叙事**：Topic 从追加式关键发现条目升级为受控的概述、综合认识和争议段落。link plan 保留 finding/contradiction 证据台账，叙事通过稳定 ID 引用证据，publisher 渲染段后来源行并不再重复输出 finding bullets。后续批次整块重写叙事，保留对照表、开放项、归档和 marker 外自定义内容。
+- **paper-card / gap-mining 双入口协调**：ingest 独占 Topic 叙事、证据台账与论文对照；mining 经用户确认后只按稳定 ID/origin 维护开放项。两者共用 `publish_wiki.py`，通过 `base_topic_sha256` 乐观锁阻断过期计划；mining 归档答案时返回 `narrative_refresh_recommended`。
+- **兼容与迁移边界**：schema 2.0 继续兼容旧计划和页面。schema 3.0 ingest 更新无 managed marker 旧页时返回 `narrative_migration_required` 并保持零写入，不提供隐式全库迁移。
+
 ### 修复方法
 
 - **仓库根目录解析确定性化**：`<REPO_ROOT>` 不再依赖 Agent 从 skill 软链推断。`install.sh` 向每个宿主目录写入 `WIKI_PAPER_CARD_ROOT` 指针文件（DSH：`$VAULT/.dsh/`；Claude Code：`$VAULT/.claude/`，内容为仓库绝对路径），自检校验指针指向的 `vendor/nature-paper-card/SKILL.md` 可读。`dsh-mode.md`、`wiki-paper-card/SKILL.md`、`workflow-contract.md` 与 `template/CLAUDE.md` 的解析规则统一为：环境变量 → 指针文件 →（DSH）`readlink -f` 软链，解析后必须验证再继续，禁止猜测路径；skill 内 `../../` 相对引用明确以 skill 目录（`skill` 工具返回的 resourceBase）为基准换算。修复 DSH 会话未设置 `WIKI_PAPER_CARD_ROOT` 时模型推断仓库根偏差一级、首次读取报 `cannot read ".../skills/vendor/nature-paper-card/SKILL.md": not found` 的问题（与既有 `../../adapters/dsh/dsh-mode.md` 修复同属一类，根因是路径解析依赖模型推断）。
@@ -14,7 +22,9 @@
 - `adapters/dsh/dsh-mode.md`：环境确认段新增确定性解析顺序、验证门与 `../../` 基准规则。
 - `skills/wiki-paper-card/SKILL.md` / `references/workflow-contract.md` / `template/CLAUDE.md`：去除"从环境或 skill 所在仓库解析"的推断式措辞。
 - `docs/agent-quick-setup.md` / `docs/installation.md` / `adapters/{dsh,claude-code}/README.md` / `README.md` / `README.en.md`：指针文件机制与验证命令同步。
-- 测试：`tests/test_install.py` 新增 `assert_repo_root_pointer` 与 DSH/Claude Code 指针文件用例；全量 120 个测试通过。
+- `scripts/audit_link_plan.py` / `scripts/publish_wiki.py`：新增 schema 3.0 审计分支、受控叙事渲染、稳定开放项、过期计划预检、mining stub 和叙事刷新警告。
+- `skills/wiki-paper-card/references/`、`skills/wiki-gap-mining/`、`skills/wiki-shared/`：同步 Topic 叙事、证据台账、双入口权限与迁移边界。
+- 测试：`tests/test_install.py` 新增 Codex 安装与指针用例；`tests/test_audit_link_plan.py` 与 `tests/test_publish_wiki.py` 增加 schema 3.0、二篇到五篇多批次、双入口冲突、迁移阻断和幂等回归；全量 145 个测试通过。
 
 ## [0.9.1] - 2026-08-30
 

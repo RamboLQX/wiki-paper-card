@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -104,6 +106,92 @@ def valid_plan() -> dict:
     }
 
 
+def valid_v3_plan() -> dict:
+    plan = valid_plan()
+    plan["schema_version"] = "3.0"
+    plan["purpose"] = "ingest"
+    action = plan["topic_actions"][0]
+    action.pop("summary")
+    action["index_summary"] = "The papers support a shared result with an unresolved boundary."
+    action["page_status"] = "draft"
+    action["comparisons"] = [
+        {
+            "source_ref": "wiki/sources/a.md",
+            "paper": "Paper A",
+            "method": "Method A",
+            "intervention_granularity": "sample",
+            "main_result": "Shared result",
+            "boundary": "One benchmark",
+            "pointer": "[Paper: PDF p. 3]",
+        }
+    ]
+    action["key_findings"] = [
+        {
+            "id": "kf-shared-result",
+            "claim": "Both papers support the shared result.",
+            "kind": "consensus",
+            "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+            "pointers": [
+                {
+                    "source_ref": "wiki/sources/a.md",
+                    "pointer": "[Paper: PDF p. 3]",
+                },
+                {
+                    "source_ref": "wiki/sources/b.md",
+                    "pointer": "[Paper: PDF p. 4]",
+                },
+            ],
+        }
+    ]
+    action["contradictions"] = []
+    action["narrative"] = {
+        "overview": {
+            "paragraphs": [
+                {
+                    "id": "overview-scope",
+                    "text": "This topic studies whether the shared result transfers across settings.",
+                    "finding_refs": ["kf-shared-result"],
+                }
+            ]
+        },
+        "synthesis_blocks": [
+            {
+                "id": "synthesis-shared-result",
+                "heading": "The result is supported across two settings",
+                "paragraphs": [
+                    {
+                        "text": "The two papers support the result under different settings, but they do not use one benchmark.",
+                        "finding_refs": ["kf-shared-result"],
+                    }
+                ],
+            }
+        ],
+        "controversy_blocks": [],
+    }
+    action["open_questions"] = [
+        {
+            "id": "oq-transfer",
+            "origin": "ingest",
+            "question": "Does the result transfer to a shared benchmark?",
+            "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+            "status": "open",
+        }
+    ]
+    action["research_gaps"] = [
+        {
+            "id": "rg-unified-benchmark",
+            "origin": "ingest",
+            "gap": "A unified benchmark is missing.",
+            "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+            "direction": "Run both methods on one benchmark.",
+            "continuity": "A later paper can perform the comparison.",
+            "significance": "It would change which method is preferred.",
+            "status": "open",
+        }
+    ]
+    return plan
+
+
 def prepare_vault(root: Path) -> None:
     for directory in (
         "wiki/topics",
@@ -135,7 +223,462 @@ def prepare_vault(root: Path) -> None:
     (root / "wiki" / "log.md").write_text("# 操作日志\n", encoding="utf-8")
 
 
+def publish_plan(
+    root: Path, plan: dict, name: str = "link-plan.json"
+) -> subprocess.CompletedProcess[str]:
+    plan_path = root / name
+    plan_path.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+    return subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--plan",
+            str(plan_path),
+            "--wiki-root",
+            str(root),
+            "--report",
+            str(root / f"{Path(name).stem}-report.json"),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 class PublishWikiTests(unittest.TestCase):
+    def test_schema_v3_create_renders_managed_narrative_without_finding_bullets(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-08-31",
+            "2026-08-31",
+            {"wiki/sources/a.md": "A", "wiki/sources/b.md": "B"},
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertIn("%% wiki-paper-card:managed-start overview %%", text)
+        self.assertIn("## 综合认识", text)
+        self.assertIn("### The result is supported across two settings", text)
+        self.assertIn("*证据：[[a|A]] [Paper: PDF p. 3]", text)
+        self.assertNotIn("## 关键发现", text)
+        self.assertNotIn("共识：Both papers support", text)
+        self.assertLess(text.index("## 综合认识"), text.index("## 论文与方法对照"))
+
+    def test_schema_v3_mining_update_preserves_narrative_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "ingest-v3.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            before = topic_path.read_text(encoding="utf-8")
+            _, _, before_body = PUBLISH.parse_frontmatter(before)
+            narrative_before = {
+                key: re.search(
+                    rf"(?ms)^%% wiki-paper-card:managed-start {key} %%.*?"
+                    rf"^%% wiki-paper-card:managed-end {key} %%$",
+                    before_body,
+                ).group(0)
+                for key in PUBLISH.MANAGED_KEYS
+            }
+            mining = {
+                "schema_version": "3.0",
+                "purpose": "mining",
+                "batch": {"source_pages": [], "label": "gap mining 2026-08"},
+                "topic_actions": [
+                    {
+                        "action": "update_topic",
+                        "id": "topic-1-mining",
+                        "name": "Shared Topic",
+                        "papers": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "existing_page": "wiki/topics/Shared Topic.md",
+                        "base_topic_sha256": hashlib.sha256(before.encode("utf-8")).hexdigest(),
+                        "open_questions": [],
+                        "research_gaps": [
+                            {
+                                "id": "rg-cross-group",
+                                "origin": "mining",
+                                "gap": "A cross-group control is missing.",
+                                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                                "direction": "Add the same control to both settings.",
+                                "continuity": "A later comparison can close the gap.",
+                                "significance": "It would change whether the results are comparable.",
+                                "status": "open",
+                            }
+                        ],
+                    }
+                ],
+            }
+            second = publish_plan(root, mining, "mining-v3.json")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            after = topic_path.read_text(encoding="utf-8")
+            _, _, after_body = PUBLISH.parse_frontmatter(after)
+            for key, expected in narrative_before.items():
+                actual = re.search(
+                    rf"(?ms)^%% wiki-paper-card:managed-start {key} %%.*?"
+                    rf"^%% wiki-paper-card:managed-end {key} %%$",
+                    after_body,
+                ).group(0)
+                self.assertEqual(actual, expected)
+            self.assertIn("id=rg-cross-group origin=mining", after)
+            dashboard = (root / "wiki" / "meta" / "research.md").read_text(encoding="utf-8")
+            self.assertIn("A cross-group control is missing.", dashboard)
+            self.assertNotIn("wiki-paper-card:item", dashboard)
+
+    def test_schema_v3_stale_plan_blocks_all_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "ingest-v3.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            base = topic_path.read_text(encoding="utf-8")
+
+            def mining_plan(item_id: str, question: str) -> dict:
+                return {
+                    "schema_version": "3.0",
+                    "purpose": "mining",
+                    "batch": {"source_pages": [], "label": item_id},
+                    "topic_actions": [
+                        {
+                            "action": "update_topic",
+                            "id": item_id,
+                            "name": "Shared Topic",
+                            "papers": ["wiki/sources/a.md"],
+                            "existing_page": "wiki/topics/Shared Topic.md",
+                            "base_topic_sha256": hashlib.sha256(base.encode("utf-8")).hexdigest(),
+                            "open_questions": [
+                                {
+                                    "id": item_id,
+                                    "origin": "mining",
+                                    "question": question,
+                                    "source_refs": ["wiki/sources/a.md"],
+                                    "status": "open",
+                                }
+                            ],
+                            "research_gaps": [],
+                        }
+                    ],
+                }
+
+            accepted = publish_plan(root, mining_plan("oq-first", "First question?"), "first.json")
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            after_first = topic_path.read_text(encoding="utf-8")
+            stale = publish_plan(root, mining_plan("oq-second", "Second question?"), "second.json")
+            self.assertEqual(stale.returncode, 1)
+            self.assertIn("stale_topic_plan", stale.stderr)
+            self.assertEqual(topic_path.read_text(encoding="utf-8"), after_first)
+            self.assertNotIn("Second question?", after_first)
+
+    def test_schema_v3_answer_keeps_item_id_and_archives_gap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            initial = valid_v3_plan()
+            initial["topic_actions"][0]["research_gaps"][0]["origin"] = "mining"
+            first = publish_plan(root, initial, "initial.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            existing = topic_path.read_text(encoding="utf-8")
+            update = valid_v3_plan()
+            action = update["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(existing.encode("utf-8")).hexdigest()
+            action["research_gaps"] = [
+                {
+                    "id": "rg-unified-benchmark",
+                    "origin": "mining",
+                    "gap": "A unified benchmark is missing.",
+                    "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                    "direction": "Run both methods on one benchmark.",
+                    "continuity": "The current evidence closes the recorded gap.",
+                    "status": "answered",
+                    "answered_by": ["wiki/sources/b.md"],
+                    "answered_pointer": "[Paper: PDF p. 6]",
+                }
+            ]
+            action["narrative"]["synthesis_blocks"][0]["paragraphs"][0]["text"] = (
+                "The two papers now provide a unified comparison that answers the recorded gap."
+            )
+            second = publish_plan(root, update, "answered.json")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            topic = topic_path.read_text(encoding="utf-8")
+            open_part, archive_part = topic.split("## 已解决的研究空白", 1)
+            self.assertNotIn("A unified benchmark is missing.", open_part)
+            self.assertIn("A unified benchmark is missing.", archive_part)
+            self.assertIn("id=rg-unified-benchmark origin=mining", archive_part)
+            self.assertIn("answers the recorded gap", topic)
+
+    def test_schema_v3_mining_create_is_stub_and_plan_replay_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            ingest = publish_plan(root, valid_v3_plan(), "ingest.json")
+            self.assertEqual(ingest.returncode, 0, ingest.stderr)
+            mining = {
+                "schema_version": "3.0",
+                "purpose": "mining",
+                "batch": {"source_pages": [], "label": "candidate topic"},
+                "topic_actions": [
+                    {
+                        "action": "create_topic",
+                        "id": "candidate-topic",
+                        "name": "Candidate Topic",
+                        "papers": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "index_summary": "A candidate cross-paper evidence space.",
+                        "open_questions": [],
+                        "research_gaps": [
+                            {
+                                "id": "rg-candidate",
+                                "origin": "mining",
+                                "gap": "A candidate comparison is missing.",
+                                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                                "direction": "Run a shared comparison.",
+                                "continuity": "A later ingest can substantiate the topic.",
+                                "significance": "It would determine whether the topic should be promoted.",
+                                "status": "open",
+                            }
+                        ],
+                    }
+                ],
+            }
+            first = publish_plan(root, mining, "candidate.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Candidate Topic.md"
+            topic = topic_path.read_text(encoding="utf-8")
+            self.assertIn('status: "stub"', topic)
+            self.assertIn(PUBLISH.MINING_STUB_OVERVIEW, topic)
+            self.assertNotIn("### ", PUBLISH.section_body(topic, "综合认识"))
+            second = publish_plan(root, mining, "candidate.json")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            report = json.loads((root / "candidate-report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["writes"], [])
+            self.assertEqual(topic_path.read_text(encoding="utf-8"), topic)
+
+    def test_schema_v3_second_batch_rewrites_narrative_and_preserves_other_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "first-batch.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            first_text = topic_path.read_text(encoding="utf-8")
+            custom_section = "\n## 人工维护笔记\n\n这一节不属于 publisher 的受控区域。\n"
+            topic_path.write_text(first_text + custom_section, encoding="utf-8")
+
+            for name, title in (("c", "Paper C"), ("d", "Paper D"), ("e", "Paper E")):
+                (root / "work" / name).mkdir(parents=True)
+                (root / "work" / name / "paper-card.md").write_text(
+                    source_card(title, f"wiki/sources/{name}.md"), encoding="utf-8"
+                )
+                (root / "work" / name / "paper-digest.json").write_text(
+                    json.dumps(digest({"one_sentence_summary": f"{title} summary."})),
+                    encoding="utf-8",
+                )
+
+            update = valid_v3_plan()
+            update["batch"]["source_pages"] = [
+                {
+                    "source_ref": f"wiki/sources/{name}.md",
+                    "work_dir": f"work/{name}",
+                    "title": title,
+                }
+                for name, title in (("c", "Paper C"), ("d", "Paper D"), ("e", "Paper E"))
+            ]
+            action = update["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(
+                topic_path.read_bytes()
+            ).hexdigest()
+            action["papers"] = [
+                f"wiki/sources/{name}.md" for name in ("a", "b", "c", "d", "e")
+            ]
+            action["key_findings"][0]["source_refs"] = list(action["papers"])
+            action["key_findings"][0]["pointers"] = [
+                {
+                    "source_ref": f"wiki/sources/{name}.md",
+                    "pointer": f"[Paper: PDF p. {index}]",
+                }
+                for index, name in enumerate(("a", "b", "c", "d", "e"), start=3)
+            ]
+            action["key_findings"].append(
+                {
+                    "id": "kf-transfer-challenge",
+                    "claim": "Paper C reports a failure under a shifted evaluation setting.",
+                    "kind": "conflict",
+                    "source_refs": ["wiki/sources/c.md"],
+                    "pointers": [
+                        {
+                            "source_ref": "wiki/sources/c.md",
+                            "pointer": "[Paper: PDF p. 8]",
+                        }
+                    ],
+                }
+            )
+            action["contradictions"] = [
+                {
+                    "id": "ct-transfer-boundary",
+                    "position_a": "The shared result transfers across the original settings.",
+                    "position_a_source_ref": "wiki/sources/a.md",
+                    "position_a_pointer": "[Paper: PDF p. 3]",
+                    "position_b": "The result fails after the evaluation setting shifts.",
+                    "position_b_source_ref": "wiki/sources/c.md",
+                    "position_b_pointer": "[Paper: PDF p. 8]",
+                    "resolving_evidence": "Evaluate all methods under one controlled shift.",
+                }
+            ]
+            action["narrative"]["overview"]["paragraphs"][0]["text"] = (
+                "Five papers now delimit where the shared result transfers and where it fails."
+            )
+            action["narrative"]["synthesis_blocks"][0]["heading"] = (
+                "The five-paper evidence narrows the transfer boundary"
+            )
+            action["narrative"]["synthesis_blocks"][0]["paragraphs"][0]["text"] = (
+                "Across five settings, the result is consistent only under a shared evaluation condition."
+            )
+            action["narrative"]["controversy_blocks"] = [
+                {
+                    "id": "controversy-transfer-boundary",
+                    "heading": "Transfer depends on how the evaluation setting shifts",
+                    "paragraphs": [
+                        {
+                            "text": "The original studies support transfer, whereas Paper C reports failure after a controlled shift. Evaluate all methods under one controlled shift to distinguish setting effects from method effects.",
+                            "finding_refs": [
+                                "kf-shared-result",
+                                "kf-transfer-challenge",
+                            ],
+                            "contradiction_refs": ["ct-transfer-boundary"],
+                        }
+                    ],
+                }
+            ]
+            action["comparisons"] = [
+                {
+                    "source_ref": f"wiki/sources/{name}.md",
+                    "paper": title,
+                    "method": f"Method {name.upper()}",
+                    "intervention_granularity": "sample",
+                    "main_result": "Boundary evidence",
+                    "boundary": "One setting",
+                    "pointer": "[Paper: PDF p. 5]",
+                }
+                for name, title in (("c", "Paper C"), ("d", "Paper D"), ("e", "Paper E"))
+            ]
+            action["open_questions"] = []
+            action["research_gaps"] = []
+
+            second = publish_plan(root, update, "second-batch.json")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            updated = topic_path.read_text(encoding="utf-8")
+            self.assertNotIn(
+                "This topic studies whether the shared result transfers across settings.",
+                updated,
+            )
+            self.assertIn("Five papers now delimit", updated)
+            self.assertEqual(updated.count("The five-paper evidence narrows"), 1)
+            self.assertIn("[[a|Paper A]] [Paper: PDF p. 3]", updated)
+            self.assertIn("[[b|Paper B]] [Paper: PDF p. 4]", updated)
+            self.assertIn("Transfer depends on how the evaluation setting shifts", updated)
+            self.assertIn(
+                "Evaluate all methods under one controlled shift to distinguish",
+                updated,
+            )
+            for key in PUBLISH.MANAGED_KEYS:
+                self.assertIn(
+                    f"%% wiki-paper-card:managed-end {key} %%\n\n## ", updated
+                )
+            self.assertIn(custom_section.strip(), updated)
+            comparison = PUBLISH.section_body(updated, "论文与方法对照")
+            for title in ("Paper A", "Paper C", "Paper D", "Paper E"):
+                self.assertIn(title, comparison)
+            fields, lists, _ = PUBLISH.parse_frontmatter(updated)
+            self.assertEqual(
+                lists["sources"],
+                [f"wiki/sources/{name}.md" for name in ("a", "b", "c", "d", "e")],
+            )
+
+    def test_schema_v3_old_topic_requires_explicit_migration_without_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            old_plan = valid_plan()
+            first = publish_plan(root, old_plan, "legacy.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            legacy_text = topic_path.read_text(encoding="utf-8")
+            wiki_before = {
+                path.relative_to(root / "wiki"): path.read_bytes()
+                for path in (root / "wiki").rglob("*")
+                if path.is_file()
+            }
+
+            update = valid_v3_plan()
+            action = update["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(
+                legacy_text.encode("utf-8")
+            ).hexdigest()
+            result = publish_plan(root, update, "migration-required.json")
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("narrative_migration_required", result.stderr)
+            self.assertEqual(topic_path.read_text(encoding="utf-8"), legacy_text)
+            wiki_after = {
+                path.relative_to(root / "wiki"): path.read_bytes()
+                for path in (root / "wiki").rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(wiki_after, wiki_before)
+
+    def test_schema_v3_mining_answer_emits_narrative_refresh_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "ingest.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            before = topic_path.read_text(encoding="utf-8")
+            mining = {
+                "schema_version": "3.0",
+                "purpose": "mining",
+                "batch": {"source_pages": [], "label": "answer audit"},
+                "topic_actions": [
+                    {
+                        "action": "update_topic",
+                        "id": "topic-1-mining-answer",
+                        "name": "Shared Topic",
+                        "papers": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "existing_page": "wiki/topics/Shared Topic.md",
+                        "base_topic_sha256": hashlib.sha256(
+                            before.encode("utf-8")
+                        ).hexdigest(),
+                        "open_questions": [
+                            {
+                                "id": "oq-transfer",
+                                "origin": "ingest",
+                                "question": "Does the result transfer to a shared benchmark?",
+                                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                                "status": "answered",
+                                "answered_by": ["wiki/sources/b.md"],
+                                "answered_pointer": "[Paper: PDF p. 7]",
+                            }
+                        ],
+                        "research_gaps": [],
+                    }
+                ],
+            }
+            result = publish_plan(root, mining, "mining-answer.json")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(
+                (root / "mining-answer-report.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(
+                any("narrative_refresh_recommended" in item for item in report["warnings"])
+            )
+
     def test_source_page_removes_protocol_header(self) -> None:
         card = source_card("Paper A", "wiki/sources/a.md")
         page = {

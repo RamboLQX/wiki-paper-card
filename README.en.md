@@ -109,7 +109,7 @@ Questions and survey retrieval are read-only by default. Gap mining first create
 
 | Item | Requirement |
 |---|---|
-| Runtime host | [Claude Code](https://code.claude.com/docs/en/overview), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), or both |
+| Runtime host | [Claude Code](https://code.claude.com/docs/en/overview), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), or Codex; all three may be configured together |
 | Knowledge base | An [Obsidian](https://obsidian.md/download) vault |
 | Claude Code inside Obsidian | The [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin |
 | Local environment | Python 3. PyMuPDF is required for PDF processing |
@@ -125,15 +125,15 @@ cd wiki-paper-card
 VAULT=/path/to/vault
 mkdir -p "$VAULT"
 
-# --host accepts claude | dsh | both (default: both)
+# --host accepts claude | dsh | both | codex | all (default: both = Claude + DSH)
 scripts/install.sh --host both "$VAULT"
 
 export WIKI_PAPER_CARD_ROOT="$PWD"
 ```
 
-The installer creates only missing directories, templates, and Skill links. It does not overwrite an existing `CLAUDE.md`, knowledge page, or source file under `raw/`. It also writes the repository root into pointer files `$VAULT/.dsh/WIKI_PAPER_CARD_ROOT` (DSH) and `$VAULT/.claude/WIKI_PAPER_CARD_ROOT` (Claude Code); sessions read the pointer file when the environment variable is unset, so the `export` is optional (still recommended).
+The installer creates only missing directories, templates, and Skill links. It does not overwrite an existing `CLAUDE.md`, `AGENTS.md`, knowledge page, or source file under `raw/`. It writes the repository root to the selected host pointer: `$VAULT/.claude/WIKI_PAPER_CARD_ROOT`, `$VAULT/.dsh/WIKI_PAPER_CARD_ROOT`, or `$VAULT/.agents/WIKI_PAPER_CARD_ROOT`. Sessions read their own host pointer when the environment variable is unset, so the `export` is optional (still recommended).
 
-Open `$VAULT` in Obsidian after installation. For DSH, start the session inside the vault directory. Place papers under `raw/papers/` and use a prompt from [Quick Start](#2-quick-start).
+Open `$VAULT` in Obsidian after installation. For DSH or Codex, start the session from the vault root. Place papers under `raw/papers/` and use a prompt from [Quick Start](#2-quick-start).
 
 ### 3.3 Agent-Assisted Installation
 
@@ -144,7 +144,7 @@ Read /absolute/path/to/wiki-paper-card/docs/agent-quick-setup.md and configure w
 
 Project repository: /absolute/path/to/wiki-paper-card
 Obsidian vault: /absolute/path/to/vault
-Runtime host: claude / dsh / both
+Runtime host: claude / dsh / both / codex / all
 
 Check the paths and runtime first, then run the installer and smoke test.
 Do not overwrite existing files in the vault. Report completed items separately from steps that still require user action.
@@ -192,7 +192,7 @@ Researchers organize the topic directories under `raw/papers/`. The framework do
 | Page or view | Purpose |
 |---|---|
 | **Paper Card** | Preserves the full analysis, evidence locators, limitations, and research ideas for one paper |
-| **Topic** | Synthesizes at least two related papers and maintains method comparisons, findings, disagreements, open questions, and research gaps |
+| **Topic** | Synthesizes at least two related papers into readable overview, synthesis, and controversy prose while retaining method comparisons, open questions, and research gaps |
 | **Knowledge Tree** | Exposes the Wiki structure (topic-first nested overview) and guides retrieval, questions, and surveys |
 | **Agent Tree** | Progressive-disclosure entry for agent retrieval: domain and topic signposts only, descending level by level |
 | **Research Dashboard** | Collects the currently open questions and research gaps |
@@ -204,6 +204,7 @@ One paper does not create a Topic by itself. A Topic is created or updated only 
 
 - Every paper produces an independent Paper Card that passes structural, evidence, and source-locator checks.
 - Batch processing completes all paper analyses before creating cross-paper relationships.
+- The paper-card linker owns the complete Topic narrative and comparison table. After user confirmation, gap mining can maintain only stable-ID open items. Both paths write through the same deterministic publisher, which rejects stale plans using the Topic hash.
 - An unchanged PDF is skipped unless the researcher explicitly requests reprocessing.
 - Knowledge-base questions descend level by level through the Agent Tree signposts (the knowledge tree is the human navigation view) and retain the relevant source evidence.
 - Gap mining first writes a read-only report `work/gap-mining-report.md`. Only after you confirm its candidates item by item does the deterministic publisher write the open questions and research gaps back into topic pages and the dashboard.

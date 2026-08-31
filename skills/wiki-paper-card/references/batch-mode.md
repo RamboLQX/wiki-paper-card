@@ -19,7 +19,7 @@ one or the requested directory is ambiguous.
 All paper cards are independent. Do not make one card depend on another current card.
 
 - Create a fresh processor for each paper. Do not reuse a completed processor for a different paper.
-- Concurrency by host: Claude Code starts up to three processors concurrently for a batch of three and keeps at most three active for larger batches; DeepSeek Harness starts up to six concurrently by default, at most eight. Schedule remaining papers as processors finish.
+- Concurrency by host: Claude Code starts up to three processors concurrently for a batch of three and keeps at most three active for larger batches; DeepSeek Harness starts up to six concurrently by default, at most eight; Codex keeps at most three active and also obeys the current session's available subagent slots. Schedule remaining papers as processors finish.
 - Every paper writes to its own `work/<paper-name>/` directory.
 - Each paper has an independent checkpoint: source bundle, Paper Card, digest, evidence report, and audit reports.
 - After a paper passes its audits, close or release its processor before using a new processor for another paper.
@@ -31,7 +31,8 @@ Only after every paper card and digest in the batch passes its audits:
 
 1. Collect all `paper-digest.json` paths.
 2. Build one compact existing-wiki context from the combined paper titles.
-3. Run one `wiki-linker` agent.
+3. Run one `wiki-linker` agent to compose a schema 3.0 ingest plan from all
+   approved digests and the exact current Topic bytes.
 4. Audit the resulting `link-plan.json`.
 5. Run the deterministic `publish_wiki.py` command for source pages, topic pages, index, and log.
 

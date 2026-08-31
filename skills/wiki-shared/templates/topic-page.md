@@ -11,24 +11,40 @@ status: stub
 
 ## 概述
 
+%% wiki-paper-card:managed-start overview %%
+
+<!-- 由 schema 3.0 narrative.overview 渲染；段后附可见证据行 -->
+
+%% wiki-paper-card:managed-end overview %%
+
+## 综合认识
+
+%% wiki-paper-card:managed-start synthesis %%
+
+<!-- 由 synthesis_blocks 按论点渲染，不按论文逐篇追加 -->
+
+%% wiki-paper-card:managed-end synthesis %%
+
+## 争议与不确定
+
+%% wiki-paper-card:managed-start controversies %%
+
+<!-- 只渲染真实争议，保留双方证据与判别实验 -->
+
+%% wiki-paper-card:managed-end controversies %%
+
 ## 论文与方法对照
 
 | 论文 | 方法 | 干预粒度 | 主要结果 | 边界 | 证据 |
 |---|---|---|---|---|---|---|
 
-## 关键发现
-
-<!-- 由 link-plan 的 key_findings 渲染，每条标注 共识 / 单篇主张 / 分歧 并附来源指针 -->
-
-## 争议与不确定
-
 ## 开放问题
 
-<!-- 只列仍开放的问题；被后续论文回答的条目由发布器移入「已解决的问题」 -->
+<!-- 只列仍开放的问题；项目 ID/origin 保存在不可见 Obsidian 注释中 -->
 
 ## 研究空白与候选方向
 
-<!-- 只列仍开放的空白；被后续论文填补的条目由发布器移入「已解决的研究空白」 -->
+<!-- 只列仍开放的空白；paper-card 与 gap-mining 按稳定 ID 共同承接 -->
 
 ## 已解决的问题
 

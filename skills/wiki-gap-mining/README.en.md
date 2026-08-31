@@ -37,6 +37,7 @@ Without your confirmation nothing in `wiki/` changes. See [docs/artifacts.md](..
 - The first phase is read-only and never edits `wiki/`.
 - Candidate gaps require evidence from existing Paper Cards or Topics.
 - The deterministic publisher updates Topics only after the user confirms each item.
+- Write-back maintains only stable-ID open questions and research gaps; it cannot rewrite Topic narrative or comparisons, and stale plans are rejected before writes.
 - Finding no reliable new gap is a valid result; the workflow does not pad the report.
 
 See [`SKILL.md`](SKILL.md) and the [mining brief](references/mining-brief.md) for the full execution rules.

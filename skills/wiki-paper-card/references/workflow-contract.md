@@ -33,7 +33,7 @@ Paper cards are generated independently and concurrently. Cross-paper knowledge 
 Resolve `<REPO_ROOT>` once, deterministically, never by guessing: prefer the
 `WIKI_PAPER_CARD_ROOT` environment variable, then the pointer file written by
 `install.sh` (`<host-root>/WIKI_PAPER_CARD_ROOT`; DSH: `<VAULT_ROOT>/.dsh/`,
-Claude Code: `<VAULT_ROOT>/.claude/`), then for DSH the `readlink -f` rule in
+Claude Code: `<VAULT_ROOT>/.claude/`, Codex: `<VAULT_ROOT>/.agents/`), then for DSH the `readlink -f` rule in
 `adapters/dsh/dsh-mode.md`. Verify `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md`
 is readable before proceeding; if resolution fails, stop and report. Use absolute
 script and reference paths in every subagent prompt. Do not ask a subagent to
@@ -85,7 +85,7 @@ recognize the current `## 争议与不确定` heading and the historical
 
 ## Phase 1: Paper Cards
 
-Claude Code processor agent: `wiki-processor`.
+Processor role: `wiki-processor` under Claude Code; a fresh processor subagent using the shared processor brief under DSH or Codex.
 
 One processor per paper:
 
@@ -103,6 +103,7 @@ The processor does not run audit scripts, read `raw/`, write `wiki/`, or return 
 - Create a fresh processor subagent for each paper. Do not reuse a completed processor for a different paper.
 - Claude Code: start up to three processors concurrently for a three-paper batch. For larger batches, keep at most three active and schedule the remaining papers as processors finish.
 - DeepSeek Harness: start up to six processors concurrently by default, at most eight. Keep the same all-pass ordering gate regardless of host (see Phase 3).
+- Codex: keep at most three processors active and never exceed the current session's available subagent slots. Keep the same all-pass ordering gate.
 - Every paper writes to its own `work/<paper-name>/` directory.
 
 ### Completion And Recovery
@@ -168,14 +169,16 @@ python "<REPO_ROOT>/scripts/build_kb_context.py" \
   --output "<BATCH_WORKDIR>/kb-context.md"
 ```
 
-2. Run the `wiki-linker` agent.
+2. Run one `wiki-linker` agent. Under Codex, create one fresh linker subagent using the shared linker brief; do not start it before the all-pass gate.
 
 The linker:
 
 1. Reads [linker-brief.md](linker-brief.md) and [link-plan-schema.md](link-plan-schema.md).
 2. Reads every approved `paper-digest.json` once.
 3. Reads the batch existing-wiki context.
-4. Writes one `link-plan.json` in the batch work directory.
+4. Reads the exact current bytes of every Topic it plans to update and records
+   `base_topic_sha256` before composing the complete schema 3.0 narrative.
+5. Writes one `link-plan.json` in the batch work directory.
 
 For a single paper, the linker may only update an existing topic page that the paper directly connects to or answers. It cannot create a topic from one paper alone.
 
@@ -189,10 +192,12 @@ python "<REPO_ROOT>/scripts/audit_link_plan.py" \
 
 Audit errors block wiki writes.
 
-The audit rejects legacy string research gaps in new plans. Every research
-gap requires non-empty `source_refs`, `direction`, and `continuity`; answered
-questions and gaps additionally require non-empty `answered_by` and
-`answered_pointer`.
+New ingest plans use schema 3.0. The audit verifies that paper-card actions own
+the complete narrative and evidence ledger, while mining actions cannot write
+those fields. Both entrances use stable open-item IDs and the Topic hash;
+answered questions and gaps additionally require source-bound `answered_by`
+and `answered_pointer` evidence. Schema 2.0 remains available for historical
+plans only.
 
 ## Phase 5: Deterministic Wiki Publish
 
@@ -213,6 +218,14 @@ The publisher:
 6. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
 7. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
 8. Rebuilds `wiki/meta/knowledge-tree.md` (human navigation tree: per domain, topics as signpost nodes with nested papers and open items, plus unassigned papers, then the category-first topic view), `wiki/meta/agent-tree.md` (agent retrieval first hop: domain and topic signposts only), and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. All three aggregate only open items; answered items are archived on the topic pages and excluded.
+
+For schema 3.0, ingest replaces the three managed narrative blocks as complete
+units and merges comparison/open-item state deterministically. Mining preserves
+the managed narrative and comparison table byte-for-byte, changing only
+stable-ID open items and monotonic source/backlink membership. A stale Topic
+hash blocks the complete plan before any write; an exact action replay is a
+no-op. A mining answer emits `narrative_refresh_recommended` so the next ingest
+can absorb that evidence into the reader-facing synthesis.
 
 After publishing, run the deterministic wiki-state audit. The Obsidian render
 smoke check is optional and soft-failing by default:

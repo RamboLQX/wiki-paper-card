@@ -2,7 +2,7 @@
 # Install wiki-paper-card into an Obsidian Vault for one or more agent hosts.
 #
 # Usage:
-#   install.sh [--host claude|dsh|both] [--repo-root PATH] VAULT
+#   install.sh [--host claude|dsh|both|codex|all] [--repo-root PATH] VAULT
 #
 # The script is idempotent and never overwrites existing files or links:
 #   - Vault directories are created only when missing.
@@ -11,9 +11,10 @@
 #   - adapters/, vendor/, scripts/ are symlinked next to the host skills so the
 #     skills' '../../' references (e.g. ../../adapters/dsh/dsh-mode.md) resolve.
 #   - A WIKI_PAPER_CARD_ROOT pointer file is written into each host directory
-#     (.dsh/ or .claude/) with the absolute repository root, so agent sessions
+#     (.claude/, .dsh/, or .agents/) with the absolute repository root, so agent sessions
 #     can resolve <REPO_ROOT> deterministically without guessing.
-#   - CLAUDE.md is copied only when the target does not exist.
+#   - CLAUDE.md and AGENTS.md are copied only for selected hosts and only when
+#     the target does not exist.
 #
 # Exit codes: 0 ok, 1 conflict or missing requirement, 2 usage error.
 
@@ -25,9 +26,9 @@ VAULT=""
 
 usage() {
     cat <<'EOF'
-Usage: install.sh [--host claude|dsh|both] [--repo-root PATH] VAULT
+Usage: install.sh [--host claude|dsh|both|codex|all] [--repo-root PATH] VAULT
 
-  --host        which agent host(s) to configure: claude, dsh, or both (default)
+  --host        which agent host(s) to configure: claude, dsh, both (default), codex, or all
   --repo-root   wiki-paper-card repository path (default: parent of this script)
   VAULT         target Obsidian Vault directory
 EOF
@@ -57,8 +58,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$HOST" in
-    claude|dsh|both) ;;
-    *) echo "ERROR: --host must be claude, dsh, or both." >&2; exit 2 ;;
+    claude|dsh|both|codex|all) ;;
+    *) echo "ERROR: --host must be claude, dsh, both, codex, or all." >&2; exit 2 ;;
 esac
 
 [[ -n "$VAULT" ]] || { echo "ERROR: VAULT argument is required." >&2; usage >&2; exit 2; }
@@ -99,11 +100,25 @@ copy_if_missing "$REPO_ROOT/template/wiki/log.md" "$VAULT/wiki/log.md"
 copy_if_missing "$REPO_ROOT/template/wiki/meta/paper-processing-conventions.md" \
                 "$VAULT/wiki/meta/paper-processing-conventions.md"
 
-# 3. CLAUDE.md (DSH auto-loads CLAUDE.md/AGENTS.md from the vault root; Claude
-#    Code reads CLAUDE.md too). Never overwrite an existing file.
-copy_if_missing "$REPO_ROOT/template/CLAUDE.md" "$VAULT/CLAUDE.md"
-if [[ -e "$VAULT/CLAUDE.md" ]] && ! cmp -s "$REPO_ROOT/template/CLAUDE.md" "$VAULT/CLAUDE.md"; then
-    echo "NOTE: $VAULT/CLAUDE.md exists and differs from the template; merge missing sections manually."
+# 3. Host entry files. Claude Code and DSH use CLAUDE.md; Codex uses AGENTS.md.
+#    The templates intentionally carry the same host-neutral Vault rules so an
+#    all-host install cannot expose DSH to conflicting instructions.
+install_entry_file() {
+    local name="$1"
+    local template="$REPO_ROOT/template/$name"
+    local target="$VAULT/$name"
+    copy_if_missing "$template" "$target"
+    if [[ -e "$target" ]] && ! cmp -s "$template" "$target"; then
+        echo "NOTE: $target exists and differs from the template; merge missing sections manually."
+    fi
+}
+
+[[ "$HOST" == "claude" || "$HOST" == "dsh" || "$HOST" == "both" || "$HOST" == "all" ]] && \
+    install_entry_file "CLAUDE.md"
+[[ "$HOST" == "codex" || "$HOST" == "all" ]] && install_entry_file "AGENTS.md"
+
+if [[ "$HOST" == "all" ]] && ! cmp -s "$VAULT/CLAUDE.md" "$VAULT/AGENTS.md"; then
+    echo "WARNING: $VAULT/CLAUDE.md and $VAULT/AGENTS.md differ; DSH may load both. Merge them so the Vault rules are consistent." >&2
 fi
 
 # 4. Symlink skills for the selected host(s). Existing links to the same target
@@ -183,17 +198,34 @@ write_repo_root_pointer() {
 
 # Verify the skills' '../../' references resolve for this host. Lexically,
 # <host_dir>/skills/<skill>/../../ equals <host_dir>/, so checking the sibling
-# paths directly validates what DSH will resolve at runtime. A failure means
+# paths directly validates what the selected host will resolve at runtime. A failure means
 # the install is incomplete and sessions would hit "cannot read ... not found".
 # The WIKI_PAPER_CARD_ROOT pointer must also exist and point at a repo whose
 # pinned upstream router is readable.
 verify_host_resources() {
     local host_dir="$1"
+    local host="$2"
     local missing=""
     for rel in \
-        "adapters/dsh/dsh-mode.md" \
         "vendor/nature-paper-card/SKILL.md" \
         "scripts/build_processor_pack.py"; do
+        if [[ ! -r "$host_dir/$rel" ]]; then
+            missing="$missing $rel"
+        fi
+    done
+    local adapter_refs=()
+    case "$host" in
+        claude)
+            adapter_refs=(
+                "adapters/claude-code/agents/wiki-processor.md"
+                "adapters/claude-code/agents/wiki-linker.md"
+            )
+            ;;
+        dsh) adapter_refs=("adapters/dsh/dsh-mode.md") ;;
+        codex) adapter_refs=("adapters/codex/codex-mode.md") ;;
+    esac
+    local rel
+    for rel in "${adapter_refs[@]}"; do
         if [[ ! -r "$host_dir/$rel" ]]; then
             missing="$missing $rel"
         fi
@@ -213,7 +245,7 @@ verify_host_resources() {
         echo "ERROR: $host_dir: skill 的 ../../ 资源引用无法解析（缺少:${missing}）；请确认 adapters/vendor/scripts 链接与 WIKI_PAPER_CARD_ROOT 指针正确。" >&2
         CONFLICTS=1
     else
-        echo "ok    $host_dir: skill 的 ../../ 资源引用与 WIKI_PAPER_CARD_ROOT 指针可解析"
+        echo "ok    $host_dir: $host 宿主的 skill ../../ 资源引用与 WIKI_PAPER_CARD_ROOT 指针可解析"
     fi
 }
 
@@ -236,24 +268,36 @@ install_claude() {
             echo "copy  $dst"
         fi
     done
-    verify_host_resources "$VAULT/.claude"
+    verify_host_resources "$VAULT/.claude" "claude"
 }
 
 install_dsh() {
     link_skills "$VAULT/.dsh/skills"
     link_host_resources "$VAULT/.dsh"
     write_repo_root_pointer "$VAULT/.dsh"
-    verify_host_resources "$VAULT/.dsh"
+    verify_host_resources "$VAULT/.dsh" "dsh"
 }
 
-[[ "$HOST" == "claude" || "$HOST" == "both" ]] && install_claude
-[[ "$HOST" == "dsh" || "$HOST" == "both" ]] && install_dsh
+install_codex() {
+    link_skills "$VAULT/.agents/skills"
+    link_host_resources "$VAULT/.agents"
+    write_repo_root_pointer "$VAULT/.agents"
+    verify_host_resources "$VAULT/.agents" "codex"
+}
+
+[[ "$HOST" == "claude" || "$HOST" == "both" || "$HOST" == "all" ]] && install_claude
+[[ "$HOST" == "dsh" || "$HOST" == "both" || "$HOST" == "all" ]] && install_dsh
+[[ "$HOST" == "codex" || "$HOST" == "all" ]] && install_codex
 
 echo ""
 echo "Install complete for host: $HOST"
-echo "Repository root pointer written to the host directory (sessions fall"
-echo "back to it when WIKI_PAPER_CARD_ROOT is unset):"
-echo "  $VAULT/.dsh/WIKI_PAPER_CARD_ROOT = $REPO_ROOT"
+echo "Repository root pointer(s) written for the selected host(s):"
+[[ "$HOST" == "claude" || "$HOST" == "both" || "$HOST" == "all" ]] && \
+    echo "  $VAULT/.claude/WIKI_PAPER_CARD_ROOT = $REPO_ROOT"
+[[ "$HOST" == "dsh" || "$HOST" == "both" || "$HOST" == "all" ]] && \
+    echo "  $VAULT/.dsh/WIKI_PAPER_CARD_ROOT = $REPO_ROOT"
+[[ "$HOST" == "codex" || "$HOST" == "all" ]] && \
+    echo "  $VAULT/.agents/WIKI_PAPER_CARD_ROOT = $REPO_ROOT"
 echo "Optional: export WIKI_PAPER_CARD_ROOT=$REPO_ROOT"
 echo ""
 echo "Next: open $VAULT in Obsidian and invoke:"

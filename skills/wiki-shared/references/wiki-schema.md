@@ -120,19 +120,37 @@ starting set (per-vault, not enforced): 评测基准与数据集 / 消解与干�
 行为规律 / 机制解释 / 多模态冲突 / 跨域迁移与统一度量 / 综述与元评估 /
 领域应用.
 
+Schema 3.0 pages also carry `last_topic_action_sha256`, an internal publisher
+fingerprint used only to recognize an exact idempotent plan replay. It is not
+research content and must not be edited by a linker or miner.
+
 ```markdown
 # 页面名
 
 ## 概述
 
+%% wiki-paper-card:managed-start overview %%
+<2 short reader-facing paragraphs with evidence lines>
+%% wiki-paper-card:managed-end overview %%
+
+## 综合认识
+
+%% wiki-paper-card:managed-start synthesis %%
+### <claim-led heading>
+<complete synthesis paragraph with evidence line>
+%% wiki-paper-card:managed-end synthesis %%
+
+## 争议与不确定
+
+%% wiki-paper-card:managed-start controversies %%
+### <disputed question>
+<positions, boundary, and discriminating evidence>
+%% wiki-paper-card:managed-end controversies %%
+
 ## 论文与方法对照
 
 | 论文 | 方法 | 干预粒度 | 主要结果 | 边界 | 证据 |
 |---|---|---|---|---|---|---|
-
-## 关键发现
-
-## 争议与不确定
 
 ## 开放问题
 
@@ -143,14 +161,23 @@ starting set (per-vault, not enforced): 评测基准与数据集 / 消解与干�
 ## 已解决的研究空白
 ```
 
-The `## 概述` opens the page with 3-5 sentences written per the shared
-[writing guide](writing-guide.md). It answers four questions: what problem
-the topic studies, why the problem matters, how far the field has come, and
-where the main disagreement sits.
+The `## 概述` opens the page with two short paragraphs written per the
+shared [writing guide](writing-guide.md). It defines the problem and value,
+then states the current field position and its main boundary. `## 综合认识`
+contains 3-5 claim-led subsections. Every paragraph follows topic judgment,
+cross-paper evidence, boundary/difference, and research implication.
 
-The `## 关键发现` section is rendered from the plan's `key_findings`, each marked 共识 / 单篇主张 / 分歧 with source pointers.
+Schema 3.0 `key_findings` and `contradictions` remain in the link plan as the
+evidence ledger. Narrative paragraphs reference their stable IDs, and the
+publisher renders a compact visible evidence line. It never duplicates the
+ledger as a `## 关键发现` bullet list.
 
-The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. When a later paper answers an open item, the publisher removes it from the open section and appends it to the archive sections `## 已解决的问题` / `## 已解决的研究空白` (rendered only when they have content, never aggregated into the dashboards).
+The three narrative sections are enclosed by invisible Obsidian managed
+markers. Ingest replaces only the marker contents. Mining is read-only for
+these sections. An ingest update to an old page without all markers fails
+with `narrative_migration_required`; no implicit whole-vault migration exists.
+
+The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. Schema 3.0 stores each item's stable ID and immutable origin in an invisible inline Obsidian comment. When an item is answered, the publisher moves the same ID into the archive. Dashboard and tree aggregation strips the hidden metadata and includes only open visible text.
 
 ### Research Gap Rendering
 

@@ -21,7 +21,7 @@ Before processing:
 2. Read [manifest.yaml](manifest.yaml).
 3. Read every file listed under `always_load`.
 4. Resolve the wiki root and confirm `raw/` and `wiki/` exist. For an explicit single-file or batch request, start Phase 0 directly; do not ask for confirmation when the input path and scope are unambiguous.
-5. Resolve `<REPO_ROOT>` deterministically, never by guessing: prefer the `WIKI_PAPER_CARD_ROOT` environment variable, then the pointer file written by `install.sh` (`<host-root>/WIKI_PAPER_CARD_ROOT`; DSH: `<VAULT_ROOT>/.dsh/`, Claude Code: `<VAULT_ROOT>/.claude/`). Under DSH, `../../adapters/dsh/dsh-mode.md` defines the exact order and the verification gate. Verify `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md` is readable before proceeding; if resolution fails, stop and report rather than guessing other paths. The pinned scripts live under `<REPO_ROOT>/vendor/`.
+5. Resolve `<REPO_ROOT>` deterministically, never by guessing: prefer the `WIKI_PAPER_CARD_ROOT` environment variable, then the pointer file written by `install.sh` (`<host-root>/WIKI_PAPER_CARD_ROOT`; Claude Code: `<VAULT_ROOT>/.claude/`, DSH: `<VAULT_ROOT>/.dsh/`, Codex: `<VAULT_ROOT>/.agents/`). Under DSH and Codex, the corresponding adapter (`../../adapters/dsh/dsh-mode.md` or `../../adapters/codex/codex-mode.md`) defines the exact order and verification gate. Verify `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md` is readable before proceeding; if resolution fails, stop and report rather than guessing other paths. The pinned scripts live under `<REPO_ROOT>/vendor/`.
 
 Do not proceed from this router alone.
 
@@ -67,7 +67,7 @@ Follow [references/workflow-contract.md](references/workflow-contract.md):
 4. Link all approved digests only after the whole batch passes.
 5. Apply only approved topic actions.
 
-For batch input, read [references/batch-mode.md](references/batch-mode.md). For single input, do not load batch-mode. When running under DeepSeek Harness, also read [the DSH adapter reference](../../adapters/dsh/dsh-mode.md).
+For batch input, read [references/batch-mode.md](references/batch-mode.md). For single input, do not load batch-mode. Under DeepSeek Harness, also read [the DSH adapter reference](../../adapters/dsh/dsh-mode.md); under Codex, read [the Codex adapter reference](../../adapters/codex/codex-mode.md).
 
 The local workflow wraps the upstream skill; it must not replace or summarize away the upstream source-boundary, evidence-base, paper-type, and QA checks.
 
@@ -87,10 +87,11 @@ Before creating a page, apply [../wiki-shared/references/knowledge-model.md](../
 
 ## Platform Support
 
-The supported runtime hosts are Claude Code and DeepSeek Harness (DSH). The recommended Obsidian entry point for Claude Code is the Claudian plugin.
+The supported runtime hosts are Claude Code, DeepSeek Harness (DSH), and Codex. The recommended Obsidian entry point for Claude Code is the Claudian plugin; Codex runs from the Vault root.
 
 - Use a fresh `wiki-processor` per paper and one `wiki-linker` per batch. Approved wiki writes are handled by `publish_wiki.py`, not an agent.
 - Claude Code: close or release a completed processor before starting a different paper. Start up to three processors for a three-paper batch; for larger batches keep at most three active.
 - DeepSeek Harness: run each processor as a background subagent. Keep up to six processors active by default, at most eight. See `../../adapters/dsh/dsh-mode.md` for the phase mapping.
+- Codex: create a fresh subagent for each paper, keep at most three processors active and never exceed the current session's available subagent slots. See `../../adapters/codex/codex-mode.md` for the phase mapping.
 - If subagents are unavailable, run phases serially and explicitly say that context usage will increase.
 - Light hosts may generate only the Paper Card and skip wiki writes.

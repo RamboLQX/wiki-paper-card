@@ -62,7 +62,183 @@ def valid_link_plan() -> dict:
     }
 
 
+def valid_v3_link_plan() -> dict:
+    plan = valid_link_plan()
+    plan["schema_version"] = "3.0"
+    action = plan["topic_actions"][0]
+    action.pop("summary")
+    action["index_summary"] = "Two papers establish a shared topic with a remaining boundary."
+    action["page_status"] = "draft"
+    action["key_findings"] = [
+        {
+            "id": "kf-shared-result",
+            "claim": "Both papers support the shared result.",
+            "kind": "consensus",
+            "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+            "pointers": [
+                {
+                    "source_ref": "wiki/sources/a.md",
+                    "pointer": "[Paper: PDF p. 3]",
+                },
+                {
+                    "source_ref": "wiki/sources/b.md",
+                    "pointer": "[Paper: PDF p. 4]",
+                },
+            ],
+        }
+    ]
+    action["contradictions"] = []
+    action["narrative"] = {
+        "overview": {
+            "paragraphs": [
+                {
+                    "id": "overview-scope",
+                    "text": "The topic compares a shared result and its evidence boundary.",
+                    "finding_refs": ["kf-shared-result"],
+                }
+            ]
+        },
+        "synthesis_blocks": [
+            {
+                "id": "synthesis-shared-result",
+                "heading": "The shared result is supported across both papers",
+                "paragraphs": [
+                    {
+                        "text": "The two papers support the result under different settings.",
+                        "finding_refs": ["kf-shared-result"],
+                    }
+                ],
+            }
+        ],
+        "controversy_blocks": [],
+    }
+    action["open_questions"] = [
+        {
+            "id": "oq-boundary",
+            "origin": "ingest",
+            "question": "Does the result hold outside the measured settings?",
+            "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+            "status": "open",
+        }
+    ]
+    action["research_gaps"] = [
+        {
+            "id": "rg-unified-test",
+            "origin": "ingest",
+            "gap": "A unified test is missing.",
+            "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+            "direction": "Run both methods on one benchmark.",
+            "continuity": "A later paper can perform the comparison.",
+            "significance": "It would change which method is preferred.",
+            "status": "open",
+        }
+    ]
+    return plan
+
+
 class LinkPlanAuditTests(unittest.TestCase):
+    def test_valid_schema_v3_plan_passes(self) -> None:
+        report = LINK_AUDIT.audit(valid_v3_link_plan())
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+        self.assertEqual(report["schema_version"], "3.0")
+
+    def test_schema_v3_update_requires_base_topic_hash(self) -> None:
+        plan = valid_v3_link_plan()
+        action = plan["topic_actions"][0]
+        action["action"] = "update_topic"
+        action["existing_page"] = "wiki/topics/Shared Topic.md"
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(
+                item["code"] == "missing_string"
+                and item.get("details", {}).get("field") == "base_topic_sha256"
+                for item in report["findings"]
+            )
+        )
+        action["base_topic_sha256"] = "a" * 64
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+
+    def test_schema_v3_mining_update_rejects_narrative_fields(self) -> None:
+        plan = valid_v3_link_plan()
+        plan["purpose"] = "mining"
+        plan["batch"] = {"source_pages": [], "label": "gap mining 2026-08"}
+        action = plan["topic_actions"][0]
+        action["action"] = "update_topic"
+        action["existing_page"] = "wiki/topics/Shared Topic.md"
+        action["base_topic_sha256"] = "a" * 64
+        action.pop("index_summary")
+        action.pop("page_status")
+        report = LINK_AUDIT.audit(plan)
+        forbidden = {
+            item.get("details", {}).get("field")
+            for item in report["findings"]
+            if item["code"] == "mining_field_forbidden"
+        }
+        self.assertEqual(
+            forbidden,
+            {"narrative", "comparisons", "key_findings", "contradictions"},
+        )
+
+    def test_schema_v3_open_items_require_unique_ids_and_origin(self) -> None:
+        plan = valid_v3_link_plan()
+        action = plan["topic_actions"][0]
+        action["research_gaps"][0]["id"] = "oq-boundary"
+        action["research_gaps"][0]["origin"] = "unknown"
+        report = LINK_AUDIT.audit(plan)
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("duplicate_item_id", codes)
+        self.assertIn("item_origin", codes)
+
+    def test_schema_v3_narrative_refs_must_resolve_and_be_prose(self) -> None:
+        plan = valid_v3_link_plan()
+        paragraph = plan["topic_actions"][0]["narrative"]["overview"]["paragraphs"][0]
+        paragraph["text"] = "- Added in this batch"
+        paragraph["finding_refs"] = ["missing-finding"]
+        report = LINK_AUDIT.audit(plan)
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("narrative_bullet", codes)
+        self.assertIn("unknown_finding_ref", codes)
+
+    def test_schema_v3_uses_id_mutations_not_text_fragments(self) -> None:
+        plan = valid_v3_link_plan()
+        action = plan["topic_actions"][0]
+        action["remove_research_gaps"] = ["unified test"]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "legacy_text_mutation" for item in report["findings"])
+        )
+
+    def test_schema_v3_mutation_ids_use_stable_id_format(self) -> None:
+        plan = valid_v3_link_plan()
+        action = plan["topic_actions"][0]
+        action["remove_open_question_ids"] = ["Question 1"]
+        action["annotate_research_gaps"] = [
+            {"id": "Gap 1", "note": "Related evidence exists."}
+        ]
+        report = LINK_AUDIT.audit(plan)
+        invalid_ids = [
+            item for item in report["findings"] if item["code"] == "item_id"
+        ]
+        self.assertEqual(len(invalid_ids), 2)
+
+    def test_schema_v3_answer_sources_must_belong_to_topic(self) -> None:
+        plan = valid_v3_link_plan()
+        gap = plan["topic_actions"][0]["research_gaps"][0]
+        gap["status"] = "answered"
+        gap.pop("significance")
+        gap["answered_by"] = ["wiki/sources/outside.md"]
+        gap["answered_pointer"] = "[Paper: PDF p. 8]"
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(
+                item["code"] == "item_source_outside_topic"
+                and item.get("details", {}).get("source_refs")
+                == ["wiki/sources/outside.md"]
+                for item in report["findings"]
+            )
+        )
+
     def test_valid_plan_passes(self) -> None:
         report = LINK_AUDIT.audit(valid_link_plan())
         self.assertEqual(report["summary"]["errors"], 0)

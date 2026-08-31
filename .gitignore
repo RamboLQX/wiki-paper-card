@@ -5,6 +5,7 @@ __pycache__/
 .obsidian/
 .planning/
 AGENTS.md
+!template/AGENTS.md
 tmp/
 
 # Secrets and local environments
@@ -13,4 +14,3 @@ tmp/
 !.env.example
 .venv/
 venv/
-

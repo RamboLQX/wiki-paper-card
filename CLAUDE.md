@@ -2,15 +2,15 @@
 
 ## 项目定位
 
-`wiki-paper-card` 是面向 Obsidian LLM Wiki 的论文分析与知识结晶项目。运行宿主为 Claude Code（推荐通过 Obsidian 的 Claudian 插件使用）与 DeepSeek Harness（DSH，在 Vault 目录中启动会话即可）。
+`wiki-paper-card` 是面向 Obsidian LLM Wiki 的论文分析与知识结晶项目。运行宿主为 Claude Code（推荐通过 Obsidian 的 Claudian 插件使用）、DeepSeek Harness（DSH）与 Codex；DSH 和 Codex 从 Vault 根目录启动会话。
 
 ## 安装与适配入口
 
-当用户要求配置、安装、初始化或适配 `wiki-paper-card` 时，先读取并遵循 `docs/agent-quick-setup.md`。安装流程不得改写 `raw/`、删除已有知识页面或覆盖 Vault 级 `CLAUDE.md`。
+当用户要求配置、安装、初始化或适配 `wiki-paper-card` 时，先读取并遵循 `docs/agent-quick-setup.md`。安装流程不得改写 `raw/`、删除已有知识页面或覆盖 Vault 级 `CLAUDE.md` / `AGENTS.md`。
 
 ## 运行时 Skill 路由（在 Vault 中工作时）
 
-Vault 运行时规范以 `template/CLAUDE.md` 为准（`install.sh` 会把它复制到 Vault 根目录；本仓库与 Vault 是两个不同文件）。核心路由规则：
+Vault 运行时规范以内容一致的 `template/CLAUDE.md` 与 `template/AGENTS.md` 为准（`install.sh` 按宿主复制到 Vault 根目录；本仓库与 Vault 是不同位置）。核心路由规则：
 
 1. 处理论文（单篇或批量、PDF 或 source map）→ 调用 `wiki-paper-card` skill。
 2. 在知识库上提问、检索、查证或写综述 → 不调用 `wiki-paper-card`，遵循 `skills/wiki-shared/references/retrieval-protocol.md`：先读 `wiki/meta/agent-tree.md`（不存在时读 `wiki/meta/knowledge-tree.md`；选题类查询同时读 `wiki/meta/research.md`），按 lookup 或 survey 模式检索，结论必须带页面与证据指针。检索与综述只读，不回写 wiki。

@@ -30,7 +30,7 @@ Create or update a topic page when at least two papers share the same problem, m
 
 Research gaps and open questions are snapshots of the current corpus. Record a gap only when it carries a source anchor (which paper's limitation or uncovered setting) and a direction a future paper could advance; if a batch yields no genuine gap, leave the section empty rather than padding it.
 
-When a later paper answers an open question or fills a research gap, the linker marks the item answered (`status: "answered"` with `answered_by` and `answered_pointer`); the publisher moves it to the topic page's archive sections `## 已解决的问题` / `## 已解决的研究空白`, so the open sections and the dashboards always reflect only the currently open items. The answer's substance is recorded as a `key_findings` entry, preserving the field-state history.
+When a later paper answers an open question or fills a research gap, the linker preserves the item's stable ID and origin, then marks it answered (`status: "answered"` with `answered_by` and `answered_pointer`). The publisher moves the same ID to the archive, so the open sections and dashboards reflect only currently open items. The answer's substance enters the structured finding ledger and the complete reader-facing narrative.
 
 ## Content Placement Map
 
@@ -40,9 +40,9 @@ not invent additional sections:
 
 | 内容类型 | 落点 |
 |---|---|
-| 论文直接支持的发现 | topic「关键发现」（共识/单篇） |
+| 论文直接支持的发现 | link-plan `key_findings` 证据台账，并纳入 topic「综合认识」 |
 | 论文承认的局限 | topic 对照表「边界」列 /「争议与不确定」 |
-| 跨论文综合判断 | topic「关键发现」（共识） |
+| 跨论文综合判断 | topic「综合认识」段落，引用 `key_findings` 台账 ID |
 | 正式研究空白（边界与做法齐备） | topic「研究空白与候选方向」 |
 | 待验证方向（缺边界或做法） | topic「研究空白与候选方向」，带 `[待验证]` 标签 |
 | 研究设计备忘录（具体数据/识别策略/失败条件） | 只进 source 页 Section 16 或 `work/` 报告，不进 topic 页、不进 research.md |
@@ -74,6 +74,12 @@ an edit, not an append:
    `research_gaps`: entries with `source_refs` + `direction` go to
    `research_gaps`; plain reader-facing questions without a direction go to
    `open_questions`.
+5. Ingest rewrites the complete managed narrative from all current evidence;
+   mining never writes narrative or comparison content.
+6. Both producers address shared open items by stable ID. Text fragments are
+   legacy compatibility only.
+7. Every schema 3.0 update binds to `base_topic_sha256`; a stale plan is
+   rejected and regenerated from the latest page.
 
 ## Cross-Page Connectivity
 

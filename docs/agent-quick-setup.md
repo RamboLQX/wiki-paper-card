@@ -2,7 +2,7 @@
 
 本文档供具备网络访问、终端执行和本地文件写入权限的 Agent 读取并执行。用户不需要手动复制安装命令，但必须提供或确认仓库安装目录、目标 Obsidian Vault 和运行宿主。
 
-当前项目支持两个论文处理运行宿主：Claude Code（Obsidian 入口推荐 Claudian 插件）与 DeepSeek Harness（DSH，在 Vault 目录中启动会话）。用户自己的 Agent 工具负责引导或执行安装适配，其他 Agent 运行宿主的论文处理流程暂不属于正式支持范围。
+当前项目支持三个论文处理运行宿主：Claude Code（Obsidian 入口推荐 Claudian 插件）、DeepSeek Harness（DSH）与 Codex。DSH 和 Codex 从 Vault 根目录启动会话。其他 Agent 运行宿主暂不属于正式支持范围。
 
 仓库尚未克隆时，推荐使用：
 
@@ -12,7 +12,7 @@
 项目仓库：https://github.com/RamboLQX/wiki-paper-card.git
 仓库安装目录：/absolute/path/to/wiki-paper-card
 Obsidian Vault：/absolute/path/to/vault
-运行宿主：claude / dsh / both
+运行宿主：claude / dsh / both / codex / all
 
 请先检查路径和运行环境。如果仓库尚未存在，将仓库克隆到指定目录；
 然后执行安装脚本、运行 smoke test，并分别报告已完成项目和仍需手动完成的步骤。
@@ -25,7 +25,7 @@ Obsidian Vault：/absolute/path/to/vault
 请阅读 /absolute/path/to/wiki-paper-card/docs/agent-quick-setup.md，并帮我配置 wiki-paper-card。
 项目仓库：/absolute/path/to/wiki-paper-card
 Obsidian Vault：/absolute/path/to/vault
-运行宿主：claude / dsh / both
+运行宿主：claude / dsh / both / codex / all
 ```
 
 ## 执行目标
@@ -35,7 +35,7 @@ Obsidian Vault：/absolute/path/to/vault
 1. 确认 Python 与所选 Agent 运行环境。
 2. 引导用户完成 Obsidian、Claudian（仅 Claude Code 宿主）等手动安装步骤。
 3. 在 Vault 中补齐 Wiki 目录，但不覆盖已有文件。
-4. 链接 skill 到宿主技能目录（Claude Code：`.claude/skills`；DSH：`.dsh/skills`）。
+4. 链接 skill 到宿主技能目录（Claude Code：`.claude/skills`；DSH：`.dsh/skills`；Codex：`.agents/skills`）。
 5. 设置 `WIKI_PAPER_CARD_ROOT` 并运行现有 smoke test。
 6. 返回安装报告和后续调用示例。
 
@@ -43,7 +43,7 @@ Obsidian Vault：/absolute/path/to/vault
 
 - `raw/` 是用户资料目录，只读，禁止修改或重写。
 - 不删除、不覆盖 Vault 中已有的知识页面、`index.md` 或 `log.md`。
-- 不覆盖已有 `CLAUDE.md`，只能合并缺失的必要段落。
+- 不覆盖已有 `CLAUDE.md` 或 `AGENTS.md`，只能在用户确认后合并缺失的必要段落。
 - 不读取或记录用户 API Key。
 - Obsidian 和 Claudian 的图形界面安装步骤必须交还用户确认，不得宣称已经自动完成。
 - 所有路径使用绝对路径，禁止根据文件名猜测 Vault 位置。
@@ -56,7 +56,7 @@ Obsidian Vault：/absolute/path/to/vault
 REPO_URL=https://github.com/RamboLQX/wiki-paper-card.git  # 仅仓库尚未克隆时需要
 REPO_ROOT=/absolute/path/to/wiki-paper-card
 VAULT_ROOT=/absolute/path/to/vault
-HOST=claude|dsh|both
+HOST=claude|dsh|both|codex|all
 ```
 
 如果用户没有提供 `REPO_ROOT`、`VAULT_ROOT` 或 `HOST`，必须先询问。不能使用当前目录或主目录作为默认安装位置，也不能根据目录名称猜测 Vault。目标 Vault 根目录尚不存在时，创建前必须获得用户确认。
@@ -80,8 +80,9 @@ python3 -m pip install pymupdf
 
 按 `HOST` 检查宿主环境：
 
-- `claude` 或 `both`：检查 `command -v claude`；缺失时引导用户按官方说明安装 Claude Code。Obsidian 缺失时引导用户从 <https://obsidian.md/download> 下载并打开目标 Vault；Claudian 缺失时引导用户在 Obsidian 的 Community plugins 中安装并启用。
-- `dsh` 或 `both`：确认用户的 DeepSeek Harness 环境可用（能启动会话并执行命令）。DSH 不需要在 Vault 内安装插件，会话在 Vault 目录中启动即可。
+- `claude`、`both` 或 `all`：检查 `command -v claude`；缺失时引导用户按官方说明安装 Claude Code。Obsidian 缺失时引导用户从 <https://obsidian.md/download> 下载并打开目标 Vault；Claudian 缺失时引导用户在 Obsidian 的 Community plugins 中安装并启用。
+- `dsh`、`both` 或 `all`：确认用户的 DeepSeek Harness 环境可用（能启动会话并执行命令）。DSH 不需要在 Vault 内安装插件。
+- `codex` 或 `all`：确认 Codex 桌面应用、CLI 或 IDE 扩展可用，并能从 Vault 根目录启动项目任务。不要为本框架修改用户的 `.codex/config.toml`。
 
 Agent 无法完成 GUI 操作时，应把这些项目列入待用户操作清单，而不是标记为已完成。
 
@@ -107,12 +108,13 @@ git clone "$REPO_URL" "$REPO_ROOT"
 
 脚本行为与安全保证：
 
-- 只创建缺失目录与缺失文件；已有 `wiki/`、`CLAUDE.md`、知识页面一律保留。
+- 只创建缺失目录与缺失文件；已有 `wiki/`、`CLAUDE.md`、`AGENTS.md`、知识页面一律保留。
 - skill 使用符号链接；链接已存在且指向不同位置时报冲突并退出码 1，不会自动替换。
 - Claude Code 宿主：链接 skill 到 `$VAULT_ROOT/.claude/skills/`，复制 agent 到 `$VAULT_ROOT/.claude/agents/`（同名不同内容报冲突）。
 - DSH 宿主：链接 skill 到 `$VAULT_ROOT/.dsh/skills/`。DSH 自动发现该目录与 Vault 根目录的 `CLAUDE.md`/`AGENTS.md`。
-- 资源目录链接：`adapters/`、`vendor/`、`scripts/` 软链到宿主层的 `../../` 位置（Claude Code：`$VAULT_ROOT/.claude/`；DSH：`$VAULT_ROOT/.dsh/`），保证技能内 `../../` 引用（如 `../../adapters/dsh/dsh-mode.md`）在安装后仍可解析；安装结束自检这些引用，断链以退出码 1 报错。
-- 仓库根指针：向每个宿主目录写入 `WIKI_PAPER_CARD_ROOT` 指针文件（内容为 `$REPO_ROOT` 绝对路径，Claude Code：`$VAULT_ROOT/.claude/`；DSH：`$VAULT_ROOT/.dsh/`）。Agent 会话在未设置同名环境变量时直接读取该文件解析仓库根，避免靠 skill 软链推断路径；自检同时校验指针指向的 `vendor/nature-paper-card/SKILL.md` 可读。
+- Codex 宿主：链接 skill 到 `$VAULT_ROOT/.agents/skills/`，安装 Vault 根 `AGENTS.md`，不创建 `.codex/agents` 或改写 Codex 全局配置。
+- 资源目录链接：`adapters/`、`vendor/`、`scripts/` 软链到宿主层的 `../../` 位置（Claude Code：`$VAULT_ROOT/.claude/`；DSH：`$VAULT_ROOT/.dsh/`；Codex：`$VAULT_ROOT/.agents/`），保证 Skill 内 `../../` 引用在安装后可解析；安装结束按宿主自检 adapter 与共享资源，断链以退出码 1 报错。
+- 仓库根指针：向每个所选宿主目录写入 `WIKI_PAPER_CARD_ROOT`（内容为 `$REPO_ROOT` 绝对路径）。Agent 会话在未设置同名环境变量时只读当前宿主指针；自检同时校验指针指向的 `vendor/nature-paper-card/SKILL.md` 可读。
 - 退出码非 0 时，把脚本输出的 CONFLICT/ERROR 行逐条报告给用户，不擅自处理。
 
 ## 第四步：手动安装（不使用脚本时的等价步骤）
@@ -131,22 +133,25 @@ mkdir -p "$VAULT_ROOT/work"
 
 - Claude Code：链接 `$REPO_ROOT/skills/{wiki-paper-card,wiki-shared,wiki-gap-mining}` 到 `$VAULT_ROOT/.claude/skills/`，复制 `$REPO_ROOT/adapters/claude-code/agents/*.md` 到 `$VAULT_ROOT/.claude/agents/`，并链接 `adapters`、`vendor`、`scripts` 到 `$VAULT_ROOT/.claude/`。
 - DSH：链接 `$REPO_ROOT/skills/{wiki-paper-card,wiki-shared,wiki-gap-mining}` 到 `$VAULT_ROOT/.dsh/skills/`，并链接 `adapters`、`vendor`、`scripts` 到 `$VAULT_ROOT/.dsh/`。
-- 向所选宿主目录写入仓库根指针（DSH 与 Claude Code 各一份，内容为 `$REPO_ROOT` 绝对路径）：
+- Codex：链接 `$REPO_ROOT/skills/{wiki-paper-card,wiki-shared,wiki-gap-mining}` 到 `$VAULT_ROOT/.agents/skills/`，并链接 `adapters`、`vendor`、`scripts` 到 `$VAULT_ROOT/.agents/`。
+- 向所选宿主目录写入仓库根指针（内容为 `$REPO_ROOT` 绝对路径）：
   `printf '%s\n' "$REPO_ROOT" > "$VAULT_ROOT/.dsh/WIKI_PAPER_CARD_ROOT"`；
-  `printf '%s\n' "$REPO_ROOT" > "$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT"`。
+  `printf '%s\n' "$REPO_ROOT" > "$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT"`；
+  `printf '%s\n' "$REPO_ROOT" > "$VAULT_ROOT/.agents/WIKI_PAPER_CARD_ROOT"`。
 - 模板文件按缺失补齐：
 
 ```text
 $REPO_ROOT/template/wiki/index.md
 $REPO_ROOT/template/wiki/log.md
 $REPO_ROOT/template/wiki/meta/paper-processing-conventions.md
-$REPO_ROOT/template/CLAUDE.md
+$REPO_ROOT/template/CLAUDE.md  # Claude Code / DSH
+$REPO_ROOT/template/AGENTS.md  # Codex
 ```
 
-## 第五步：合并 Vault 级 CLAUDE.md
+## 第五步：检查 Vault 级入口文件
 
-- 如果 `$VAULT_ROOT/CLAUDE.md` 不存在，脚本已复制 `$REPO_ROOT/template/CLAUDE.md`。
-- 如果已经存在且内容不同，只合并模板中缺失的必要段落：
+- Claude Code/DSH 使用 `CLAUDE.md`，Codex 使用 `AGENTS.md`；`all` 同时安装两者。
+- 如果目标文件已经存在且内容不同，不覆盖；报告需要人工合并的必要段落：
 
 ```text
 ## Vault 约定
@@ -171,9 +176,8 @@ export WIKI_PAPER_CARD_ROOT="$REPO_ROOT"
 
 持久化方式由用户使用的宿主决定（Claudian 配置或启动 shell 的环境变量）。Agent 应说明当前会话已经生效，并告知用户如何持久化。
 
-未设置环境变量时，Agent 会话会自动回退读取宿主目录下的指针文件
-`$VAULT_ROOT/.dsh/WIKI_PAPER_CARD_ROOT`（DSH）或 `$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT`
-（Claude Code，均为 install.sh 写入），因此环境变量可以省略；设置了更稳妥。
+未设置环境变量时，Agent 会话只回退读取当前宿主目录下的指针文件：
+`$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT`、`$VAULT_ROOT/.dsh/WIKI_PAPER_CARD_ROOT` 或 `$VAULT_ROOT/.agents/WIKI_PAPER_CARD_ROOT`。因此环境变量可以省略；设置了更稳妥。
 
 ## 第七步：验证
 
@@ -191,17 +195,22 @@ python3 "$REPO_ROOT/scripts/smoke_test.py"
 test -d "$VAULT_ROOT/raw/papers"
 test -d "$VAULT_ROOT/wiki/sources"
 test -d "$VAULT_ROOT/wiki/topics"
-test -f "$VAULT_ROOT/CLAUDE.md"
+test -f "$VAULT_ROOT/CLAUDE.md"                       # HOST 含 claude/dsh 时
+test -f "$VAULT_ROOT/AGENTS.md"                       # HOST 含 codex 时
 test -L "$VAULT_ROOT/.claude/skills/wiki-paper-card"   # HOST 含 claude 时
 test -L "$VAULT_ROOT/.dsh/skills/wiki-paper-card"      # HOST 含 dsh 时
+test -L "$VAULT_ROOT/.agents/skills/wiki-paper-card"   # HOST 含 codex 时
 test -L "$VAULT_ROOT/.claude/adapters"                 # HOST 含 claude 时
 test -L "$VAULT_ROOT/.dsh/adapters"                    # HOST 含 dsh 时
+test -L "$VAULT_ROOT/.agents/adapters"                 # HOST 含 codex 时
 test -r "$VAULT_ROOT/.dsh/adapters/dsh/dsh-mode.md"    # HOST 含 dsh 时
+test -r "$VAULT_ROOT/.agents/adapters/codex/codex-mode.md" # HOST 含 codex 时
 test -r "$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT"     # HOST 含 claude 时
 test -r "$VAULT_ROOT/.dsh/WIKI_PAPER_CARD_ROOT"        # HOST 含 dsh 时
+test -r "$VAULT_ROOT/.agents/WIKI_PAPER_CARD_ROOT"     # HOST 含 codex 时
 ```
 
-DSH 宿主额外说明：skill 目录在会话启动时编入目录，需要新开一个 DSH 会话才能确认 `wiki-paper-card` 出现在会话技能列表里；把这一条写入"仍需用户手动完成的步骤"。
+DSH 需要新开会话确认 Skill 目录；Codex 需要从 Vault 根目录新开任务确认 `.agents/skills/` 发现与 `AGENTS.md` 路由。把这些宿主侧验收写入"仍需用户手动完成的步骤"。
 
 ## 第八步：返回安装报告
 
@@ -225,3 +234,4 @@ Use wiki-paper-card to process raw/papers/example.pdf.
 - Wiki 分层、Agent 持续维护、`index.md` 和 `log.md` 等设计参考 Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 思路。
 - 论文分析内核和共享规则来自 `nature-skills`，固定版本与同步策略见 `UPSTREAM.md`。
 - DSH 适配层见 `adapters/dsh/`，编排映射见 `adapters/dsh/dsh-mode.md`。
+- Codex 适配层见 `adapters/codex/`，编排映射见 `adapters/codex/codex-mode.md`。

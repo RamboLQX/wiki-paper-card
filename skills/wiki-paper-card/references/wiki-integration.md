@@ -38,11 +38,13 @@ Create or update a topic page when:
 Include:
 
 ```markdown
-## 论文与方法对照
+## 概述
 
-## 关键发现
+## 综合认识
 
 ## 争议与不确定
+
+## 论文与方法对照
 
 ## 开放问题
 
@@ -51,11 +53,15 @@ Include:
 
 Do not create a topic page merely because a paper discusses a subject.
 
-The publisher renders grouped or flat comparison records, key findings (共识/单篇主张/分歧), contradictions, open questions, and research gaps from the audited action. On update, new comparison rows are merged into the existing comparison table instead of appending a sub-table.
+For schema 3.0, the linker writes complete reader-facing prose in `narrative` and keeps `key_findings` / `contradictions` as the evidence ledger. The publisher replaces only the three invisible managed blocks and derives visible paragraph evidence lines; it does not render a duplicate finding list. Grouped or flat comparison records remain deterministic tables. On update, new flat comparison rows are merged into the existing comparison table instead of appending a sub-table.
+
+The ingest linker is the sole producer for 概述, 综合认识, 争议与不确定, and 论文与方法对照. Mining plans may update only stable-ID open items and their monotonic source/backlink union. The schema 3.0 audit rejects a mining plan that carries narrative, comparison, finding, contradiction, category, or status fields.
 
 ### Resolved Items
 
-`open_questions` and `research_gaps` entries carry an optional `status` (`open` default / `answered`). When an action marks an existing item answered (`answered_by` + `answered_pointer`), the publisher removes it from the open `## 开放问题` / `## 研究空白与候选方向` sections and appends it to the archive sections `## 已解决的问题` / `## 已解决的研究空白` on the topic page. The archive sections are rendered only when they have content, and they are not aggregated into `wiki/meta/research.md` or `wiki/meta/knowledge-tree.md`.
+Schema 3.0 `open_questions` and `research_gaps` entries carry stable `id`, immutable `origin`, and `status` (`open` default / `answered`). When an action marks an existing ID answered (`answered_by` + `answered_pointer`), the publisher moves that same ID from the open section into the corresponding archive section. IDs and origins are stored in invisible Obsidian comments and removed from dashboard text. Archive sections are rendered only when they have content and are not aggregated into `wiki/meta/research.md` or `wiki/meta/knowledge-tree.md`.
+
+Every schema 3.0 update carries `base_topic_sha256`. All target hashes and source references are checked before any write. A stale target blocks the complete plan. A Topic without complete managed narrative markers rejects an ingest update with `narrative_migration_required`; migration is explicit and is never inferred from an ordinary update.
 
 ## Index And Log
 

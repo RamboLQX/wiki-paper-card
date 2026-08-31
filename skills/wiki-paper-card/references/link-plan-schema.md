@@ -1,8 +1,134 @@
 # Link Plan Schema
 
-`wiki-linker` writes one `link-plan.json` after every paper card and digest in the batch has passed its audits. The `wiki-gap-mining` miner writes mining-mode plans (`purpose: "mining"`) when a write-back is confirmed.
+`wiki-linker` writes one `link-plan.json` after every paper card and digest in the batch has passed its audits. The `wiki-gap-mining` miner writes mining-mode plans (`purpose: "mining"`) when a write-back is confirmed. New Topic work uses schema 3.0. Schema 2.0 remains accepted only for compatibility with existing plans and pages.
 
-## Top-Level Fields
+## Schema 3.0
+
+Schema 3.0 separates the reader-facing narrative from its structured evidence ledger and makes `purpose` an enforced write boundary.
+
+### Ingest Example
+
+```json
+{
+  "schema_version": "3.0",
+  "purpose": "ingest",
+  "batch": {"source_pages": []},
+  "topic_actions": [
+    {
+      "action": "update_topic",
+      "id": "topic-id",
+      "name": "Topic name",
+      "existing_page": "wiki/topics/Topic name.md",
+      "base_topic_sha256": "64 lowercase hex characters",
+      "papers": ["wiki/sources/new.md", "wiki/sources/existing.md"],
+      "index_summary": "One sentence for the index and retrieval trees.",
+      "page_status": "draft",
+      "narrative": {
+        "overview": {
+          "paragraphs": [
+            {
+              "id": "overview-scope",
+              "text": "A complete reader-facing paragraph.",
+              "finding_refs": ["kf-shared-result"]
+            }
+          ]
+        },
+        "synthesis_blocks": [
+          {
+            "id": "synthesis-shared-result",
+            "heading": "A claim-led heading",
+            "paragraphs": [
+              {
+                "text": "A complete synthesis paragraph.",
+                "finding_refs": ["kf-shared-result"]
+              }
+            ]
+          }
+        ],
+        "controversy_blocks": []
+      },
+      "key_findings": [
+        {
+          "id": "kf-shared-result",
+          "claim": "The structured field-state claim.",
+          "kind": "consensus",
+          "source_refs": ["wiki/sources/new.md", "wiki/sources/existing.md"],
+          "pointers": [
+            {"source_ref": "wiki/sources/new.md", "pointer": "[Paper: PDF p. 3]"},
+            {"source_ref": "wiki/sources/existing.md", "pointer": "[Paper: PDF p. 4]"}
+          ]
+        }
+      ],
+      "contradictions": [],
+      "comparisons": [],
+      "open_questions": [
+        {
+          "id": "oq-transfer",
+          "origin": "ingest",
+          "question": "Does the result transfer?",
+          "source_refs": ["wiki/sources/new.md"],
+          "status": "open"
+        }
+      ],
+      "research_gaps": [
+        {
+          "id": "rg-unified-benchmark",
+          "origin": "ingest",
+          "gap": "A unified benchmark is missing.",
+          "source_refs": ["wiki/sources/new.md", "wiki/sources/existing.md"],
+          "direction": "Run both methods on one benchmark.",
+          "continuity": "A later paper can close the gap.",
+          "significance": "It would change which method is preferred.",
+          "status": "open"
+        }
+      ]
+    }
+  ]
+}
+```
+
+For `update_topic`, `base_topic_sha256` is the SHA-256 of the exact UTF-8 Topic-page bytes read by the plan writer. The publisher rejects the complete plan with `stale_topic_plan` when the target changed. An exact replay of the last applied action is accepted as an idempotent no-op. `create_topic` omits the base hash and fails when a different page with the same target already exists.
+
+### Narrative And Evidence Rules
+
+- `index_summary` is the one-sentence index/tree signpost. It is not rendered as the visible overview.
+- `key_findings[].id` and `contradictions[].id` are unique lowercase kebab-case IDs within the action.
+- Every finding has `claim`, `kind`, non-empty `source_refs`, and source-bound `pointers[]`. A `consensus` finding needs at least two independent sources.
+- Each narrative paragraph contains final prose plus non-empty `finding_refs`; `contradiction_refs` is optional. All references resolve inside the same action.
+- The publisher renders `overview`, `synthesis_blocks`, and `controversy_blocks` inside invisible managed markers, and derives a visible evidence line from the referenced ledger entries. It does not render `key_findings` again as bullets.
+- Narrative text contains no Markdown bullets and no batch-history language such as 本批, 本次新增, or 追加证据.
+- `papers` contains every source referenced by the action, including existing Wiki sources needed to rebuild the complete narrative. An ingest action must reference at least one current-batch source.
+
+### Stable Open Items
+
+In schema 3.0, every `open_questions` and `research_gaps` entry is an object with:
+
+- a stable lowercase kebab-case `id`;
+- immutable provenance `origin: "ingest"|"mining"`;
+- non-empty `source_refs` contained in the action's `papers`;
+- `status: "open"|"answered"`; answered entries also carry `answered_by` and `answered_pointer`.
+
+Research gaps retain `direction`, `continuity`, `significance`, and the optional v2 detail fields. The publisher stores `id` and `origin` in an invisible inline Obsidian comment. Dashboards remove that metadata when aggregating visible text.
+
+Schema 3.0 mutations address items by ID:
+
+- `remove_open_question_ids`: IDs to remove from the open/archive question sections.
+- `remove_research_gap_ids`: IDs to remove from the open/archive gap sections.
+- `annotate_research_gaps`: `{ "id": "rg-id", "note": "..." }` objects.
+
+Text-fragment fields are rejected in schema 3.0. Updating an existing ID replaces that item while preserving its `origin`; marking it answered moves the same ID to the archive.
+
+### Mining Permission Boundary
+
+A schema 3.0 mining update may change only `open_questions`, `research_gaps`, their ID-based removal/annotation fields, and the monotonic source/backlink union expressed by `papers`. It must not contain `index_summary`, `narrative`, `comparisons`, `key_findings`, `contradictions`, `category`, or `page_status`.
+
+A confirmed mining `create_topic` may provide `index_summary`, existing source `papers`, and open items only. It requires at least two existing sources and always renders `status: stub` with a fixed overview stating that the page is a candidate without a completed cross-paper synthesis. A later ingest action supplies the narrative and may explicitly promote `page_status` to `draft` or `evergreen`.
+
+When mining archives an answered item, the publish report emits `narrative_refresh_recommended`; mining still does not rewrite the narrative.
+
+## Schema 2.0 Compatibility
+
+### Top-Level Fields
 
 ```json
 {

@@ -163,42 +163,53 @@ produce no page change.
 After the user confirms candidates via the 待确认清单, write one
 `link-plan.json` that reflects exactly the confirmed choices:
 
-- `schema_version: "2.0"`, `purpose: "mining"`.
+- `schema_version: "3.0"`, `purpose: "mining"`.
 - `batch.source_pages` is empty; `batch.label` names the run
   (for example `"gap mining 2026-08"`).
 - **Mining write-back allows only three kinds of change**: adding
   `open_questions` / `research_gaps` entries to an existing topic; marking
   cross-group resolved items `status: "answered"` (the publisher archives
   them); and a `create_topic` for a candidate the user explicitly confirmed
-  as a new candidate topic. The miner never emits `comparisons`,
-  `key_findings`, or `contradictions` in a mining plan, and never touches
-  概述 or 论文与方法对照 — those belong to the ingest linker only.
+  as a new candidate topic. The miner never emits `narrative`, `comparisons`,
+  `key_findings`, `contradictions`, `category`, or `page_status`, and an update
+  never emits `index_summary`. The audit treats these as forbidden fields,
+  rather than relying on prompt compliance. 概述, 综合认识, 争议与不确定,
+  and 论文与方法对照 belong to the ingest linker only.
 - One `update_topic` action per confirmed candidate on an existing topic:
-  `papers` lists the existing supporting source pages; the candidate goes
-  into `open_questions` or `research_gaps` (objects with
-  `source_refs`/`direction`/`continuity`, `status: "open"`, plus the v2
-  detail fields from the report, verbatim).
+  `papers` lists the existing supporting source pages; `base_topic_sha256`
+  is the SHA-256 of the exact target-page bytes read by the miner. The
+  candidate goes into `open_questions` or `research_gaps` as an object with
+  a stable lowercase kebab-case `id`, `origin: "mining"`, `source_refs`,
+  `status: "open"`, and the corresponding question/gap fields. Preserve an
+  existing item's ID and origin when merging or answering it.
 - Cross-group resolutions become `status: "answered"` entries with
   `answered_by` and `answered_pointer` (the publisher archives them).
 - A `create_topic` requires at least two existing source pages that share
   the same problem, mechanism, or evidence space, and the user's explicit
   confirmation; `papers` lists those existing pages. Such pages stay
-  `status: stub` (candidate topics). A `category` may be given only from
-  the existing user-owned set; proposing a new category requires user
-  confirmation.
+  `status: stub` (candidate topics). It supplies one `index_summary` candidate
+  scope sentence but no narrative or category. The publisher renders a fixed
+  candidate-page overview; a later ingest supplies the synthesis and may
+  promote the page status.
 - **Semantic dedup before writing**: read the target topic page's relevant
   sections; a candidate whose meaning is already present is rewritten into
   the existing entry or dropped as "no new content" instead of appended.
-  Express these edits deterministically through `remove_open_questions` /
-  `remove_research_gaps` (text fragments of the entries to drop) and
-  `annotate_research_gaps` (`match` + `note`, for cross-referencing the
-  same gap recorded on another topic).
+  Express these edits deterministically through `remove_open_question_ids` /
+  `remove_research_gap_ids` and `annotate_research_gaps` (`id` + `note`, for
+  cross-referencing the same gap recorded on another topic). Text-fragment
+  mutation belongs to schema 2.0 compatibility only and is rejected in 3.0.
+- A stale `base_topic_sha256` blocks the complete publish with
+  `stale_topic_plan`; re-read the target and regenerate the plan. Do not edit
+  the hash to force a publish.
 - Before any write, the publisher verifies that every page listed in `papers`,
   in a gap's `source_refs`, or in `answered_by` exists under `wiki/sources/`; a
   missing or invalid page blocks the complete mining publish instead of
   silently skipping its backlink.
 - The miner writes the plan file only; `audit_link_plan.py` and
   `publish_wiki.py` perform the writes.
+- When a mining plan archives an answered item, report the publisher's
+  `narrative_refresh_recommended` warning. Mining still does not rewrite the
+  field-state narrative.
 
 ## Return Protocol
 

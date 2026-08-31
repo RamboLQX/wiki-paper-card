@@ -107,7 +107,7 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 
 | 项目 | 要求 |
 |---|---|
-| 运行宿主 | [Claude Code](https://code.claude.com/docs/en/overview) 或 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，也可以同时配置 |
+| 运行宿主 | [Claude Code](https://code.claude.com/docs/en/overview)、[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 或 Codex，也可全部配置 |
 | 知识库 | [Obsidian](https://obsidian.md/download) Vault |
 | Obsidian 中使用 Claude Code | 安装 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件 |
 | 本地环境 | Python 3。处理 PDF 时需要 PyMuPDF |
@@ -123,18 +123,16 @@ cd wiki-paper-card
 VAULT=/path/to/vault
 mkdir -p "$VAULT"
 
-# --host 可选 claude | dsh | both，默认 both
+# --host 可选 claude | dsh | both | codex | all，默认 both（Claude + DSH）
 scripts/install.sh --host both "$VAULT"
 
 export WIKI_PAPER_CARD_ROOT="$PWD"
 ```
 
-安装脚本只创建缺失的目录、模板文件和 Skill 链接，不会覆盖 Vault 中已有的 `CLAUDE.md`、知识页面或 `raw/` 资料。脚本同时把仓库根写入
-`$VAULT/.dsh/WIKI_PAPER_CARD_ROOT`（DSH）与 `$VAULT/.claude/WIKI_PAPER_CARD_ROOT`
-（Claude Code）指针文件；会话未设置环境变量时自动读取指针文件，因此
+安装脚本只创建缺失的目录、模板文件和 Skill 链接，不会覆盖 Vault 中已有的 `CLAUDE.md`、`AGENTS.md`、知识页面或 `raw/` 资料。脚本同时把仓库根写入所选宿主的指针文件：`$VAULT/.claude/WIKI_PAPER_CARD_ROOT`、`$VAULT/.dsh/WIKI_PAPER_CARD_ROOT` 或 `$VAULT/.agents/WIKI_PAPER_CARD_ROOT`。会话未设置环境变量时自动读取当前宿主指针，因此
 `export WIKI_PAPER_CARD_ROOT` 可以省略（设置了更稳妥）。
 
-安装后，在 Obsidian 中打开 `$VAULT`。使用 DSH 时，在 Vault 目录中启动 DSH 会话。将论文放入 `raw/papers/`，然后使用[快速开始](#2-快速开始)中的指令。
+安装后，在 Obsidian 中打开 `$VAULT`。使用 DSH 或 Codex 时，从 Vault 根目录启动会话。将论文放入 `raw/papers/`，然后使用[快速开始](#2-快速开始)中的指令。
 
 ### 3.3 Agent 辅助安装
 
@@ -145,7 +143,7 @@ export WIKI_PAPER_CARD_ROOT="$PWD"
 
 项目仓库：/absolute/path/to/wiki-paper-card
 Obsidian Vault：/absolute/path/to/vault
-运行宿主：claude / dsh / both
+运行宿主：claude / dsh / both / codex / all
 
 请先检查路径和运行环境，再执行安装脚本和 smoke test。
 不要覆盖 Vault 中已有文件。请分别报告已完成项目和仍需手动完成的步骤。
@@ -193,7 +191,7 @@ vault/
 | 页面或视图 | 作用 |
 |---|---|
 | **Paper Card** | 保存单篇论文的完整分析、证据位置、局限和研究想法 |
-| **Topic** | 综合至少两篇相关论文，维护方法比较、关键发现、分歧、开放问题和研究空白 |
+| **Topic** | 综合至少两篇相关论文，以可读段落维护概述、综合认识与争议，并保留方法对照、开放问题和研究空白 |
 | **Knowledge Tree** | 展示知识库结构（主题优先嵌套全貌），为检索、问答和综述提供导航 |
 | **Agent Tree** | Agent 检索的渐进式披露入口：仅含领域与主题摘要 signpost，逐层下降展开 |
 | **Research Dashboard** | 汇总当前仍开放的问题和研究空白 |
@@ -205,6 +203,7 @@ vault/
 
 - 每篇论文独立生成 Paper Card，并通过结构、证据和来源位置检查。
 - 批量处理先完成全部单篇分析，再建立跨论文关系。
+- paper-card linker 负责 Topic 的完整叙事与对照表；gap-mining 只在用户确认后按稳定 ID 维护开放项。两条链路都由同一确定性发布器写入，并用 Topic 哈希阻断过期计划。
 - 相同且未发生变化的 PDF 会跳过。明确提出重新处理时才重新生成。
 - 知识库问答通过 Agent Tree 的 signpost 索引逐层定位页面（人读导航用知识树），回答中保留相关来源依据。
 - 研究空白挖掘先产出只读报告 `work/gap-mining-report.md`。你逐项确认报告中的候选后，才通过确定性发布流程把开放问题与研究空白写回 Topic 页和仪表盘。

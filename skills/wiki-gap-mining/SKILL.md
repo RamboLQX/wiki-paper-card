@@ -62,8 +62,8 @@ state this in the report's 范围与日期 section and suggest organizing
 
 1. Build the read map: read `wiki/meta/agent-tree.md` and
    `wiki/meta/research.md` to get the currently open questions and gaps.
-2. Descend breadth-first over the scoped topic pages: 概述, 论文与方法对照,
-   关键发现, 争议与不确定, 开放问题, 研究空白与候选方向, and the archive
+2. Descend breadth-first over the scoped topic pages: 概述, 综合认识,
+   争议与不确定, 论文与方法对照, 开放问题, 研究空白与候选方向, and the archive
    sections 已解决的问题 / 已解决的研究空白. Drill into source-page
    sections only for the evidence pointers you need.
 3. Keep intermediate notes in `work/gap-mining-notes.md` (out-of-context).
@@ -77,15 +77,19 @@ state this in the report's 范围与日期 section and suggest organizing
 1. Present the report's 待确认清单; the user confirms each candidate's
    采用 / 落点 / 知识状态 / 写入区块.
 2. Resume the same miner with the user's confirmations (DSH:
-   `send_message` to the miner subagent; Claude Code: continue the Task).
+   `send_message` to the miner subagent; Claude Code: continue the Task;
+   Codex: use the current client's same-agent follow-up capability).
    The miner emits one `link-plan.json` with `purpose: "mining"`:
+   - `schema_version` is `"3.0"`;
    - `batch.source_pages` is empty;
    - `batch.label` names the mining run;
    - topic actions reference *existing* source pages in `papers`;
-   - mined gaps and questions become `open_questions` / `research_gaps`
-     entries on the confirmed target topics (open entries, with the v2
-     detail fields), while gaps the mining found to be already resolved by
-     other groups become `status: "answered"` entries;
+   - every update carries the exact target page's `base_topic_sha256`;
+   - mined gaps and questions become stable-ID `open_questions` /
+     `research_gaps` entries on the confirmed target topics (`origin:
+     "mining"`, open entries with the v2 detail fields), while gaps the mining
+     found to be already resolved by other groups preserve the same ID/origin
+     and become `status: "answered"` entries;
    - a cross-group candidate direction may `create_topic` only with explicit
      user confirmation and at least two existing source pages sharing the
      same problem, mechanism, or evidence space; such pages stay
@@ -138,12 +142,14 @@ When the user asks what a file means, point them to `docs/artifacts.md`.
 
 ## Platform Support
 
-Supported hosts are Claude Code and DeepSeek Harness (DSH).
+Supported hosts are Claude Code, DeepSeek Harness (DSH), and Codex.
 
 - Use one background miner subagent per mining run; it writes only
   `work/` files and the link plan.
 - Claude Code: run the miner as a Task subagent.
 - DeepSeek Harness: run the miner as a background subagent; see
   `../../adapters/dsh/dsh-mode.md` for the orchestration mapping.
+- Codex: create one miner subagent and continue that same subagent after user
+  confirmation; see `../../adapters/codex/codex-mode.md` for the mapping.
 - If subagents are unavailable, run serially and say that context usage
   will increase.

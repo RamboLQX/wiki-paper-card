@@ -1,5 +1,7 @@
 # 研究空白挖掘 v2 与知识排布优化方案（草案 v2，待审）
 
+> 历史设计说明：本文已实施的 gap v2 字段仍有效，但 Topic 写回和文本片段去重方案已被 schema 3.0 取代。当前契约以 `skills/wiki-paper-card/references/link-plan-schema.md` 和 `skills/wiki-gap-mining/references/mining-brief.md` 为准：mining 按稳定 ID 维护开放项，不改写 Topic 叙事。
+>
 > 状态：已实施（2026-08-29，见 CHANGELOG 0.8.0）。已确认的决策：6 字段全保留、priority 用 高/中/低、Top 速览只在挖掘报告、category 单值、分类视图放知识树内。第 7 节遗留问题 1–4 中：`[待验证]` 标签已采用；候选 topic 用现有 `status: stub`；意图分流在 wiki 已有对应页面时询问；research.md 只排序不显示标记。第 8 节 merge_topic 扩展未实施（留待页面级整合需求出现）。
 > 输入：上一版 v2 方案 + 同事的《wiki-gap-mining 调用方式问题记录》+ 项目负责人的理念要求。
 > 语言：通俗中文，不用"证伪"这类术语。

@@ -1,54 +1,60 @@
 # Installation
 
-`wiki-paper-card` currently supports Claude Code as the runtime host. The recommended Obsidian entry point is the Claudian plugin.
+`wiki-paper-card` supports Claude Code, DeepSeek Harness (DSH), and Codex. Claude Code is commonly used inside Obsidian through Claudian; DSH and Codex sessions start from the Vault root.
 
-## Claudian / Claude Code
+## Recommended installation
 
 Prerequisites:
 
-- [Claude Code](https://code.claude.com/docs/en/overview)
 - [Obsidian](https://obsidian.md/download)
-- [Claudian](https://community.obsidian.md/plugins/realclaudian) installed and enabled in Obsidian
+- Python 3; PyMuPDF when processing PDFs
+- at least one supported runtime host
+- [Claudian](https://community.obsidian.md/plugins/realclaudian) only when using Claude Code inside Obsidian
 
-1. Create or select a standalone Obsidian vault. For a new vault, initialize it from the repository template:
+Create or select a standalone Vault. Do not use the `wiki-paper-card` repository root as the Vault because the repository also contains `vendor/`, scripts, and tests.
+
+Run the installer from the repository root:
 
 ```bash
 mkdir -p /path/to/vault
-cp -R -n /path/to/wiki-paper-card/template/* /path/to/vault/
+./scripts/install.sh --host codex /path/to/vault
 ```
 
-Open `/path/to/vault` in Obsidian as the active vault. Do not open the `wiki-paper-card` repository root directly; that directory also contains implementation files such as `vendor/`, `scripts/`, and `tests/`. The `-n` flag keeps files that already exist in the target vault.
+Host values:
 
-2. Link the skill folders and install the Claude Code agents and vault instructions:
+| Value | Installed hosts |
+|---|---|
+| `claude` | Claude Code |
+| `dsh` | DeepSeek Harness |
+| `both` | Claude Code + DSH; this remains the default |
+| `codex` | Codex |
+| `all` | Claude Code + DSH + Codex |
 
-```bash
-VAULT=/path/to/vault
-mkdir -p "$VAULT/.claude/skills" "$VAULT/.claude/agents"
-ln -s /path/to/wiki-paper-card/skills/wiki-paper-card "$VAULT/.claude/skills/wiki-paper-card"
-ln -s /path/to/wiki-paper-card/skills/wiki-shared "$VAULT/.claude/skills/wiki-shared"
-cp /path/to/wiki-paper-card/adapters/claude-code/agents/*.md "$VAULT/.claude/agents/"
-cp /path/to/wiki-paper-card/template/CLAUDE.md "$VAULT/CLAUDE.md"
-```
+The installer uses no-clobber behavior for Vault pages and entry files. An existing different `CLAUDE.md` or `AGENTS.md` is preserved and reported for manual merging. Existing conflicting Skill or resource paths cause exit code 1 and are never replaced.
 
-If the vault already has a `CLAUDE.md`, merge the relevant sections instead of overwriting it.
+## Installed host layouts
 
-The template itself does not include the skills, subagents, or scripts. The links above make the skills and agents discoverable from the vault, and `WIKI_PAPER_CARD_ROOT` makes the repository scripts and pinned upstream files resolvable.
+| Host | Skill directory | Vault entry | Repository pointer |
+|---|---|---|---|
+| Claude Code | `.claude/skills/` | `CLAUDE.md` | `.claude/WIKI_PAPER_CARD_ROOT` |
+| DSH | `.dsh/skills/` | `CLAUDE.md` | `.dsh/WIKI_PAPER_CARD_ROOT` |
+| Codex | `.agents/skills/` | `AGENTS.md` | `.agents/WIKI_PAPER_CARD_ROOT` |
 
-3. Set `WIKI_PAPER_CARD_ROOT` in the Claudian Claude Code environment or the launching shell:
+Each host directory also contains `adapters`, `vendor`, and `scripts` symlinks. These make the Skills' `../../` references resolve from the installed Skill directory. `all` installs both Vault entry files from identical host-neutral templates; if pre-existing files leave them different, the installer warns because DSH may load both.
+
+The optional environment variable takes precedence over the pointer:
 
 ```bash
 export WIKI_PAPER_CARD_ROOT=/path/to/wiki-paper-card
 ```
 
-This gives the workflow an unambiguous path to the pinned scripts when Claudian runs with the vault as its working directory.
+Without it, each host reads only its own pointer and verifies that `vendor/nature-paper-card/SKILL.md` is readable. Resolution failure must stop the workflow rather than trigger path guessing.
 
-`scripts/install.sh` additionally writes a `.claude/WIKI_PAPER_CARD_ROOT` pointer file (and `.dsh/WIKI_PAPER_CARD_ROOT` for DSH) containing the repository root, so sessions fall back to it when the environment variable is unset. For manual installs, write it yourself:
+## Manual installation notes
 
-```bash
-printf '%s\n' /path/to/wiki-paper-card > "$VAULT/.claude/WIKI_PAPER_CARD_ROOT"
-```
+When manual installation is explicitly required, reproduce the selected row above: link all three repository Skills (`wiki-paper-card`, `wiki-shared`, and `wiki-gap-mining`), link `adapters`, `vendor`, and `scripts` beside the host `skills/` directory, write the host pointer, and copy only the matching Vault entry file if it is missing. Claude Code additionally copies `adapters/claude-code/agents/*.md` into `.claude/agents/`. The installer is preferred because its self-check verifies this layout.
 
-4. Invoke from the vault:
+## Invoke from the Vault
 
 ```text
 Use wiki-paper-card to process raw/papers/example.pdf.
@@ -72,7 +78,7 @@ Force regeneration of an unchanged PDF:
 Use wiki-paper-card to reprocess raw/papers/example.pdf.
 ```
 
-A single paper creates its source page under `wiki/sources/`. New topic pages require the cross-paper knowledge gates described in the main README. Batch processing runs up to three `wiki-processor` agents concurrently and starts the link and publish phase only after every card and digest passes.
+A single paper creates its source page under `wiki/sources/`. New topic pages require the cross-paper knowledge gates described in the main README. Claude Code and Codex keep at most three processors active; DSH defaults to six and allows at most eight. Every host starts the linker only after every card and digest passes.
 
 ## Optional: Anthropic-compatible model endpoint
 

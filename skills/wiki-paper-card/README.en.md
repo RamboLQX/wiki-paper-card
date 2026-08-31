@@ -12,6 +12,7 @@
 - Batch-processing a research-topic folder.
 - Regenerating an existing Paper Card.
 - Creating or updating cross-paper Topics when admission rules are met.
+- Writing evidence-linked Topic overview, synthesis, and controversy prose as complete managed blocks rather than appending per-batch summaries.
 
 ## Example prompts
 
