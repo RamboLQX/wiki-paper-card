@@ -2,6 +2,20 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [Unreleased]
+
+### 修复方法
+
+- **仓库根目录解析确定性化**：`<REPO_ROOT>` 不再依赖 Agent 从 skill 软链推断。`install.sh` 向每个宿主目录写入 `WIKI_PAPER_CARD_ROOT` 指针文件（DSH：`$VAULT/.dsh/`；Claude Code：`$VAULT/.claude/`，内容为仓库绝对路径），自检校验指针指向的 `vendor/nature-paper-card/SKILL.md` 可读。`dsh-mode.md`、`wiki-paper-card/SKILL.md`、`workflow-contract.md` 与 `template/CLAUDE.md` 的解析规则统一为：环境变量 → 指针文件 →（DSH）`readlink -f` 软链，解析后必须验证再继续，禁止猜测路径；skill 内 `../../` 相对引用明确以 skill 目录（`skill` 工具返回的 resourceBase）为基准换算。修复 DSH 会话未设置 `WIKI_PAPER_CARD_ROOT` 时模型推断仓库根偏差一级、首次读取报 `cannot read ".../skills/vendor/nature-paper-card/SKILL.md": not found` 的问题（与既有 `../../adapters/dsh/dsh-mode.md` 修复同属一类，根因是路径解析依赖模型推断）。
+
+### 改动文件
+
+- `scripts/install.sh`：新增 `write_repo_root_pointer`；`verify_host_resources` 增加指针文件与目标仓库校验；安装完成提示同步。
+- `adapters/dsh/dsh-mode.md`：环境确认段新增确定性解析顺序、验证门与 `../../` 基准规则。
+- `skills/wiki-paper-card/SKILL.md` / `references/workflow-contract.md` / `template/CLAUDE.md`：去除"从环境或 skill 所在仓库解析"的推断式措辞。
+- `docs/agent-quick-setup.md` / `docs/installation.md` / `adapters/{dsh,claude-code}/README.md` / `README.md` / `README.en.md`：指针文件机制与验证命令同步。
+- 测试：`tests/test_install.py` 新增 `assert_repo_root_pointer` 与 DSH/Claude Code 指针文件用例；全量 120 个测试通过。
+
 ## [0.9.1] - 2026-08-30
 
 ### 新增与改进

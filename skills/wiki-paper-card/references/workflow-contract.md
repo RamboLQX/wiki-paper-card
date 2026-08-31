@@ -30,10 +30,14 @@ Paper cards are generated independently and concurrently. Cross-paper knowledge 
 
 ## Phase 0: Deterministic Preparation
 
-Resolve `<REPO_ROOT>` once from the loaded skill directory or the
-`WIKI_PAPER_CARD_ROOT` environment variable. Use absolute script and reference
-paths in every subagent prompt. Do not ask a subagent to rediscover the pinned
-`vendor/` location.
+Resolve `<REPO_ROOT>` once, deterministically, never by guessing: prefer the
+`WIKI_PAPER_CARD_ROOT` environment variable, then the pointer file written by
+`install.sh` (`<host-root>/WIKI_PAPER_CARD_ROOT`; DSH: `<VAULT_ROOT>/.dsh/`,
+Claude Code: `<VAULT_ROOT>/.claude/`), then for DSH the `readlink -f` rule in
+`adapters/dsh/dsh-mode.md`. Verify `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md`
+is readable before proceeding; if resolution fails, stop and report. Use absolute
+script and reference paths in every subagent prompt. Do not ask a subagent to
+rediscover the pinned `vendor/` location.
 
 1. Identify every PDF or supported paper input.
 2. Compute each source SHA-256.

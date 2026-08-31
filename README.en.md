@@ -131,7 +131,7 @@ scripts/install.sh --host both "$VAULT"
 export WIKI_PAPER_CARD_ROOT="$PWD"
 ```
 
-The installer creates only missing directories, templates, and Skill links. It does not overwrite an existing `CLAUDE.md`, knowledge page, or source file under `raw/`.
+The installer creates only missing directories, templates, and Skill links. It does not overwrite an existing `CLAUDE.md`, knowledge page, or source file under `raw/`. It also writes the repository root into pointer files `$VAULT/.dsh/WIKI_PAPER_CARD_ROOT` (DSH) and `$VAULT/.claude/WIKI_PAPER_CARD_ROOT` (Claude Code); sessions read the pointer file when the environment variable is unset, so the `export` is optional (still recommended).
 
 Open `$VAULT` in Obsidian after installation. For DSH, start the session inside the vault directory. Place papers under `raw/papers/` and use a prompt from [Quick Start](#2-quick-start).
 

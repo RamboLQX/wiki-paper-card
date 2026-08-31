@@ -5,8 +5,10 @@ The skills reference sibling directories (adapters/, vendor/, scripts/) via
 '../../' from inside the skill directory. DSH resolves those references
 lexically against the skill base directory, so a vault install must place
 those siblings next to the host skills or every session fails with
-"cannot read .../adapters/dsh/dsh-mode.md: not found". These tests pin the
-install layout and its self-check.
+"cannot read .../adapters/dsh/dsh-mode.md: not found". The install must also
+write a WIKI_PAPER_CARD_ROOT pointer file into each host directory so sessions
+resolve <REPO_ROOT> deterministically instead of inferring it from the skill
+symlink. These tests pin the install layout and its self-check.
 """
 
 from __future__ import annotations
@@ -70,6 +72,19 @@ def assert_lexical_refs_resolve(test: unittest.TestCase, vault: Path) -> None:
         test.assertTrue(target.is_file(), f"../../ ref {ref} should resolve to {target}")
 
 
+def assert_repo_root_pointer(test: unittest.TestCase, vault: Path, host_dir: str) -> None:
+    """The install must write a deterministic <REPO_ROOT> pointer file whose
+    target exposes the pinned upstream router, so sessions never have to infer
+    the repository root from the skill symlink."""
+    pointer = vault / host_dir / "WIKI_PAPER_CARD_ROOT"
+    test.assertTrue(pointer.is_file(), f"{pointer} should be a pointer file")
+    content = pointer.read_text(encoding="utf-8").strip()
+    test.assertEqual(os.path.realpath(content), os.path.realpath(REPO_ROOT),
+                     f"{pointer} should contain the repository root")
+    pinned = Path(content) / "vendor" / "nature-paper-card" / "SKILL.md"
+    test.assertTrue(pinned.is_file(), f"pointer target should expose the pinned router: {pinned}")
+
+
 def make_vault(directory: str) -> Path:
     vault = Path(directory) / "vault"
     vault.mkdir()
@@ -85,7 +100,15 @@ class InstallLayoutTests(unittest.TestCase):
             assert_skill_links(self, vault)
             assert_resource_links(self, vault)
             assert_lexical_refs_resolve(self, vault)
+            assert_repo_root_pointer(self, vault, ".dsh")
             self.assertIn("可解析", result.stdout)
+
+    def test_install_writes_repo_root_pointer_for_claude(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vault = make_vault(directory)
+            result = run_install(vault, host="claude")
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            assert_repo_root_pointer(self, vault, ".claude")
 
     def test_install_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -96,6 +119,7 @@ class InstallLayoutTests(unittest.TestCase):
             self.assertEqual(second.returncode, 0, msg=second.stderr)
             self.assertIn("unchanged", second.stdout)
             assert_resource_links(self, vault)
+            assert_repo_root_pointer(self, vault, ".dsh")
 
     def test_conflicting_resource_path_fails_with_exit_one(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

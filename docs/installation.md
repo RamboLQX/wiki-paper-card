@@ -42,6 +42,12 @@ export WIKI_PAPER_CARD_ROOT=/path/to/wiki-paper-card
 
 This gives the workflow an unambiguous path to the pinned scripts when Claudian runs with the vault as its working directory.
 
+`scripts/install.sh` additionally writes a `.claude/WIKI_PAPER_CARD_ROOT` pointer file (and `.dsh/WIKI_PAPER_CARD_ROOT` for DSH) containing the repository root, so sessions fall back to it when the environment variable is unset. For manual installs, write it yourself:
+
+```bash
+printf '%s\n' /path/to/wiki-paper-card > "$VAULT/.claude/WIKI_PAPER_CARD_ROOT"
+```
+
 4. Invoke from the vault:
 
 ```text

@@ -20,7 +20,11 @@ Set `WIKI_PAPER_CARD_ROOT` in the Claudian Claude Code environment or the launch
 export WIKI_PAPER_CARD_ROOT=/path/to/wiki-paper-card
 ```
 
-This keeps the workflow scripts resolvable when Claudian uses the vault as its working directory.
+This keeps the workflow scripts resolvable when Claudian uses the vault as its working directory. `scripts/install.sh` also writes a `.claude/WIKI_PAPER_CARD_ROOT` pointer file, so sessions fall back to it when the environment variable is unset; manual installs should write it too:
+
+```bash
+printf '%s\n' /path/to/wiki-paper-card > /path/to/vault/.claude/WIKI_PAPER_CARD_ROOT
+```
 
 ## Invoke
 

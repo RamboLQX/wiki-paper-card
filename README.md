@@ -129,7 +129,10 @@ scripts/install.sh --host both "$VAULT"
 export WIKI_PAPER_CARD_ROOT="$PWD"
 ```
 
-安装脚本只创建缺失的目录、模板文件和 Skill 链接，不会覆盖 Vault 中已有的 `CLAUDE.md`、知识页面或 `raw/` 资料。
+安装脚本只创建缺失的目录、模板文件和 Skill 链接，不会覆盖 Vault 中已有的 `CLAUDE.md`、知识页面或 `raw/` 资料。脚本同时把仓库根写入
+`$VAULT/.dsh/WIKI_PAPER_CARD_ROOT`（DSH）与 `$VAULT/.claude/WIKI_PAPER_CARD_ROOT`
+（Claude Code）指针文件；会话未设置环境变量时自动读取指针文件，因此
+`export WIKI_PAPER_CARD_ROOT` 可以省略（设置了更稳妥）。
 
 安装后，在 Obsidian 中打开 `$VAULT`。使用 DSH 时，在 Vault 目录中启动 DSH 会话。将论文放入 `raw/papers/`，然后使用[快速开始](#2-快速开始)中的指令。
 

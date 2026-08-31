@@ -33,7 +33,7 @@
 
 用户给出明确输入路径后，使用 `wiki-paper-card` skill 执行单篇或批量流程。子代理可用时使用 `wiki-processor` 和 `wiki-linker`；所有 wiki 写入最终由确定性 `publish_wiki.py` 执行。
 
-如果 skill 或脚本不在 vault 中，优先使用 `WIKI_PAPER_CARD_ROOT` 指向 `wiki-paper-card` 仓库根目录。
+如果 skill 或脚本不在 vault 中，使用 `WIKI_PAPER_CARD_ROOT` 指向 `wiki-paper-card` 仓库根目录。未设置环境变量时，读取宿主目录下的指针文件 `WIKI_PAPER_CARD_ROOT`（DSH：`.dsh/`；Claude Code：`.claude/`，由 `install.sh` 写入）。解析后先验证 `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md` 存在，失败即停止并向用户报告，不要猜测路径。
 
 ## 知识边界
 

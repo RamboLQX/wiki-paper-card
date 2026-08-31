@@ -112,6 +112,7 @@ git clone "$REPO_URL" "$REPO_ROOT"
 - Claude Code 宿主：链接 skill 到 `$VAULT_ROOT/.claude/skills/`，复制 agent 到 `$VAULT_ROOT/.claude/agents/`（同名不同内容报冲突）。
 - DSH 宿主：链接 skill 到 `$VAULT_ROOT/.dsh/skills/`。DSH 自动发现该目录与 Vault 根目录的 `CLAUDE.md`/`AGENTS.md`。
 - 资源目录链接：`adapters/`、`vendor/`、`scripts/` 软链到宿主层的 `../../` 位置（Claude Code：`$VAULT_ROOT/.claude/`；DSH：`$VAULT_ROOT/.dsh/`），保证技能内 `../../` 引用（如 `../../adapters/dsh/dsh-mode.md`）在安装后仍可解析；安装结束自检这些引用，断链以退出码 1 报错。
+- 仓库根指针：向每个宿主目录写入 `WIKI_PAPER_CARD_ROOT` 指针文件（内容为 `$REPO_ROOT` 绝对路径，Claude Code：`$VAULT_ROOT/.claude/`；DSH：`$VAULT_ROOT/.dsh/`）。Agent 会话在未设置同名环境变量时直接读取该文件解析仓库根，避免靠 skill 软链推断路径；自检同时校验指针指向的 `vendor/nature-paper-card/SKILL.md` 可读。
 - 退出码非 0 时，把脚本输出的 CONFLICT/ERROR 行逐条报告给用户，不擅自处理。
 
 ## 第四步：手动安装（不使用脚本时的等价步骤）
@@ -130,6 +131,9 @@ mkdir -p "$VAULT_ROOT/work"
 
 - Claude Code：链接 `$REPO_ROOT/skills/{wiki-paper-card,wiki-shared,wiki-gap-mining}` 到 `$VAULT_ROOT/.claude/skills/`，复制 `$REPO_ROOT/adapters/claude-code/agents/*.md` 到 `$VAULT_ROOT/.claude/agents/`，并链接 `adapters`、`vendor`、`scripts` 到 `$VAULT_ROOT/.claude/`。
 - DSH：链接 `$REPO_ROOT/skills/{wiki-paper-card,wiki-shared,wiki-gap-mining}` 到 `$VAULT_ROOT/.dsh/skills/`，并链接 `adapters`、`vendor`、`scripts` 到 `$VAULT_ROOT/.dsh/`。
+- 向所选宿主目录写入仓库根指针（DSH 与 Claude Code 各一份，内容为 `$REPO_ROOT` 绝对路径）：
+  `printf '%s\n' "$REPO_ROOT" > "$VAULT_ROOT/.dsh/WIKI_PAPER_CARD_ROOT"`；
+  `printf '%s\n' "$REPO_ROOT" > "$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT"`。
 - 模板文件按缺失补齐：
 
 ```text
@@ -167,6 +171,10 @@ export WIKI_PAPER_CARD_ROOT="$REPO_ROOT"
 
 持久化方式由用户使用的宿主决定（Claudian 配置或启动 shell 的环境变量）。Agent 应说明当前会话已经生效，并告知用户如何持久化。
 
+未设置环境变量时，Agent 会话会自动回退读取宿主目录下的指针文件
+`$VAULT_ROOT/.dsh/WIKI_PAPER_CARD_ROOT`（DSH）或 `$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT`
+（Claude Code，均为 install.sh 写入），因此环境变量可以省略；设置了更稳妥。
+
 ## 第七步：验证
 
 执行现有 smoke test，不新增独立预检脚本：
@@ -189,6 +197,8 @@ test -L "$VAULT_ROOT/.dsh/skills/wiki-paper-card"      # HOST 含 dsh 时
 test -L "$VAULT_ROOT/.claude/adapters"                 # HOST 含 claude 时
 test -L "$VAULT_ROOT/.dsh/adapters"                    # HOST 含 dsh 时
 test -r "$VAULT_ROOT/.dsh/adapters/dsh/dsh-mode.md"    # HOST 含 dsh 时
+test -r "$VAULT_ROOT/.claude/WIKI_PAPER_CARD_ROOT"     # HOST 含 claude 时
+test -r "$VAULT_ROOT/.dsh/WIKI_PAPER_CARD_ROOT"        # HOST 含 dsh 时
 ```
 
 DSH 宿主额外说明：skill 目录在会话启动时编入目录，需要新开一个 DSH 会话才能确认 `wiki-paper-card` 出现在会话技能列表里；把这一条写入"仍需用户手动完成的步骤"。

@@ -14,9 +14,11 @@ bash 工具执行确定性脚本，通过 subagent 工具承担 processor 与 li
 
 脚本会：补齐 Vault 目录、no-clobber 复制模板 Wiki 文件、把
 `wiki-paper-card` 与 `wiki-shared` 链接到 `$VAULT/.dsh/skills/`、复制
-`template/CLAUDE.md`（DSH 自动加载 Vault 根目录的 `CLAUDE.md` / `AGENTS.md`）。
+`template/CLAUDE.md`（DSH 自动加载 Vault 根目录的 `CLAUDE.md` / `AGENTS.md`），
+并把仓库根写入 `$VAULT/.dsh/WIKI_PAPER_CARD_ROOT` 指针文件。
 
-随后在 DSH 的会话环境中设置项目根目录：
+随后可在 DSH 的会话环境中设置项目根目录（可选，未设置时会话自动读取
+`$VAULT/.dsh/WIKI_PAPER_CARD_ROOT`）：
 
 ```bash
 export WIKI_PAPER_CARD_ROOT=/path/to/wiki-paper-card

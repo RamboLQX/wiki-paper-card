@@ -10,6 +10,9 @@
 #   - Skills are symlinked into the host skill directory.
 #   - adapters/, vendor/, scripts/ are symlinked next to the host skills so the
 #     skills' '../../' references (e.g. ../../adapters/dsh/dsh-mode.md) resolve.
+#   - A WIKI_PAPER_CARD_ROOT pointer file is written into each host directory
+#     (.dsh/ or .claude/) with the absolute repository root, so agent sessions
+#     can resolve <REPO_ROOT> deterministically without guessing.
 #   - CLAUDE.md is copied only when the target does not exist.
 #
 # Exit codes: 0 ok, 1 conflict or missing requirement, 2 usage error.
@@ -152,10 +155,38 @@ link_host_resources() {
     done
 }
 
+# Write the repository root pointer into the host directory. Agent sessions
+# read this file when WIKI_PAPER_CARD_ROOT is not set in the environment, so
+# <REPO_ROOT> resolution never depends on model inference of the skill
+# symlink target. The value is derived from --repo-root, so a changed repo
+# path updates the file (this is the one exception to no-overwrite).
+write_repo_root_pointer() {
+    local host_dir="$1"
+    mkdir -p "$host_dir"
+    local pointer="$host_dir/WIKI_PAPER_CARD_ROOT"
+    if [[ -d "$pointer" ]]; then
+        report_conflict "$pointer is a directory; expected a pointer file"
+        return
+    fi
+    if [[ -e "$pointer" ]]; then
+        if [[ "$(cat "$pointer")" == "$REPO_ROOT" ]]; then
+            echo "keep  $pointer (unchanged)"
+        else
+            printf '%s\n' "$REPO_ROOT" > "$pointer"
+            echo "update $pointer -> $REPO_ROOT"
+        fi
+    else
+        printf '%s\n' "$REPO_ROOT" > "$pointer"
+        echo "write $pointer -> $REPO_ROOT"
+    fi
+}
+
 # Verify the skills' '../../' references resolve for this host. Lexically,
 # <host_dir>/skills/<skill>/../../ equals <host_dir>/, so checking the sibling
 # paths directly validates what DSH will resolve at runtime. A failure means
 # the install is incomplete and sessions would hit "cannot read ... not found".
+# The WIKI_PAPER_CARD_ROOT pointer must also exist and point at a repo whose
+# pinned upstream router is readable.
 verify_host_resources() {
     local host_dir="$1"
     local missing=""
@@ -167,17 +198,29 @@ verify_host_resources() {
             missing="$missing $rel"
         fi
     done
+    local pointer="$host_dir/WIKI_PAPER_CARD_ROOT"
+    if [[ ! -r "$pointer" ]]; then
+        missing="$missing WIKI_PAPER_CARD_ROOT"
+    else
+        local pointer_root
+        pointer_root="$(cat "$pointer")"
+        if [[ -z "$pointer_root" || ! -r "$pointer_root/vendor/nature-paper-card/SKILL.md" ]]; then
+            echo "ERROR: $pointer 指向的仓库缺少 vendor/nature-paper-card/SKILL.md（$pointer_root）；请确认 WIKI_PAPER_CARD_ROOT 指向 wiki-paper-card 仓库根目录。" >&2
+            CONFLICTS=1
+        fi
+    fi
     if [[ -n "$missing" ]]; then
-        echo "ERROR: $host_dir: skill 的 ../../ 资源引用无法解析（缺少:${missing}）；请确认 adapters/vendor/scripts 链接正确。" >&2
+        echo "ERROR: $host_dir: skill 的 ../../ 资源引用无法解析（缺少:${missing}）；请确认 adapters/vendor/scripts 链接与 WIKI_PAPER_CARD_ROOT 指针正确。" >&2
         CONFLICTS=1
     else
-        echo "ok    $host_dir: skill 的 ../../ 资源引用可解析"
+        echo "ok    $host_dir: skill 的 ../../ 资源引用与 WIKI_PAPER_CARD_ROOT 指针可解析"
     fi
 }
 
 install_claude() {
     link_skills "$VAULT/.claude/skills"
     link_host_resources "$VAULT/.claude"
+    write_repo_root_pointer "$VAULT/.claude"
     mkdir -p "$VAULT/.claude/agents"
     for agent in "$REPO_ROOT"/adapters/claude-code/agents/*.md; do
         [[ -e "$agent" ]] || continue
@@ -199,6 +242,7 @@ install_claude() {
 install_dsh() {
     link_skills "$VAULT/.dsh/skills"
     link_host_resources "$VAULT/.dsh"
+    write_repo_root_pointer "$VAULT/.dsh"
     verify_host_resources "$VAULT/.dsh"
 }
 
@@ -207,8 +251,10 @@ install_dsh() {
 
 echo ""
 echo "Install complete for host: $HOST"
-echo "Set the repository root for agent sessions:"
-echo "  export WIKI_PAPER_CARD_ROOT=$REPO_ROOT"
+echo "Repository root pointer written to the host directory (sessions fall"
+echo "back to it when WIKI_PAPER_CARD_ROOT is unset):"
+echo "  $VAULT/.dsh/WIKI_PAPER_CARD_ROOT = $REPO_ROOT"
+echo "Optional: export WIKI_PAPER_CARD_ROOT=$REPO_ROOT"
 echo ""
 echo "Next: open $VAULT in Obsidian and invoke:"
 echo "  Use wiki-paper-card to process raw/papers/example.pdf."

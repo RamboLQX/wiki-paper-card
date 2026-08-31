@@ -10,7 +10,21 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
 - DSH 自动发现 `<VAULT_ROOT>/.dsh/skills/` 与 `<VAULT_ROOT>/.agents/skills/` 下的
   skill 目录（`<name>/SKILL.md`），以及 Vault 根目录的 `CLAUDE.md` / `AGENTS.md`。
   安装由 `scripts/install.sh --host dsh` 完成，无需其他配置。
-- `<REPO_ROOT>` 优先取 `WIKI_PAPER_CARD_ROOT` 环境变量，其次取 skill 所在仓库。
+- `<REPO_ROOT>` 按以下确定性顺序解析，禁止靠模型推断路径：
+  1. `WIKI_PAPER_CARD_ROOT` 环境变量；
+  2. `<VAULT_ROOT>/.dsh/WIKI_PAPER_CARD_ROOT` 指针文件（`install.sh` 写入，内容为
+     仓库绝对路径，直接读取即可）；
+  3. `bash` 执行 `readlink -f "<VAULT_ROOT>/.dsh/skills/wiki-paper-card"`，对结果
+     连续取两次 `dirname` 得到仓库根目录（软链真实路径的 `skills/wiki-paper-card`
+     之上两级）。
+  解析后必须验证 `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md` 可读；验证失败
+  就停止并请用户设置 `WIKI_PAPER_CARD_ROOT` 或重新运行 install.sh，不得继续猜测
+  其他路径。
+- skill 文档内的 `../../` 相对引用一律以 skill 目录为基准换算成绝对路径后再读取：
+  skill 目录即 `skill` 工具返回的 `resourceBase`（DSH 安装布局下形如
+  `<VAULT_ROOT>/.dsh/skills/<name>/`）。例如 `../../vendor/nature-paper-card/SKILL.md`
+  换算为 `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md`。不要以会话工作目录为基准
+  解析这些引用，也不要只上溯一级。
 - 运行 Python 脚本统一加 `PYTHONDONTWRITEBYTECODE=1`，避免写入系统缓存。
 
 ## 阶段映射

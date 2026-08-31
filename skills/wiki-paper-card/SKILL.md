@@ -21,7 +21,7 @@ Before processing:
 2. Read [manifest.yaml](manifest.yaml).
 3. Read every file listed under `always_load`.
 4. Resolve the wiki root and confirm `raw/` and `wiki/` exist. For an explicit single-file or batch request, start Phase 0 directly; do not ask for confirmation when the input path and scope are unambiguous.
-5. Resolve `WIKI_PAPER_CARD_ROOT` from the environment or the repository containing this skill. The pinned scripts live under `<WIKI_PAPER_CARD_ROOT>/vendor/`.
+5. Resolve `<REPO_ROOT>` deterministically, never by guessing: prefer the `WIKI_PAPER_CARD_ROOT` environment variable, then the pointer file written by `install.sh` (`<host-root>/WIKI_PAPER_CARD_ROOT`; DSH: `<VAULT_ROOT>/.dsh/`, Claude Code: `<VAULT_ROOT>/.claude/`). Under DSH, `../../adapters/dsh/dsh-mode.md` defines the exact order and the verification gate. Verify `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md` is readable before proceeding; if resolution fails, stop and report rather than guessing other paths. The pinned scripts live under `<REPO_ROOT>/vendor/`.
 
 Do not proceed from this router alone.
 
