@@ -518,6 +518,7 @@ def audit_v3_narrative(
     contradiction_ids: set[str],
     findings: list[dict[str, Any]],
     label: str,
+    source_count: int,
 ) -> None:
     if not isinstance(narrative, dict):
         findings.append(
@@ -540,6 +541,15 @@ def audit_v3_narrative(
                 )
             )
         else:
+            if not 2 <= len(paragraphs) <= 3:
+                findings.append(
+                    finding(
+                        "error",
+                        "narrative_overview_depth",
+                        f"{label} overview must contain two or three complete paragraphs.",
+                        paragraphs=len(paragraphs),
+                    )
+                )
             for index, paragraph in enumerate(paragraphs, start=1):
                 audit_v3_paragraph(
                     paragraph,
@@ -561,6 +571,20 @@ def audit_v3_narrative(
                 )
             )
             continue
+        if field == "synthesis_blocks":
+            minimum = 3 if source_count >= 4 else 1
+            if not minimum <= len(blocks) <= 5:
+                findings.append(
+                    finding(
+                        "error",
+                        "narrative_synthesis_depth",
+                        f"{label} synthesis depth does not match the current evidence base.",
+                        sources=source_count,
+                        minimum_blocks=minimum,
+                        maximum_blocks=5,
+                        found_blocks=len(blocks),
+                    )
+                )
         seen_block_ids: set[str] = set()
         for block_index, block in enumerate(blocks, start=1):
             block_label = f"{label} {field} block {block_index}"
@@ -591,6 +615,15 @@ def audit_v3_narrative(
                     )
                 )
                 continue
+            if len(paragraphs) < 2:
+                findings.append(
+                    finding(
+                        "error",
+                        "narrative_block_depth",
+                        f"{block_label} must separate the main relationship from its boundary and implication.",
+                        paragraphs=len(paragraphs),
+                    )
+                )
             for paragraph_index, paragraph in enumerate(paragraphs, start=1):
                 audit_v3_paragraph(
                     paragraph,
@@ -825,7 +858,12 @@ def audit_topic_action_v3(
                 )
 
         audit_v3_narrative(
-            action.get("narrative"), finding_ids, contradiction_ids, findings, label
+            action.get("narrative"),
+            finding_ids,
+            contradiction_ids,
+            findings,
+            label,
+            len(papers),
         )
 
     seen_item_ids: set[str] = set()

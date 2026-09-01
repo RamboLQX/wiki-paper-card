@@ -120,32 +120,33 @@ starting set (per-vault, not enforced): 评测基准与数据集 / 消解与干�
 行为规律 / 机制解释 / 多模态冲突 / 跨域迁移与统一度量 / 综述与元评估 /
 领域应用.
 
-Schema 3.0 pages also carry `last_topic_action_sha256`, an internal publisher
-fingerprint used only to recognize an exact idempotent plan replay. It is not
-research content and must not be edited by a linker or miner.
+Schema 3.0 keeps publisher state outside the reader-facing page. Each Topic has
+a JSON sidecar under `wiki/meta/topic-state/` that mirrors its relative path.
+The sidecar stores the last action fingerprint, stable open-item IDs and
+origins, and gap annotations. It is application state, not research content.
 
 ```markdown
 # 页面名
 
 ## 概述
 
-%% wiki-paper-card:managed-start overview %%
-<2 short reader-facing paragraphs with evidence lines>
-%% wiki-paper-card:managed-end overview %%
+<2-3 complete reader-facing paragraphs with Markdown footnote references>
 
 ## 综合认识
 
-%% wiki-paper-card:managed-start synthesis %%
 ### <claim-led heading>
-<complete synthesis paragraph with evidence line>
-%% wiki-paper-card:managed-end synthesis %%
+<cross-paper relationship paragraph>
+
+<comparability, boundary, alternative explanation, and implication paragraph>
 
 ## 争议与不确定
 
-%% wiki-paper-card:managed-start controversies %%
 ### <disputed question>
 <positions, boundary, and discriminating evidence>
-%% wiki-paper-card:managed-end controversies %%
+
+## 证据注释
+
+[^topic-evidence-1]: [[source page]] [Paper: precise pointer].
 
 ## 论文与方法对照
 
@@ -161,46 +162,47 @@ research content and must not be edited by a linker or miner.
 ## 已解决的研究空白
 ```
 
-The `## 概述` opens the page with two short paragraphs written per the
+The `## 概述` opens the page with two or three complete paragraphs written per the
 shared [writing guide](writing-guide.md). It defines the problem and value,
 then states the current field position and its main boundary. `## 综合认识`
-contains 3-5 claim-led subsections. Every paragraph follows topic judgment,
-cross-paper evidence, boundary/difference, and research implication.
+contains three to five claim-led subsections when a mature Topic has enough
+evidence. Each subsection normally separates the cross-paper relationship from
+comparability, limitations, alternative explanations, and research implications.
 
 Schema 3.0 `key_findings` and `contradictions` remain in the link plan as the
 evidence ledger. Narrative paragraphs reference their stable IDs, and the
-publisher renders a compact visible evidence line. It never duplicates the
-ledger as a `## 关键发现` bullet list.
+publisher renders standard Markdown footnote references and definitions. It
+never duplicates the ledger as a `## 关键发现` bullet list.
 
-The three narrative sections are enclosed by invisible Obsidian managed
-markers. Ingest replaces only the marker contents. Mining is read-only for
-these sections. An ingest update to an old page without all markers fails
-with `narrative_migration_required`; no implicit whole-vault migration exists.
+Fixed second-level headings define the publisher-owned sections. Ingest
+replaces their bodies; mining is read-only for narrative and comparison
+content. Empty controversy and evidence-note sections are omitted. Existing
+schema 3.0 pages that still contain legacy managed comments migrate to clean
+Markdown and a sidecar on their next valid update. A page with neither legacy
+markers nor a valid sidecar fails with `narrative_migration_required`; no
+implicit whole-vault migration exists.
 
-The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. Schema 3.0 stores each item's stable ID and immutable origin in an invisible inline Obsidian comment. When an item is answered, the publisher moves the same ID into the archive. Dashboard and tree aggregation strips the hidden metadata and includes only open visible text.
+The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. Schema 3.0 stores each item's stable ID and immutable origin in the Topic sidecar. When an item is answered, the publisher moves the same ID into the archive. Dashboard and tree aggregation read the structured sidecar and include only open visible text.
 
 ### Research Gap Rendering
 
-A gap renders as a main bullet plus optional indented detail sub-bullets; only
-fields that were written appear:
+A schema 3.0 gap renders as a heading plus reader-facing prose. Only supported
+fields appear:
 
 ```markdown
-- <gap 描述>（来源：[[论文A]]；可检验方向：…；承接：…）
-  - 为什么值得做：…
-  - 现有方法卡在哪：…
-  - 怎么检验：…
-  - 做到什么算成：…
-  - 可能行不通：…
-  - 优先级：高/中/低 + 理由
+### <gap 描述>
+
+**为什么值得做。** ... **现有证据边界。** ... 这一判断来自 [[论文A]]。
+
+**推进方向。** ... **验证方式。** ... **成功条件。** ...
+**可能失败。** ... **后续承接。** ... **优先级。** 高/中/低。
 ```
 
-Every open gap carries a 为什么值得做 sub-bullet (the plan's
-`significance`); the link-plan audit rejects an open gap without it. An
-entry that carries v2 detail fields but lacks both `现有方法卡在哪` and
-`怎么检验` is a tentative direction and its main line gains a `[待验证]` tag.
-Entries without any detail field render as the legacy single line. The main
-line stays the compact summary; the dashboards aggregate only main lines,
-sorted by priority (高 < 中 < 低 < unmarked).
+Every open gap carries `significance`; the link-plan audit rejects an open gap
+without it. An entry with detail fields but without both `evidence_boundary`
+and `experiment` is a tentative direction and its heading gains `[待验证]`.
+Dashboards use the sidecar's compact `gap` and `priority` fields rather than
+parsing or duplicating the visible prose.
 
 ## Index And Log
 

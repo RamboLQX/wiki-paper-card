@@ -8,6 +8,7 @@ always_load:
   - ../../vendor/nature-paper-card/SKILL.md
   - ../wiki-shared/references/wiki-schema.md
   - ../wiki-shared/references/knowledge-model.md
+  - ../wiki-shared/references/writing-guide.md
   - ../../vendor/nature-paper-card/static/core/principles.md
   - ../../vendor/nature-paper-card/static/core/workflow.md
   - ../../vendor/nature-paper-card/static/core/output-contract.md

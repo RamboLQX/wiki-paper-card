@@ -12,7 +12,7 @@
 - Batch-processing a research-topic folder.
 - Regenerating an existing Paper Card.
 - Creating or updating cross-paper Topics when admission rules are met.
-- Writing evidence-linked Topic overview, synthesis, and controversy prose as complete managed blocks rather than appending per-batch summaries.
+- Writing reader-facing Paper Cards and evidence-linked Topic prose, with clean Markdown footnotes and sidecar state instead of visible publisher protocol.
 
 ## Example prompts
 
@@ -35,7 +35,7 @@ See [docs/artifacts.md](../../docs/artifacts.md) (written in Chinese) for the me
 
 ## Processing rules
 
-- Paper Cards preserve the research question, methods, experiments, conclusions, limitations, and source locators.
+- Paper Cards explain the research question, methods, experiments, conclusions, limitations, and research ideas in readable prose while preserving source locators and comparison tables.
 - Every paper is analyzed and audited independently before cross-paper linking begins.
 - A Topic requires at least two papers sharing a problem, mechanism, or evidence space.
 - `raw/` remains read-only, and final knowledge pages are written through the deterministic publisher.

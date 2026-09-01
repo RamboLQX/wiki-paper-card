@@ -11,27 +11,19 @@ status: stub
 
 ## 概述
 
-%% wiki-paper-card:managed-start overview %%
-
-<!-- 由 schema 3.0 narrative.overview 渲染；段后附可见证据行 -->
-
-%% wiki-paper-card:managed-end overview %%
+用两至三个完整段落说明研究问题、判断价值、当前进展和主要证据边界。精确来源通过同页 Markdown 脚注引用。
 
 ## 综合认识
 
-%% wiki-paper-card:managed-start synthesis %%
-
-<!-- 由 synthesis_blocks 按论点渲染，不按论文逐篇追加 -->
-
-%% wiki-paper-card:managed-end synthesis %%
+按跨论文论点组织三级小节。每个小节先说明证据共同支持的关系，再说明可比性、限制、替代解释和研究含义。
 
 ## 争议与不确定
 
-%% wiki-paper-card:managed-start controversies %%
+本节仅在存在真实争议时出现，完整说明双方证据、差异来源和可判别实验。没有真实争议时省略整个小节。
 
-<!-- 只渲染真实争议，保留双方证据与判别实验 -->
+## 证据注释
 
-%% wiki-paper-card:managed-end controversies %%
+使用标准 Markdown 脚注定义保存精确 source page 与 pointer。无脚注时省略本节。
 
 ## 论文与方法对照
 
@@ -40,16 +32,16 @@ status: stub
 
 ## 开放问题
 
-<!-- 只列仍开放的问题；项目 ID/origin 保存在不可见 Obsidian 注释中 -->
+只列仍开放、能够独立理解的问题。
 
 ## 研究空白与候选方向
 
-<!-- 只列仍开放的空白；paper-card 与 gap-mining 按稳定 ID 共同承接 -->
+每个开放空白使用三级标题和完整段落说明价值、证据边界、验证方式、成功条件与失败风险。
 
 ## 已解决的问题
 
-<!-- 可选小节：由发布器从 answered 的开放问题归档，有内容才渲染；不参与 research.md / knowledge-tree 聚合 -->
+可选小节。只归档已经回答的问题，不参与 research.md 或 knowledge-tree 聚合。
 
 ## 已解决的研究空白
 
-<!-- 可选小节：由发布器从 answered 的研究空白归档，有内容才渲染；不参与 research.md / knowledge-tree 聚合 -->
+可选小节。只归档已经回答的研究空白，不参与 research.md 或 knowledge-tree 聚合。

@@ -12,7 +12,7 @@ Before processing, read completely:
    `processor-pack.md` containing this brief, the pinned upstream router,
    the upstream manifest and every file under its `always_load`, all six
    paper-type lens fragments, the on-demand references, the local knowledge
-   model, and the paper digest schema.
+   model, the reader-facing writing guide, and the paper digest schema.
 2. The pack's `## digest-schema` section for the digest field definitions.
 
 When no pack is supplied, read the individual sources listed under
@@ -109,6 +109,33 @@ Use only pointers present in the source bundle. Separate `[Paper]`, `[External]`
 
 Section 12 contains only limitations explicitly acknowledged by the authors. Section 13 contains Agent analysis.
 
+### Reader-facing Structure
+
+Apply the shared writing guide before drafting. The visible card must allow a
+reader to understand the paper without reconstructing its argument from field
+labels or one-line bullets.
+
+- Section 03 contains two prose units labelled `**问题情境。**` and
+  `**核心研究问句。**`. The first integrates the concrete problem, its
+  importance, and why existing approaches are insufficient. The second states
+  one precise, testable research question. Do not add a separate `精确问题`.
+- Sections 04, 06, 07, and 11 use coherent paragraphs. Section 06 explains the
+  surface method and core insight together, then gives the transferable lesson
+  with an `[Analysis]` label where needed.
+- Sections 05, 08, 10, 12, and 13 may use the upstream tables, but precede each
+  table with a synthesis paragraph that explains what relationship the reader
+  should inspect. Do not use the table as the only explanation.
+- Sections 14 and 15 group knowledge by theme. If a list is genuinely clearer,
+  each entry must be a self-contained mini-paragraph rather than a short label.
+- Each Section 16 idea uses a descriptive heading and three prose paragraphs:
+  source observation plus `核心假设`; relative difference, initial method, and
+  `验证方式`; then `可能失败` and `创新状态`. Do not render the idea as seven
+  field bullets.
+
+Lists and tables are not forbidden. Use them only for material whose primary
+value is scanning, comparison, or lookup. Do not impose a word-count target or
+pad sections when the source does not support more detail.
+
 ### Literal Tag Format
 
 Never write a raw inline HTML tag in card text. A literal token such as
@@ -134,12 +161,14 @@ Use this pattern in Section 09:
 
 $$P(v) = \ldots$$
 
-- 符号: ...
-- 目的: ...
-- 直觉: ...
+式中，... 表示 ...。该式用于 ...，其直觉是 ...。它只在 ... 条件下支持
+这一解释，不能据此推出 ...。[Paper: PDF p. 3, Eq.1]
 ```
 
-The table below the formula may contain only its number, symbol meanings, purpose, and source pointer. Use `$...$` only for short inline references outside a table. Escape a literal pipe inside inline math as `\|`.
+The optional index table below the formula may contain only its number, symbol
+meanings, purpose, and source pointer. Do not repeat information already clear
+in the explanatory paragraph. Use `$...$` only for short inline references
+outside a table. Escape a literal pipe inside inline math as `\|`.
 
 Correct:
 
@@ -147,6 +176,10 @@ Correct:
 **Eq.1 上下文感知归因**
 
 $$Attr(n_i^l) = \ldots$$
+
+式中，$n_i^l$ 表示第 $l$ 层的第 $i$ 个节点。该式量化上下文对节点输出的
+贡献，用于比较不同输入条件下的归因变化。它描述的是关联贡献，而不是因果效应。
+[Paper: PDF p. 4, Eq. 2]
 
 | 编号 | 符号含义 | 目的 | 来源 |
 |---|---|---|---|
@@ -181,7 +214,9 @@ Keep detailed paper-local knowledge in Sections 14-16.
 
 Proposed topic comparisons and open questions belong in the topic plan.
 
-Section 16 ideas must each trace to a concrete observation or limitation; if none, leave the section sparse rather than padding it with generic ideas.
+Section 16 ideas must each trace to a concrete observation or limitation. Write
+each idea as a readable argument, not a metadata form. If none, leave the
+section sparse rather than padding it with generic ideas.
 
 ## Paper Digest
 

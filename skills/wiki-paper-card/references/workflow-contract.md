@@ -52,7 +52,8 @@ python "<REPO_ROOT>/scripts/build_processor_pack.py" \
   --manifest "<BATCH_WORKDIR>/processor-pack.manifest.json"
 ```
 
-The pack merges every reference a processor must read into one document.
+The pack merges every reference a processor must read into one document,
+including the shared reader-facing writing guide.
 Run it with `--verify` before spawning processors to assert the pinned
 sources are unchanged since the pack was built.
 
@@ -89,7 +90,10 @@ Processor role: `wiki-processor` under Claude Code; a fresh processor subagent u
 
 One processor per paper:
 
-1. Reads the processor pack once (or, when no pack was built, the individual sources listed in Phase 0 step 6).
+1. Reads the processor pack once. If no pack was built, it reads the processor
+   brief, upstream router and manifest dependencies, shared knowledge model,
+   shared writing guide, paper digest schema, and applicable paper-type lens
+   individually.
 2. Reads the source bundle once.
 3. Reads `kb-context.md`.
 4. Writes the complete Sections 01-16 `paper-card.md`.
@@ -219,10 +223,12 @@ The publisher:
 7. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
 8. Rebuilds `wiki/meta/knowledge-tree.md` (human navigation tree: per domain, topics as signpost nodes with nested papers and open items, plus unassigned papers, then the category-first topic view), `wiki/meta/agent-tree.md` (agent retrieval first hop: domain and topic signposts only), and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. All three aggregate only open items; answered items are archived on the topic pages and excluded.
 
-For schema 3.0, ingest replaces the three managed narrative blocks as complete
-units and merges comparison/open-item state deterministically. Mining preserves
-the managed narrative and comparison table byte-for-byte, changing only
-stable-ID open items and monotonic source/backlink membership. A stale Topic
+For schema 3.0, ingest replaces the publisher-owned narrative sections as
+complete units and merges comparison/open-item state deterministically. Stable
+IDs, origins, annotations, and the replay fingerprint live in
+`wiki/meta/topic-state/*.json`; no publisher protocol appears in Topic
+Markdown. Mining preserves narrative and comparison content byte-for-byte,
+changing only stable-ID open items and monotonic source/backlink membership. A stale Topic
 hash blocks the complete plan before any write; an exact action replay is a
 no-op. A mining answer emits `narrative_refresh_recommended` so the next ingest
 can absorb that evidence into the reader-facing synthesis.

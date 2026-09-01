@@ -95,7 +95,7 @@ For `update_topic`, `base_topic_sha256` is the SHA-256 of the exact UTF-8 Topic-
 - `key_findings[].id` and `contradictions[].id` are unique lowercase kebab-case IDs within the action.
 - Every finding has `claim`, `kind`, non-empty `source_refs`, and source-bound `pointers[]`. A `consensus` finding needs at least two independent sources.
 - Each narrative paragraph contains final prose plus non-empty `finding_refs`; `contradiction_refs` is optional. All references resolve inside the same action.
-- The publisher renders `overview`, `synthesis_blocks`, and `controversy_blocks` inside invisible managed markers, and derives a visible evidence line from the referenced ledger entries. It does not render `key_findings` again as bullets.
+- The publisher replaces `overview`, `synthesis_blocks`, and `controversy_blocks` by fixed second-level heading boundaries and derives standard Markdown footnotes from the referenced ledger entries. It does not render `key_findings` again as bullets or expose publisher protocol in the Topic Markdown.
 - Narrative text contains no Markdown bullets and no batch-history language such as 本批, 本次新增, or 追加证据.
 - `papers` contains every source referenced by the action, including existing Wiki sources needed to rebuild the complete narrative. An ingest action must reference at least one current-batch source.
 
@@ -108,7 +108,7 @@ In schema 3.0, every `open_questions` and `research_gaps` entry is an object wit
 - non-empty `source_refs` contained in the action's `papers`;
 - `status: "open"|"answered"`; answered entries also carry `answered_by` and `answered_pointer`.
 
-Research gaps retain `direction`, `continuity`, `significance`, and the optional v2 detail fields. The publisher stores `id` and `origin` in an invisible inline Obsidian comment. Dashboards remove that metadata when aggregating visible text.
+Research gaps retain `direction`, `continuity`, `significance`, and the optional v2 detail fields. The publisher stores `id`, `origin`, annotations, and the replay fingerprint in `wiki/meta/topic-state/*.json`. Dashboards read compact open-item fields from that sidecar while the Topic page renders reader-facing prose.
 
 Schema 3.0 mutations address items by ID:
 

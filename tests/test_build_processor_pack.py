@@ -24,6 +24,7 @@ FIXTURE_FILES = {
     "skills/wiki-paper-card/references/processor-brief.md": "# processor brief fixture\n",
     "skills/wiki-paper-card/references/paper-digest-schema.md": "# digest schema fixture\n",
     "skills/wiki-shared/references/knowledge-model.md": "# knowledge model fixture\n",
+    "skills/wiki-shared/references/writing-guide.md": "# writing guide fixture\n",
     "vendor/nature-paper-card/SKILL.md": "# upstream router fixture\n",
     "vendor/nature-paper-card/manifest.yaml": (
         "name: fixture\n"
@@ -102,6 +103,7 @@ class BuildPackTests(unittest.TestCase):
             "upstream-router",
             "upstream-manifest",
             "knowledge-model",
+            "writing-guide",
             "digest-schema",
             "lens:methods",
             "lens:review",
@@ -109,7 +111,12 @@ class BuildPackTests(unittest.TestCase):
         ):
             self.assertIn(expected, roles)
         self.assertGreaterEqual(len(records), 18)
-        for section in ("## processor-brief", "## upstream-router", "## lens:methods"):
+        for section in (
+            "## processor-brief",
+            "## upstream-router",
+            "## writing-guide",
+            "## lens:methods",
+        ):
             self.assertIn(section, pack)
         self.assertIn("Nature Paper Card - Router", pack)  # upstream router content
 

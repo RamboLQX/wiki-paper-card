@@ -191,8 +191,8 @@ Researchers organize the topic directories under `raw/papers/`. The framework do
 
 | Page or view | Purpose |
 |---|---|
-| **Paper Card** | Preserves the full analysis, evidence locators, limitations, and research ideas for one paper |
-| **Topic** | Synthesizes at least two related papers into readable overview, synthesis, and controversy prose while retaining method comparisons, open questions, and research gaps |
+| **Paper Card** | Explains one paper in coherent, readable prose while preserving evidence locators, necessary tables, limitations, and research ideas |
+| **Topic** | Synthesizes at least two related papers into complete overview, synthesis, and genuine controversy prose while retaining method comparisons, open questions, and paragraph-form research gaps |
 | **Knowledge Tree** | Exposes the Wiki structure (topic-first nested overview) and guides retrieval, questions, and surveys |
 | **Agent Tree** | Progressive-disclosure entry for agent retrieval: domain and topic signposts only, descending level by level |
 | **Research Dashboard** | Collects the currently open questions and research gaps |
@@ -205,6 +205,7 @@ One paper does not create a Topic by itself. A Topic is created or updated only 
 - Every paper produces an independent Paper Card that passes structural, evidence, and source-locator checks.
 - Batch processing completes all paper analyses before creating cross-paper relationships.
 - The paper-card linker owns the complete Topic narrative and comparison table. After user confirmation, gap mining can maintain only stable-ID open items. Both paths write through the same deterministic publisher, which rejects stale plans using the Topic hash.
+- Topic Markdown contains no publisher markers, open-item IDs, or replay fingerprints. That machine state lives under `wiki/meta/topic-state/`, while precise evidence uses standard Markdown footnotes.
 - An unchanged PDF is skipped unless the researcher explicitly requests reprocessing.
 - Knowledge-base questions descend level by level through the Agent Tree signposts (the knowledge tree is the human navigation view) and retain the relevant source evidence.
 - Gap mining first writes a read-only report `work/gap-mining-report.md`. Only after you confirm its candidates item by item does the deterministic publisher write the open questions and research gaps back into topic pages and the dashboard.

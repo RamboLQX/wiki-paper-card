@@ -28,6 +28,7 @@ ITEM_METADATA_RE = re.compile(
 )
 MANAGED_KEYS = ("overview", "synthesis", "controversies")
 MINING_STUB_OVERVIEW = "当前仅记录经确认的研究空白，尚未形成跨论文综合。"
+TOPIC_STATE_SCHEMA_VERSION = "1.0"
 
 
 def yaml_string(value: str) -> str:
@@ -119,6 +120,38 @@ def action_fingerprint(action: dict[str, Any]) -> str:
         action, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def topic_state_path(wiki_root: Path, topic_path: Path) -> Path:
+    root = wiki_root.expanduser().resolve()
+    topic = topic_path.expanduser().resolve()
+    relative = topic.relative_to(root)
+    try:
+        topic_relative = relative.relative_to(Path("wiki/topics"))
+    except ValueError as exc:
+        raise ValueError(f"Topic path is outside wiki/topics: {relative}") from exc
+    return root / "wiki" / "meta" / "topic-state" / topic_relative.with_suffix(".json")
+
+
+def load_topic_state(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("schema_version") != TOPIC_STATE_SCHEMA_VERSION:
+        raise ValueError(f"Unsupported topic state: {path}")
+    return data
+
+
+def clean_legacy_topic_protocol(body: str) -> str:
+    """Remove schema 3.0 comments while preserving their visible content."""
+    cleaned = body
+    for key in MANAGED_KEYS:
+        pattern = re.compile(
+            rf"(?ms)^%% wiki-paper-card:managed-start {re.escape(key)} %%\s*$\n?"
+            rf"(.*?)^%% wiki-paper-card:managed-end {re.escape(key)} %%\s*$"
+        )
+        cleaned = pattern.sub(lambda match: match.group(1).strip("\n") + "\n", cleaned)
+    return ITEM_METADATA_RE.sub("", cleaned)
 
 
 def item_metadata_suffix(item: dict[str, Any]) -> str:
@@ -421,6 +454,8 @@ def render_open_questions(
     items: Any,
     titles: dict[str, str],
     short_names: dict[str, str] | None = None,
+    *,
+    include_metadata: bool = True,
 ) -> tuple[list[str], list[str]]:
     """Render open_questions into (open bullets, resolved bullets).
 
@@ -444,10 +479,13 @@ def render_open_questions(
             resolved_lines.append(
                 f"- {entry['question']}"
                 + (f"（{suffix}）" if suffix else "")
-                + item_metadata_suffix(entry)
+                + (item_metadata_suffix(entry) if include_metadata else "")
             )
         else:
-            open_lines.append(f"- {entry['question']}" + item_metadata_suffix(entry))
+            open_lines.append(
+                f"- {entry['question']}"
+                + (item_metadata_suffix(entry) if include_metadata else "")
+            )
     return open_lines, resolved_lines
 
 
@@ -604,6 +642,8 @@ def render_resolved_research_gaps(
     items: Any,
     titles: dict[str, str],
     short_names: dict[str, str] | None = None,
+    *,
+    include_metadata: bool = True,
 ) -> list[str]:
     """Render answered research gaps as bullets for the archive section."""
     short = short_names or {}
@@ -631,8 +671,66 @@ def render_resolved_research_gaps(
         lines.append(
             f"- {entry['gap']}"
             + (f"（{suffix}）" if suffix else "")
-            + item_metadata_suffix(entry)
+            + (item_metadata_suffix(entry) if include_metadata else "")
         )
+    return lines
+
+
+def render_v3_research_gaps(
+    items: Any,
+    titles: dict[str, str],
+    short_names: dict[str, str] | None = None,
+    annotations: dict[str, str] | None = None,
+) -> list[str]:
+    """Render open schema 3.0 gaps as headings and reader-facing prose."""
+    short = short_names or {}
+    notes = annotations or {}
+    lines: list[str] = []
+    for entry in normalize_gaps(items):
+        if entry["status"] != "open":
+            continue
+        if lines:
+            lines.append("")
+        has_details = any(entry.get(field) for field, _ in GAP_DETAIL_FIELDS)
+        tentative = has_details and not (
+            entry.get("evidence_boundary") and entry.get("experiment")
+        )
+        heading = entry["gap"] + (" [待验证]" if tentative else "")
+        lines.extend([f"### {heading}", ""])
+
+        first: list[str] = []
+        if entry.get("significance"):
+            first.append(f"**为什么值得做。** {entry['significance']}")
+        if entry.get("evidence_boundary"):
+            first.append(f"**现有证据边界。** {entry['evidence_boundary']}")
+        refs = "、".join(
+            source_wikilink(ref, short, titles)
+            for ref in entry.get("source_refs", [])
+        )
+        if refs:
+            first.append(f"这一判断来自 {refs}。")
+        if not first:
+            first.append("当前记录明确了待解决的问题，但现有证据还不足以界定其边界。")
+        lines.append(" ".join(first))
+
+        second: list[str] = []
+        if entry.get("direction"):
+            second.append(f"**推进方向。** {entry['direction']}")
+        if entry.get("experiment"):
+            second.append(f"**验证方式。** {entry['experiment']}")
+        if entry.get("success_criterion"):
+            second.append(f"**成功条件。** {entry['success_criterion']}")
+        if entry.get("risk"):
+            second.append(f"**可能失败。** {entry['risk']}")
+        if entry.get("continuity"):
+            second.append(f"**后续承接。** {entry['continuity']}")
+        if entry.get("priority"):
+            second.append(f"**优先级。** {entry['priority']}。")
+        note = notes.get(str(entry.get("id", "")), "")
+        if note:
+            second.append(f"**关联说明。** {note}")
+        if second:
+            lines.extend(["", " ".join(second)])
     return lines
 
 
@@ -670,7 +768,7 @@ def paragraph_evidence(
     contradictions: dict[str, dict[str, Any]],
     titles: dict[str, str],
     short_names: dict[str, str] | None,
-) -> str:
+) -> list[str]:
     short = short_names or {}
     evidence: list[str] = []
     for finding_id in string_list(paragraph.get("finding_refs")):
@@ -702,7 +800,7 @@ def paragraph_evidence(
                 value += f" {locator}"
             if value not in evidence:
                 evidence.append(value)
-    return f"*证据：{'；'.join(evidence)}。*" if evidence else ""
+    return evidence
 
 
 def render_v3_paragraphs(
@@ -711,6 +809,7 @@ def render_v3_paragraphs(
     contradictions: dict[str, dict[str, Any]],
     titles: dict[str, str],
     short_names: dict[str, str] | None,
+    evidence_notes: list[str],
 ) -> list[str]:
     lines: list[str] = []
     if not isinstance(paragraphs, list):
@@ -721,14 +820,16 @@ def render_v3_paragraphs(
         text = str(paragraph.get("text", "")).strip()
         if not text:
             continue
-        if lines:
-            lines.append("")
-        lines.append(text)
         evidence = paragraph_evidence(
             paragraph, findings, contradictions, titles, short_names
         )
         if evidence:
-            lines.extend(["", evidence])
+            note_id = f"topic-evidence-{len(evidence_notes) + 1}"
+            text += f"[^{note_id}]"
+            evidence_notes.append(f"[^{note_id}]: {'；'.join(evidence)}。")
+        if lines:
+            lines.append("")
+        lines.append(text)
     return lines
 
 
@@ -752,12 +853,19 @@ def render_v3_narrative(
         narrative = {}
     overview = narrative.get("overview", {})
     overview_paragraphs = overview.get("paragraphs", []) if isinstance(overview, dict) else []
+    evidence_notes: list[str] = []
     rendered: dict[str, list[str]] = {
         "overview": render_v3_paragraphs(
-            overview_paragraphs, findings, contradictions, titles, short_names
+            overview_paragraphs,
+            findings,
+            contradictions,
+            titles,
+            short_names,
+            evidence_notes,
         ),
         "synthesis": [],
         "controversies": [],
+        "evidence_notes": evidence_notes,
     }
     for field, key in (
         ("synthesis_blocks", "synthesis"),
@@ -779,6 +887,7 @@ def render_v3_narrative(
                     contradictions,
                     titles,
                     short_names,
+                    evidence_notes,
                 )
             )
     return rendered
@@ -794,10 +903,7 @@ def topic_page_text_v3(
 ) -> str:
     sources = string_list(action.get("papers"))
     category = str(action.get("category", "")).strip()
-    extra: list[tuple[str, str]] = []
-    if category:
-        extra.append(("category", category))
-    extra.append(("last_topic_action_sha256", action_fingerprint(action)))
+    extra = [("category", category)] if category else None
     status = "stub" if purpose == "mining" else str(action.get("page_status", "stub"))
     frontmatter = render_frontmatter(
         ["topic"],
@@ -813,28 +919,19 @@ def topic_page_text_v3(
             "overview": [MINING_STUB_OVERVIEW],
             "synthesis": [],
             "controversies": [],
+            "evidence_notes": [],
         }
     else:
         rendered = render_v3_narrative(action, titles, short_names)
-    lines = [
-        frontmatter.rstrip(),
-        f"# {action.get('name', '')}",
-        "",
-        "## 概述",
-        "",
-        *managed_block_lines("overview", rendered["overview"]),
-        "",
-        "## 综合认识",
-        "",
-        *managed_block_lines("synthesis", rendered["synthesis"]),
-        "",
-        "## 争议与不确定",
-        "",
-        *managed_block_lines("controversies", rendered["controversies"]),
-        "",
-        "## 论文与方法对照",
-        "",
-    ]
+    lines = [frontmatter.rstrip(), f"# {action.get('name', '')}", "", "## 概述", ""]
+    lines.extend(rendered["overview"])
+    if rendered["synthesis"]:
+        lines.extend(["", "## 综合认识", "", *rendered["synthesis"]])
+    if rendered["controversies"]:
+        lines.extend(["", "## 争议与不确定", "", *rendered["controversies"]])
+    if rendered["evidence_notes"]:
+        lines.extend(["", "## 证据注释", "", *rendered["evidence_notes"]])
+    lines.extend(["", "## 论文与方法对照", ""])
     comparisons = action.get("comparisons", [])
     if isinstance(comparisons, list) and comparisons:
         if any(isinstance(item, dict) and "dimension" in item for item in comparisons):
@@ -843,18 +940,22 @@ def topic_page_text_v3(
             lines.extend(render_flat_comparisons(comparisons, titles))
     lines.extend(["", "## 开放问题", ""])
     q_open, q_resolved = render_open_questions(
-        action.get("open_questions", []), titles, short_names
+        action.get("open_questions", []),
+        titles,
+        short_names,
+        include_metadata=False,
     )
     lines.extend(q_open)
     lines.extend(["", "## 研究空白与候选方向", ""])
-    lines.extend(
-        render_research_gaps(action.get("research_gaps", []), titles, short_names)
-    )
+    lines.extend(render_v3_research_gaps(action.get("research_gaps", []), titles, short_names))
     if q_resolved:
         lines.extend(["", "## 已解决的问题", ""])
         lines.extend(q_resolved)
     resolved_gaps = render_resolved_research_gaps(
-        action.get("research_gaps", []), titles, short_names
+        action.get("research_gaps", []),
+        titles,
+        short_names,
+        include_metadata=False,
     )
     if resolved_gaps:
         lines.extend(["", "## 已解决的研究空白", ""])
@@ -995,6 +1096,33 @@ def replace_section_body(body: str, section_name: str, new_lines: list[str]) -> 
     return result.rstrip("\n") + "\n"
 
 
+def replace_optional_section(
+    body: str,
+    section_name: str,
+    new_lines: list[str],
+    *,
+    before_section: str | None = None,
+) -> str:
+    """Replace a publisher-owned section, or remove it when it has no content."""
+    if new_lines:
+        if not section_exists(body, section_name) and before_section:
+            marker = re.search(
+                rf"(?m)^##\s+{re.escape(before_section)}\s*$", body
+            )
+            if marker:
+                addition = (
+                    f"## {section_name}\n\n"
+                    + "\n".join(new_lines).rstrip()
+                    + "\n\n"
+                )
+                return body[: marker.start()] + addition + body[marker.start() :]
+        return replace_section_body(body, section_name, new_lines)
+    pattern = re.compile(
+        rf"(?ms)^##\s+{re.escape(section_name)}\s*$\n.*?(?=^##\s|\Z)"
+    )
+    return pattern.sub("", body, count=1).rstrip("\n") + "\n"
+
+
 def merge_table_rows(body: str, section_name: str, new_rows: list[str]) -> str:
     if not new_rows:
         return body
@@ -1054,9 +1182,6 @@ def rebuild_page(
     extra: list[tuple[str, str]] = []
     if category:
         extra.append(("category", category))
-    last_action = fields.get("last_topic_action_sha256", "")
-    if last_action:
-        extra.append(("last_topic_action_sha256", last_action))
     frontmatter = render_frontmatter(
         [tag],
         fields.get("created", datetime.date.today().isoformat()),
@@ -1113,6 +1238,134 @@ def preserve_existing_origins(
         item_id = str(entry.get("id", ""))
         if item_id in origins:
             entry["origin"] = origins[item_id]
+
+
+def legacy_gap_entry(block: str, status: str) -> dict[str, Any]:
+    visible = block_root_text(block)
+    entry: dict[str, Any] = {
+        "id": block_item_id(block),
+        "origin": block_item_origin(block),
+        "gap": gap_key(visible),
+        "source_refs": re.findall(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]", visible),
+        "status": status,
+    }
+    reverse_labels = {label: field for field, label in GAP_DETAIL_FIELDS}
+    for line in block.splitlines()[1:]:
+        match = re.match(r"^\s*-\s*([^：]+)：\s*(.+)$", line)
+        if match and match.group(1) in reverse_labels:
+            entry[reverse_labels[match.group(1)]] = match.group(2).strip()
+    direction = re.search(r"可检验方向：([^；）]+)", visible)
+    continuity = re.search(r"承接：([^；）]+)", visible)
+    if direction:
+        entry["direction"] = direction.group(1).strip()
+    if continuity:
+        entry["continuity"] = continuity.group(1).strip()
+    return entry
+
+
+def legacy_topic_state(body: str, topic_path_value: str) -> dict[str, Any]:
+    questions: list[dict[str, Any]] = []
+    for section_name, status in (("开放问题", "open"), ("已解决的问题", "answered")):
+        for block in section_bullet_blocks(body, section_name):
+            item_id = block_item_id(block)
+            if not item_id:
+                continue
+            questions.append(
+                {
+                    "id": item_id,
+                    "origin": block_item_origin(block),
+                    "question": block_root_text(block),
+                    "source_refs": [],
+                    "status": status,
+                }
+            )
+    gaps: list[dict[str, Any]] = []
+    for section_name, status in (
+        ("研究空白与候选方向", "open"),
+        ("已解决的研究空白", "answered"),
+    ):
+        gaps.extend(
+            legacy_gap_entry(block, status)
+            for block in section_bullet_blocks(body, section_name)
+            if block_item_id(block)
+        )
+    return {
+        "schema_version": TOPIC_STATE_SCHEMA_VERSION,
+        "topic_path": topic_path_value,
+        "last_topic_action_sha256": "",
+        "open_questions": questions,
+        "research_gaps": gaps,
+        "research_gap_annotations": {},
+    }
+
+
+def merge_state_entries(
+    existing: Any,
+    incoming: list[dict[str, Any]],
+    removed_ids: set[str],
+) -> list[dict[str, Any]]:
+    existing_items = [dict(item) for item in existing if isinstance(item, dict)] if isinstance(existing, list) else []
+    origins = {
+        str(item.get("id", "")): str(item.get("origin", ""))
+        for item in existing_items
+        if item.get("id") and item.get("origin")
+    }
+    incoming_ids = {str(item.get("id", "")) for item in incoming if item.get("id")}
+    merged = [
+        item
+        for item in existing_items
+        if str(item.get("id", "")) not in incoming_ids | removed_ids
+    ]
+    for item in incoming:
+        copied = dict(item)
+        item_id = str(copied.get("id", ""))
+        if item_id in origins:
+            copied["origin"] = origins[item_id]
+        merged.append(copied)
+    return merged
+
+
+def build_topic_state(
+    previous: dict[str, Any] | None,
+    legacy_body: str,
+    action: dict[str, Any],
+    topic_path_value: str,
+) -> dict[str, Any]:
+    state = dict(previous) if previous is not None else legacy_topic_state(legacy_body, topic_path_value)
+    questions = merge_state_entries(
+        state.get("open_questions", []),
+        normalize_questions(action.get("open_questions", [])),
+        set(string_list(action.get("remove_open_question_ids"))),
+    )
+    gaps = merge_state_entries(
+        state.get("research_gaps", []),
+        normalize_gaps(action.get("research_gaps", [])),
+        set(string_list(action.get("remove_research_gap_ids"))),
+    )
+    annotations = dict(state.get("research_gap_annotations", {})) if isinstance(state.get("research_gap_annotations"), dict) else {}
+    raw_annotations = action.get("annotate_research_gaps", [])
+    if isinstance(raw_annotations, list):
+        for item in raw_annotations:
+            if not isinstance(item, dict):
+                continue
+            item_id = str(item.get("id", "")).strip()
+            note = str(item.get("note", "")).strip()
+            if item_id and note:
+                annotations[item_id] = note
+    live_gap_ids = {str(item.get("id", "")) for item in gaps if item.get("id")}
+    annotations = {
+        item_id: note
+        for item_id, note in annotations.items()
+        if item_id in live_gap_ids
+    }
+    return {
+        "schema_version": TOPIC_STATE_SCHEMA_VERSION,
+        "topic_path": topic_path_value,
+        "last_topic_action_sha256": action_fingerprint(action),
+        "open_questions": questions,
+        "research_gaps": gaps,
+        "research_gap_annotations": annotations,
+    }
 
 
 def merge_v3_open_items(
@@ -1195,16 +1448,32 @@ def merge_topic_page_v3(
     today: str,
     short_names: dict[str, str] | None,
     purpose: str,
+    topic_state: dict[str, Any] | None = None,
 ) -> str:
     fields, lists, body = parse_frontmatter(existing_text)
-    fingerprint = action_fingerprint(action)
-    if fields.get("last_topic_action_sha256") == fingerprint:
-        return existing_text
+    body = clean_legacy_topic_protocol(body)
 
     if purpose == "ingest":
         rendered = render_v3_narrative(action, titles, short_names)
-        for key in MANAGED_KEYS:
-            body = replace_managed_block(body, key, rendered[key])
+        body = replace_section_body(body, "概述", rendered["overview"])
+        body = replace_optional_section(
+            body,
+            "综合认识",
+            rendered["synthesis"],
+            before_section="论文与方法对照",
+        )
+        body = replace_optional_section(
+            body,
+            "争议与不确定",
+            rendered["controversies"],
+            before_section="论文与方法对照",
+        )
+        body = replace_optional_section(
+            body,
+            "证据注释",
+            rendered["evidence_notes"],
+            before_section="论文与方法对照",
+        )
         comparisons = action.get("comparisons", [])
         if isinstance(comparisons, list) and comparisons:
             if any(
@@ -1228,7 +1497,46 @@ def merge_topic_page_v3(
                     new_rows.append(comparison_row(item, titles))
                 body = merge_table_rows(body, "论文与方法对照", new_rows)
 
-    body = merge_v3_open_items(body, action, titles, short_names)
+    state_questions = (
+        topic_state.get("open_questions", [])
+        if topic_state is not None
+        else normalize_questions(action.get("open_questions", []))
+    )
+    q_open, q_archive = render_open_questions(
+        state_questions,
+        titles,
+        short_names,
+        include_metadata=False,
+    )
+    body = replace_section_body(body, "开放问题", q_open)
+    body = replace_optional_section(body, "已解决的问题", q_archive)
+
+    state_gaps = (
+        topic_state.get("research_gaps", [])
+        if topic_state is not None
+        else normalize_gaps(action.get("research_gaps", []))
+    )
+    annotations = (
+        topic_state.get("research_gap_annotations", {})
+        if topic_state is not None
+        and isinstance(topic_state.get("research_gap_annotations"), dict)
+        else {}
+    )
+    body = replace_section_body(
+        body,
+        "研究空白与候选方向",
+        render_v3_research_gaps(state_gaps, titles, short_names, annotations),
+    )
+    body = replace_optional_section(
+        body,
+        "已解决的研究空白",
+        render_resolved_research_gaps(
+            state_gaps,
+            titles,
+            short_names,
+            include_metadata=False,
+        ),
+    )
     fields, lists = merge_frontmatter_sets(
         fields,
         lists,
@@ -1243,7 +1551,7 @@ def merge_topic_page_v3(
         page_status = str(action.get("page_status", "")).strip()
         if page_status:
             fields["status"] = page_status
-    fields["last_topic_action_sha256"] = fingerprint
+    fields.pop("last_topic_action_sha256", None)
     return rebuild_page(fields, lists, body, "topic")
 
 
@@ -1256,10 +1564,17 @@ def merge_topic_page(
     *,
     schema_version: str = "2.0",
     purpose: str = "ingest",
+    topic_state: dict[str, Any] | None = None,
 ) -> str:
     if schema_version == "3.0":
         return merge_topic_page_v3(
-            existing_text, action, titles, today, short_names, purpose
+            existing_text,
+            action,
+            titles,
+            today,
+            short_names,
+            purpose,
+            topic_state,
         )
     fields, lists, body = parse_frontmatter(existing_text)
     summary = str(action.get("summary", ""))
@@ -1625,8 +1940,17 @@ def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
                 continue
         if schema_version == "3.0":
             fingerprint = action_fingerprint(action)
-            existing_fields, _, existing_body = parse_frontmatter(existing_text or "")
-            replay = existing_fields.get("last_topic_action_sha256") == fingerprint
+            _, _, existing_body = parse_frontmatter(existing_text or "")
+            state: dict[str, Any] | None = None
+            if existing_path is not None:
+                try:
+                    state = load_topic_state(topic_state_path(wiki_root, existing_path))
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+                    errors.append(f"Unable to read topic state for {label}: {exc}")
+                    continue
+            replay = bool(
+                state and state.get("last_topic_action_sha256") == fingerprint
+            )
             if action.get("action") == "create_topic":
                 if existing_text is not None and not replay:
                     errors.append(
@@ -1642,33 +1966,57 @@ def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
                 errors.append(
                     f"stale_topic_plan: {label} expected {expected_hash} but found {actual_hash}"
                 )
-            if purpose == "ingest" and not has_managed_blocks(existing_body):
+            if state is None and not has_managed_blocks(existing_body):
                 errors.append(
-                    f"narrative_migration_required: {label} has no complete managed narrative blocks"
+                    f"narrative_migration_required: {label} has neither topic state nor complete legacy-v3 blocks"
                 )
-            existing_question_blocks = section_bullet_blocks(
-                existing_body, "开放问题"
-            ) + section_bullet_blocks(existing_body, "已解决的问题")
-            existing_gap_blocks = section_bullet_blocks(
-                existing_body, "研究空白与候选方向"
-            ) + section_bullet_blocks(existing_body, "已解决的研究空白")
-            question_ids = [block_item_id(block) for block in existing_question_blocks]
-            gap_ids = [block_item_id(block) for block in existing_gap_blocks]
+            if state is not None:
+                state_questions = state.get("open_questions", [])
+                state_gaps = state.get("research_gaps", [])
+                question_ids = [
+                    str(item.get("id", ""))
+                    for item in state_questions
+                    if isinstance(item, dict) and item.get("id")
+                ] if isinstance(state_questions, list) else []
+                gap_ids = [
+                    str(item.get("id", ""))
+                    for item in state_gaps
+                    if isinstance(item, dict) and item.get("id")
+                ] if isinstance(state_gaps, list) else []
+                question_origins = {
+                    str(item.get("id", "")): str(item.get("origin", ""))
+                    for item in state_questions
+                    if isinstance(item, dict) and item.get("id")
+                } if isinstance(state_questions, list) else {}
+                gap_origins = {
+                    str(item.get("id", "")): str(item.get("origin", ""))
+                    for item in state_gaps
+                    if isinstance(item, dict) and item.get("id")
+                } if isinstance(state_gaps, list) else {}
+            else:
+                existing_question_blocks = section_bullet_blocks(
+                    existing_body, "开放问题"
+                ) + section_bullet_blocks(existing_body, "已解决的问题")
+                existing_gap_blocks = section_bullet_blocks(
+                    existing_body, "研究空白与候选方向"
+                ) + section_bullet_blocks(existing_body, "已解决的研究空白")
+                question_ids = [block_item_id(block) for block in existing_question_blocks]
+                gap_ids = [block_item_id(block) for block in existing_gap_blocks]
+                question_origins = {
+                    block_item_id(block): block_item_origin(block)
+                    for block in existing_question_blocks
+                    if block_item_id(block)
+                }
+                gap_origins = {
+                    block_item_id(block): block_item_origin(block)
+                    for block in existing_gap_blocks
+                    if block_item_id(block)
+                }
             for item_id in sorted({item for item in question_ids + gap_ids if item}):
                 if question_ids.count(item_id) + gap_ids.count(item_id) > 1:
                     errors.append(
                         f"duplicate_existing_item_id: {label} contains {item_id} more than once"
                     )
-            question_origins = {
-                block_item_id(block): block_item_origin(block)
-                for block in existing_question_blocks
-                if block_item_id(block)
-            }
-            gap_origins = {
-                block_item_id(block): block_item_origin(block)
-                for block in existing_gap_blocks
-                if block_item_id(block)
-            }
             for question in action.get("open_questions", []):
                 if not isinstance(question, dict):
                     continue
@@ -1715,9 +2063,15 @@ def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
                     )
         elif existing_text is not None:
             _, _, existing_body = parse_frontmatter(existing_text)
-            if has_managed_blocks(existing_body):
+            state_exists = False
+            if existing_path is not None:
+                try:
+                    state_exists = topic_state_path(wiki_root, existing_path).is_file()
+                except ValueError:
+                    state_exists = False
+            if has_managed_blocks(existing_body) or state_exists:
                 errors.append(
-                    f"schema2_cannot_update_schema3_topic: {label} uses managed narrative blocks"
+                    f"schema2_cannot_update_schema3_topic: {label} uses schema 3.0 state"
                 )
 
     # Every batch source page must have a finalized card before this run writes it.
@@ -1845,6 +2199,45 @@ def section_bullets(body: str, section_name: str) -> list[str]:
     return bullets
 
 
+def topic_open_items(
+    wiki_root: Path,
+    topic_relative_path: str,
+    body: str,
+) -> tuple[list[str], list[tuple[str, str]]]:
+    """Read open items from sidecar state, with schema 2.0 Markdown fallback."""
+    try:
+        topic_path_value = safe_relative_path(wiki_root, topic_relative_path)
+        state = load_topic_state(topic_state_path(wiki_root, topic_path_value))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        state = None
+    if state is None:
+        return (
+            section_bullets(body, "开放问题"),
+            [
+                (block_root_text(block), gap_priority(block))
+                for block in section_bullet_blocks(body, "研究空白与候选方向")
+            ],
+        )
+    questions = [
+        str(item.get("question", "")).strip()
+        for item in state.get("open_questions", [])
+        if isinstance(item, dict)
+        and item.get("status", "open") == "open"
+        and str(item.get("question", "")).strip()
+    ]
+    gaps = [
+        (
+            str(item.get("gap", "")).strip(),
+            str(item.get("priority", "")).strip(),
+        )
+        for item in state.get("research_gaps", [])
+        if isinstance(item, dict)
+        and item.get("status", "open") == "open"
+        and str(item.get("gap", "")).strip()
+    ]
+    return questions, gaps
+
+
 def gap_priority(block: str) -> str:
     """Extract the optional `- 优先级：…` sub-bullet from a gap block."""
     for line in block.splitlines()[1:]:
@@ -1902,11 +2295,10 @@ def collect_tree_buckets(wiki_root: Path) -> dict[str, dict[str, list[Any]]] | N
             _, _, body = parse_frontmatter(text)
             domain = page_domains(wiki_root, path)
             bucket(domain)["topics"].append((path, label, description))
-            for question in section_bullets(body, "开放问题"):
+            questions, gaps = topic_open_items(wiki_root, path, body)
+            for question in questions:
                 bucket(domain)["questions"].append((question, label, path))
-            for block in section_bullet_blocks(body, "研究空白与候选方向"):
-                root = block_root_text(block)
-                priority = gap_priority(block)
+            for root, priority in gaps:
                 bucket(domain)["gaps"].append((root, label, path, priority))
     return buckets
 
@@ -1994,11 +2386,7 @@ def collect_topic_tree(
             for source in sources
             if source in paper_index
         ]
-        questions = section_bullets(body, "开放问题")
-        gaps = [
-            (block_root_text(block), gap_priority(block))
-            for block in section_bullet_blocks(body, "研究空白与候选方向")
-        ]
+        questions, gaps = topic_open_items(wiki_root, path, body)
         if not papers and not questions and not gaps:
             continue
         bucket(page_domains(wiki_root, path))["topics"].append(
@@ -2229,7 +2617,12 @@ def main() -> int:
     today = datetime.date.today().isoformat()
     schema_version = str(plan.get("schema_version", "2.0"))
     purpose = str(plan.get("purpose", "ingest"))
-    for directory in ("wiki", "wiki/topics", "wiki/sources"):
+    for directory in (
+        "wiki",
+        "wiki/topics",
+        "wiki/sources",
+        "wiki/meta/topic-state",
+    ):
         (wiki_root / directory).mkdir(parents=True, exist_ok=True)
 
     source_pages = plan.get("batch", {}).get("source_pages", [])
@@ -2345,7 +2738,53 @@ def main() -> int:
             existing_path = directory / f"{safe_filename(action.get('name', ''))}.md"
         existing_text = existing_path.read_text(encoding="utf-8") if existing_path.is_file() else None
         try:
-            if existing_text is None:
+            state_path: Path | None = None
+            previous_state: dict[str, Any] | None = None
+            next_state: dict[str, Any] | None = None
+            if schema_version == "3.0":
+                state_path = topic_state_path(wiki_root, existing_path)
+                previous_state = load_topic_state(state_path)
+                replay = bool(
+                    previous_state
+                    and previous_state.get("last_topic_action_sha256")
+                    == action_fingerprint(action)
+                )
+                if replay and existing_text is not None:
+                    content = existing_text
+                    next_state = previous_state
+                else:
+                    legacy_body = ""
+                    if existing_text is not None:
+                        _, _, legacy_body = parse_frontmatter(existing_text)
+                    topic_path_value = str(existing_path.relative_to(wiki_root))
+                    next_state = build_topic_state(
+                        previous_state,
+                        legacy_body,
+                        action,
+                        topic_path_value,
+                    )
+                    if existing_text is None:
+                        content = topic_page_text(
+                            action,
+                            titles,
+                            today,
+                            today,
+                            short_names,
+                            schema_version=schema_version,
+                            purpose=purpose,
+                        )
+                    else:
+                        content = merge_topic_page(
+                            existing_text,
+                            action,
+                            titles,
+                            today,
+                            short_names,
+                            schema_version=schema_version,
+                            purpose=purpose,
+                            topic_state=next_state,
+                        )
+            elif existing_text is None:
                 content = topic_page_text(
                     action,
                     titles,
@@ -2384,6 +2823,21 @@ def main() -> int:
                     "created": created,
                 }
             )
+        if state_path is not None and next_state is not None:
+            state_text = json.dumps(next_state, ensure_ascii=False, indent=2) + "\n"
+            previous_state_text = (
+                state_path.read_text(encoding="utf-8") if state_path.is_file() else None
+            )
+            if previous_state_text != state_text:
+                state_path.parent.mkdir(parents=True, exist_ok=True)
+                state_path.write_text(state_text, encoding="utf-8")
+                writes.append(
+                    {
+                        "kind": "topic-state",
+                        "path": str(state_path.relative_to(wiki_root)),
+                        "action": "create" if previous_state_text is None else "update",
+                    }
+                )
         topic_path = str(existing_path.relative_to(wiki_root))
         description = (
             str(action.get("index_summary", ""))

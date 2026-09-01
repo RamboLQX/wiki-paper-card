@@ -40,6 +40,7 @@ FIXED_SOURCES = [
     ("upstream-router", "vendor/nature-paper-card/SKILL.md"),
     ("upstream-manifest", "vendor/nature-paper-card/manifest.yaml"),
     ("knowledge-model", "skills/wiki-shared/references/knowledge-model.md"),
+    ("writing-guide", "skills/wiki-shared/references/writing-guide.md"),
     ("digest-schema", "skills/wiki-paper-card/references/paper-digest-schema.md"),
 ]
 

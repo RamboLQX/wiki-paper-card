@@ -74,8 +74,8 @@ an edit, not an append:
    `research_gaps`: entries with `source_refs` + `direction` go to
    `research_gaps`; plain reader-facing questions without a direction go to
    `open_questions`.
-5. Ingest rewrites the complete managed narrative from all current evidence;
-   mining never writes narrative or comparison content.
+5. Ingest rewrites the complete publisher-owned narrative sections from all
+   current evidence; mining never writes narrative or comparison content.
 6. Both producers address shared open items by stable ID. Text fragments are
    legacy compatibility only.
 7. Every schema 3.0 update binds to `base_topic_sha256`; a stale plan is

@@ -42,14 +42,15 @@
 
 | 页面 | 说明 |
 |---|---|
-| `wiki/sources/papers/…` | Paper Card，单篇论文的完整分析，含证据位置 |
-| `wiki/topics/…` | Topic，用段落综合多篇论文的领域认识、边界与争议，并保留对照表和结构化开放项 |
+| `wiki/sources/papers/…` | Paper Card，以连续段落解释单篇论文，同时保留公式、实验表和证据位置 |
+| `wiki/topics/…` | Topic，用完整段落综合多篇论文的领域认识、边界与争议，并保留对照表、开放问题和段落化研究空白 |
+| `wiki/meta/topic-state/…` | Topic 的机器 sidecar，保存稳定 ID、来源、annotation 和重放状态；不在正文暴露维护协议 |
 | `wiki/meta/research.md` | 研究仪表盘，汇总当前所有开放问题与研究空白 |
 | `wiki/meta/knowledge-tree.md` | 知识树，人类阅读用的导航 |
 | `wiki/meta/agent-tree.md` | Agent 检索用的入口索引 |
 | `wiki/index.md` / `wiki/log.md` | 页面索引与每次处理的日志 |
 
-处理论文的过程不需要你做决策。Topic 的创建或更新由连接阶段根据准入规则自动判断。更新时，linker 输出基于全部当前证据的完整叙事，发布器整块替换概述、综合认识和争议区，不按批次追加摘要。Agent 收尾时会汇报本次创建和更新了哪些页面。
+处理论文的过程不需要你做决策。Topic 的创建或更新由连接阶段根据准入规则自动判断。更新时，linker 输出基于全部当前证据的完整叙事，发布器按固定标题整块替换概述、综合认识和真实争议，不按批次追加摘要。精确证据使用标准 Markdown 脚注，维护状态进入 sidecar，因此 Obsidian 正文中不会出现内部 marker。Agent 收尾时会汇报本次创建和更新了哪些页面。
 
 ## 工作流二：挖掘研究空白（wiki-gap-mining）
 
@@ -88,8 +89,9 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 
 | 文件 | 类别 | 一句话说明 |
 |---|---|---|
-| `wiki/sources/` 下的 Paper Card | 面向用户 | 单篇论文的完整分析 |
-| `wiki/topics/` 下的 Topic | 面向用户 | 多篇论文的综合认识、分歧与开放问题 |
+| `wiki/sources/` 下的 Paper Card | 面向用户 | 可连续阅读的单篇论文完整分析 |
+| `wiki/topics/` 下的 Topic | 面向用户 | 多篇论文的综合认识、分歧、开放问题和段落化研究空白 |
+| `wiki/meta/topic-state/` | 机器 | Topic 的稳定 ID、来源、annotation 与重放状态，不需要手动编辑 |
 | `wiki/meta/research.md` | 面向用户 | 当前开放问题与空白的仪表盘 |
 | `wiki/meta/knowledge-tree.md` | 面向用户 | 人类阅读导航树 |
 | `wiki/meta/agent-tree.md` | 面向用户 | Agent 检索入口，也可快速浏览知识库结构 |

@@ -76,7 +76,9 @@ state this in the report's 范围与日期 section and suggest organizing
 
 1. Present the report's 待确认清单; the user confirms each candidate's
    采用 / 落点 / 知识状态 / 写入区块.
-2. Resume the same miner with the user's confirmations (DSH:
+2. Read the matching `wiki/meta/topic-state/<topic-relative-path>.json` for
+   every target Topic so existing open-item IDs and origins are preserved.
+3. Resume the same miner with the user's confirmations (DSH:
    `send_message` to the miner subagent; Claude Code: continue the Task;
    Codex: use the current client's same-agent follow-up capability).
    The miner emits one `link-plan.json` with `purpose: "mining"`:
@@ -97,7 +99,7 @@ state this in the report's 范围与日期 section and suggest organizing
    The candidate fields keep the exact names of the report entries so the
    translation is mechanical; the miner never rewrites candidate text and
    never edits wiki pages directly.
-3. Run the deterministic audit and publisher from the main agent:
+4. Run the deterministic audit and publisher from the main agent:
 
 ```bash
 python "<REPO_ROOT>/scripts/audit_link_plan.py" \

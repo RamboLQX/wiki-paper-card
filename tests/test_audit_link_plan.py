@@ -95,6 +95,11 @@ def valid_v3_link_plan() -> dict:
                     "id": "overview-scope",
                     "text": "The topic compares a shared result and its evidence boundary.",
                     "finding_refs": ["kf-shared-result"],
+                },
+                {
+                    "id": "overview-state",
+                    "text": "Current evidence supports the result in two settings, while cross-setting comparability remains unresolved.",
+                    "finding_refs": ["kf-shared-result"],
                 }
             ]
         },
@@ -105,6 +110,10 @@ def valid_v3_link_plan() -> dict:
                 "paragraphs": [
                     {
                         "text": "The two papers support the result under different settings.",
+                        "finding_refs": ["kf-shared-result"],
+                    },
+                    {
+                        "text": "Because the studies do not share one benchmark, the evidence supports a bounded comparison rather than universal transfer.",
                         "finding_refs": ["kf-shared-result"],
                     }
                 ],
@@ -199,6 +208,28 @@ class LinkPlanAuditTests(unittest.TestCase):
         codes = {item["code"] for item in report["findings"]}
         self.assertIn("narrative_bullet", codes)
         self.assertIn("unknown_finding_ref", codes)
+
+    def test_schema_v3_narrative_requires_reader_facing_depth(self) -> None:
+        plan = valid_v3_link_plan()
+        narrative = plan["topic_actions"][0]["narrative"]
+        narrative["overview"]["paragraphs"] = narrative["overview"]["paragraphs"][:1]
+        narrative["synthesis_blocks"][0]["paragraphs"] = narrative["synthesis_blocks"][0]["paragraphs"][:1]
+        report = LINK_AUDIT.audit(plan)
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("narrative_overview_depth", codes)
+        self.assertIn("narrative_block_depth", codes)
+
+    def test_schema_v3_mature_topic_requires_three_synthesis_blocks(self) -> None:
+        plan = valid_v3_link_plan()
+        action = plan["topic_actions"][0]
+        action["papers"].extend(["wiki/sources/c.md", "wiki/sources/d.md"])
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(
+                item["code"] == "narrative_synthesis_depth"
+                for item in report["findings"]
+            )
+        )
 
     def test_schema_v3_uses_id_mutations_not_text_fragments(self) -> None:
         plan = valid_v3_link_plan()

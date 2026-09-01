@@ -17,7 +17,12 @@ ROOT = Path(__file__).resolve().parents[1]
 def build_card() -> str:
     sections = []
     for number in range(1, 17):
-        if number == 16:
+        if number == 3:
+            body = (
+                "**问题情境。** 现有方法在该任务上仍有明确限制。\n\n"
+                "**核心研究问句。** 该方法能否在对照实验中改善这一限制？"
+            )
+        elif number == 16:
             body = "核心假设：可证伪。验证方式：对照实验。可能失败：假设错误。"
         else:
             body = "Placeholder evidence-backed text."

@@ -12,6 +12,14 @@ from typing import Any
 
 
 SECTION_RE = re.compile(r"^##\s+(\d{2})\.", re.M)
+SECTION_BLOCK_RE = re.compile(
+    r"^##\s+(\d{2})\.[^\n]*\n(.*?)(?=^##\s+\d{2}\. |\Z)",
+    re.M | re.S,
+)
+TOP_LEVEL_LIST_RE = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
+TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
+POINTER_ONLY_RE = re.compile(r"^(?:\[(?:Paper|External|Analysis|Hypothesis|User):?[^\]]*\]\s*)+$")
+FORMULA_FIELD_BULLET_RE = re.compile(r"^\s*[-*+]\s*(?:符号|目的|直觉)\s*[:：]", re.M)
 FIELD_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$")
 EXPECTED_FIELDS = {
     "source_sha256",
@@ -21,6 +29,8 @@ EXPECTED_FIELDS = {
     "venue",
     "status",
 }
+NARRATIVE_SECTIONS = ("03", "04", "06", "07", "11")
+TABLE_SECTIONS = ("05", "08", "10", "12", "13")
 
 
 def finding(level: str, code: str, message: str, **details: Any) -> dict[str, Any]:
@@ -57,6 +67,190 @@ def parse_tags(raw_tags: str) -> set[str]:
     }
 
 
+def split_sections(body: str) -> dict[str, str]:
+    return {number: content.strip() for number, content in SECTION_BLOCK_RE.findall(body)}
+
+
+def prose_paragraphs(text: str) -> list[str]:
+    """Return reader-facing prose blocks, excluding structural Markdown."""
+    cleaned = re.sub(r"```.*?```", "", text, flags=re.S)
+    cleaned = re.sub(r"\$\$.*?\$\$", "", cleaned, flags=re.S)
+    paragraphs: list[str] = []
+    current: list[str] = []
+
+    def flush() -> None:
+        if current:
+            paragraphs.append(" ".join(current).strip())
+            current.clear()
+
+    for raw_line in cleaned.splitlines():
+        line = raw_line.strip()
+        structural = (
+            not line
+            or line.startswith("#")
+            or line.startswith(">")
+            or TABLE_ROW_RE.match(line)
+            or TOP_LEVEL_LIST_RE.match(raw_line)
+            or POINTER_ONLY_RE.match(line)
+            or re.fullmatch(r"\*\*[^*]+\*\*(?:\s*\[Paper:[^\]]+\])?", line)
+        )
+        if structural:
+            flush()
+            continue
+        current.append(line)
+    flush()
+    return paragraphs
+
+
+def top_level_list_count(text: str) -> int:
+    return sum(bool(TOP_LEVEL_LIST_RE.match(line)) for line in text.splitlines())
+
+
+def audit_readability(sections: dict[str, str]) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    narrative_errors: list[dict[str, Any]] = []
+
+    research_question = sections.get("03", "")
+    missing_question_labels = [
+        label
+        for label in ("问题情境", "核心研究问句")
+        if label not in research_question
+    ]
+    if missing_question_labels or "精确问题" in research_question:
+        findings.append(
+            finding(
+                "error",
+                "research_question_structure",
+                "Section 03 must use 问题情境 and 核心研究问句 without a duplicate 精确问题 field.",
+                missing=missing_question_labels,
+                duplicate_precise_question="精确问题" in research_question,
+            )
+        )
+    else:
+        findings.append(
+            finding(
+                "pass",
+                "research_question_structure",
+                "Section 03 distinguishes the problem context from one core research question.",
+            )
+        )
+
+    for number in NARRATIVE_SECTIONS:
+        content = sections.get(number, "")
+        paragraphs = prose_paragraphs(content)
+        list_items = top_level_list_count(content)
+        if not paragraphs:
+            narrative_errors.append(
+                {"section": number, "reason": "missing_prose"}
+            )
+        elif list_items >= 2 and list_items >= len(paragraphs):
+            narrative_errors.append(
+                {
+                    "section": number,
+                    "reason": "top_level_list_dominates",
+                    "list_items": list_items,
+                    "paragraphs": len(paragraphs),
+                }
+            )
+
+    if narrative_errors:
+        findings.append(
+            finding(
+                "error",
+                "reader_facing_narrative",
+                "Sections 03, 04, 06, 07, and 11 must use prose and must not be dominated by top-level lists.",
+                sections=narrative_errors,
+            )
+        )
+    else:
+        findings.append(
+            finding(
+                "pass",
+                "reader_facing_narrative",
+                "Narrative-first Paper Card sections contain readable prose.",
+            )
+        )
+
+    missing_table_context: list[str] = []
+    for number in TABLE_SECTIONS:
+        content = sections.get(number, "")
+        table_match = re.search(r"^\s*\|.*\|\s*$", content, re.M)
+        if table_match and not prose_paragraphs(content[: table_match.start()]):
+            missing_table_context.append(number)
+    if missing_table_context:
+        findings.append(
+            finding(
+                "error",
+                "table_context",
+                "A comparison table must be introduced by prose that explains what the reader should inspect.",
+                sections=missing_table_context,
+            )
+        )
+    else:
+        findings.append(
+            finding(
+                "pass",
+                "table_context",
+                "Structured evidence tables have reader-facing context where present.",
+            )
+        )
+
+    formula_section = sections.get("09", "")
+    formula_issues: list[str] = []
+    if FORMULA_FIELD_BULLET_RE.search(formula_section):
+        formula_issues.append("field_bullets")
+    formula_blocks = list(re.finditer(r"\$\$.*?\$\$", formula_section, re.S))
+    for index, block in enumerate(formula_blocks, start=1):
+        next_start = (
+            formula_blocks[index].start()
+            if index < len(formula_blocks)
+            else len(formula_section)
+        )
+        if not prose_paragraphs(formula_section[block.end() : next_start]):
+            formula_issues.append(f"formula_{index}_missing_explanation")
+    if formula_issues:
+        findings.append(
+            finding(
+                "error",
+                "formula_explanation",
+                "Each display formula needs one cohesive explanatory paragraph; do not use symbol/purpose/intuition bullets.",
+                issues=formula_issues,
+            )
+        )
+    else:
+        findings.append(
+            finding(
+                "pass",
+                "formula_explanation",
+                "Formula explanations follow the reader-facing paragraph contract.",
+            )
+        )
+
+    idea_section = sections.get("16", "")
+    idea_paragraphs = prose_paragraphs(idea_section)
+    idea_list_items = top_level_list_count(idea_section)
+    if not idea_paragraphs or (idea_list_items >= 3 and idea_list_items >= len(idea_paragraphs)):
+        findings.append(
+            finding(
+                "error",
+                "research_idea_narrative",
+                "Section 16 research ideas must be readable prose units rather than field-bullet forms.",
+                paragraphs=len(idea_paragraphs),
+                list_items=idea_list_items,
+            )
+        )
+    else:
+        findings.append(
+            finding(
+                "pass",
+                "research_idea_narrative",
+                "Section 16 presents research ideas as readable prose units.",
+            )
+        )
+
+    return findings
+
+
 def audit(card_text: str, wiki_root: Path | None) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     fields, body = parse_frontmatter(card_text)
@@ -88,6 +282,7 @@ def audit(card_text: str, wiki_root: Path | None) -> dict[str, Any]:
         findings.append(finding("pass", "frontmatter_fields", "Required metadata fields are present."))
 
     sections = SECTION_RE.findall(body)
+    section_blocks = split_sections(body)
     expected = [f"{number:02d}" for number in range(1, 17)]
     if sections == expected:
         findings.append(finding("pass", "sections", "Sections 01-16 are present in order."))
@@ -150,6 +345,8 @@ def audit(card_text: str, wiki_root: Path | None) -> dict[str, Any]:
             break
     else:
         findings.append(finding("pass", "template_placeholder", "No template placeholders found."))
+
+    findings.extend(audit_readability(section_blocks))
 
     section_16 = re.search(r"^##\s+16\..*?\n(.*?)(?=^##\s|\Z)", body, re.M | re.S)
     if section_16:

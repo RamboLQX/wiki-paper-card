@@ -8,9 +8,10 @@
 
 - **Codex 正式适配**：新增 `.agents/skills/` 安装布局、Vault 级 `AGENTS.md`、`.agents/WIKI_PAPER_CARD_ROOT` 指针与 Codex 编排映射。`install.sh` 新增 `--host codex` 和 `--host all`，并保持默认值及 `both=claude+dsh` 的旧语义。Codex 每篇论文使用一个 fresh processor，同时最多三个且受当前会话可用子 Agent 槽位限制；全批次审计通过后只创建一个 linker。
 - **多宿主入口一致性**：`template/CLAUDE.md` 与新增的 `template/AGENTS.md` 使用字节一致的宿主无关 Vault 规则；安装器对已有入口文件继续 no-clobber，`all` 模式下两份最终内容不一致时明确警告。
-- **Topic schema 3.0 与可读叙事**：Topic 从追加式关键发现条目升级为受控的概述、综合认识和争议段落。link plan 保留 finding/contradiction 证据台账，叙事通过稳定 ID 引用证据，publisher 渲染段后来源行并不再重复输出 finding bullets。后续批次整块重写叙事，保留对照表、开放项、归档和 marker 外自定义内容。
+- **Paper Card 与 Topic 统一可读性契约**：共享 writing guide 改为“先完整、后精练”。Paper Card 的研究问题、背景、核心思想、方法、结论、公式解释和研究想法采用可连续阅读的段落；必要的模块、实验、局限和批判分析表格继续保留，并由本地审计阻断明显碎片化输出。
+- **Topic schema 3.0 与无标记正文**：Topic 从追加式关键发现条目升级为受控的概述、综合认识和真实争议段落。link plan 保留 finding/contradiction 证据台账，publisher 使用标准 Markdown 脚注，不再重复输出 finding bullets。稳定开放项与重放状态进入 `wiki/meta/topic-state/` sidecar，正文不再出现 `wiki-paper-card:*` 协议。
 - **paper-card / gap-mining 双入口协调**：ingest 独占 Topic 叙事、证据台账与论文对照；mining 经用户确认后只按稳定 ID/origin 维护开放项。两者共用 `publish_wiki.py`，通过 `base_topic_sha256` 乐观锁阻断过期计划；mining 归档答案时返回 `narrative_refresh_recommended`。
-- **兼容与迁移边界**：schema 2.0 继续兼容旧计划和页面。schema 3.0 ingest 更新无 managed marker 旧页时返回 `narrative_migration_required` 并保持零写入，不提供隐式全库迁移。
+- **兼容与迁移边界**：schema 2.0 继续兼容旧计划和页面。已有 schema 3.0 marker 页面在下一次有效更新时单页迁移为 clean Markdown + sidecar；无 marker 且无 sidecar 的历史页面返回 `narrative_migration_required` 并保持零写入，不提供隐式全库迁移。
 
 ### 修复方法
 
@@ -22,9 +23,9 @@
 - `adapters/dsh/dsh-mode.md`：环境确认段新增确定性解析顺序、验证门与 `../../` 基准规则。
 - `skills/wiki-paper-card/SKILL.md` / `references/workflow-contract.md` / `template/CLAUDE.md`：去除"从环境或 skill 所在仓库解析"的推断式措辞。
 - `docs/agent-quick-setup.md` / `docs/installation.md` / `adapters/{dsh,claude-code}/README.md` / `README.md` / `README.en.md`：指针文件机制与验证命令同步。
-- `scripts/audit_link_plan.py` / `scripts/publish_wiki.py`：新增 schema 3.0 审计分支、受控叙事渲染、稳定开放项、过期计划预检、mining stub 和叙事刷新警告。
+- `scripts/audit_wiki_paper_card.py` / `scripts/publish_wiki.py`：新增 Paper Card 结构化可读性门禁、Topic sidecar、无标记叙事、标准脚注、段落化研究空白、过期计划预检、mining stub 和叙事刷新警告。
 - `skills/wiki-paper-card/references/`、`skills/wiki-gap-mining/`、`skills/wiki-shared/`：同步 Topic 叙事、证据台账、双入口权限与迁移边界。
-- 测试：`tests/test_install.py` 新增 Codex 安装与指针用例；`tests/test_audit_link_plan.py` 与 `tests/test_publish_wiki.py` 增加 schema 3.0、二篇到五篇多批次、双入口冲突、迁移阻断和幂等回归；全量 145 个测试通过。
+- 测试：`tests/test_install.py` 新增 Codex 安装与指针用例；`tests/test_audit_link_plan.py`、`tests/test_audit_wiki_paper_card.py` 与 `tests/test_publish_wiki.py` 增加 schema 3.0、可读性合同、二篇到五篇多批次、双入口冲突、迁移阻断和幂等回归；全量 154 个测试通过。
 
 ## [0.9.1] - 2026-08-30
 

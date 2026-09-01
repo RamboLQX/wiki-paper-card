@@ -24,8 +24,9 @@ wiki root
 work directory (for notes, report, and link plan)
 ```
 
-The miner reads only existing wiki pages, the two meta indexes, and
-targeted source-page sections. It never reads `raw/` or full paper text,
+The miner reads only existing wiki pages, the meta indexes, matching Topic
+sidecars when stable item identity is needed, and targeted source-page
+sections. It never reads `raw/` or full paper text,
 never writes `wiki/`, and never returns paper text to the parent agent.
 
 ## Read Plan
@@ -40,9 +41,13 @@ Follow the survey discipline of the retrieval protocol:
    source is inside).
 3. Read each scoped topic page completely, including the archive sections
    `## 已解决的问题` and `## 已解决的研究空白`.
-4. Drill into a source-page section only to verify an evidence pointer you
+4. For a schema 3.0 Topic, read its matching
+   `wiki/meta/topic-state/<topic-relative-path>.json` before proposing any
+   update, answer, removal, or annotation. Preserve existing IDs and origins;
+   do not infer identity from visible text.
+5. Drill into a source-page section only to verify an evidence pointer you
    will reuse.
-5. Keep intermediate notes in `work/gap-mining-notes.md`.
+6. Keep intermediate notes in `work/gap-mining-notes.md`.
 
 ## Mining Discipline
 

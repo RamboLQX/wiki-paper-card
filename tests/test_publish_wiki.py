@@ -151,6 +151,11 @@ def valid_v3_plan() -> dict:
                     "id": "overview-scope",
                     "text": "This topic studies whether the shared result transfers across settings.",
                     "finding_refs": ["kf-shared-result"],
+                },
+                {
+                    "id": "overview-state",
+                    "text": "Current evidence supports the result in two settings, while benchmark comparability remains unresolved.",
+                    "finding_refs": ["kf-shared-result"],
                 }
             ]
         },
@@ -161,6 +166,10 @@ def valid_v3_plan() -> dict:
                 "paragraphs": [
                     {
                         "text": "The two papers support the result under different settings, but they do not use one benchmark.",
+                        "finding_refs": ["kf-shared-result"],
+                    },
+                    {
+                        "text": "The evidence therefore supports a bounded comparison rather than a general claim of transfer.",
                         "finding_refs": ["kf-shared-result"],
                     }
                 ],
@@ -246,7 +255,7 @@ def publish_plan(
 
 
 class PublishWikiTests(unittest.TestCase):
-    def test_schema_v3_create_renders_managed_narrative_without_finding_bullets(self) -> None:
+    def test_schema_v3_create_renders_clean_narrative_with_footnotes(self) -> None:
         action = valid_v3_plan()["topic_actions"][0]
         text = PUBLISH.topic_page_text(
             action,
@@ -257,10 +266,16 @@ class PublishWikiTests(unittest.TestCase):
             schema_version="3.0",
             purpose="ingest",
         )
-        self.assertIn("%% wiki-paper-card:managed-start overview %%", text)
+        self.assertNotIn("wiki-paper-card:", text)
+        self.assertNotIn("last_topic_action_sha256", text)
         self.assertIn("## 综合认识", text)
         self.assertIn("### The result is supported across two settings", text)
-        self.assertIn("*证据：[[a|A]] [Paper: PDF p. 3]", text)
+        self.assertIn("[^topic-evidence-1]", text)
+        self.assertIn(
+            "[^topic-evidence-1]: [[a|A]] [Paper: PDF p. 3]", text
+        )
+        self.assertNotIn("## 争议与不确定", text)
+        self.assertIn("### A unified benchmark is missing. [待验证]", text)
         self.assertNotIn("## 关键发现", text)
         self.assertNotIn("共识：Both papers support", text)
         self.assertLess(text.index("## 综合认识"), text.index("## 论文与方法对照"))
@@ -275,12 +290,8 @@ class PublishWikiTests(unittest.TestCase):
             before = topic_path.read_text(encoding="utf-8")
             _, _, before_body = PUBLISH.parse_frontmatter(before)
             narrative_before = {
-                key: re.search(
-                    rf"(?ms)^%% wiki-paper-card:managed-start {key} %%.*?"
-                    rf"^%% wiki-paper-card:managed-end {key} %%$",
-                    before_body,
-                ).group(0)
-                for key in PUBLISH.MANAGED_KEYS
+                section: PUBLISH.section_body(before_body, section)
+                for section in ("概述", "综合认识", "证据注释")
             }
             mining = {
                 "schema_version": "3.0",
@@ -314,14 +325,17 @@ class PublishWikiTests(unittest.TestCase):
             self.assertEqual(second.returncode, 0, second.stderr)
             after = topic_path.read_text(encoding="utf-8")
             _, _, after_body = PUBLISH.parse_frontmatter(after)
-            for key, expected in narrative_before.items():
-                actual = re.search(
-                    rf"(?ms)^%% wiki-paper-card:managed-start {key} %%.*?"
-                    rf"^%% wiki-paper-card:managed-end {key} %%$",
-                    after_body,
-                ).group(0)
+            for section, expected in narrative_before.items():
+                actual = PUBLISH.section_body(after_body, section)
                 self.assertEqual(actual, expected)
-            self.assertIn("id=rg-cross-group origin=mining", after)
+            self.assertNotIn("wiki-paper-card:", after)
+            state_path = root / "wiki" / "meta" / "topic-state" / "Shared Topic.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            cross_group = next(
+                item for item in state["research_gaps"]
+                if item["id"] == "rg-cross-group"
+            )
+            self.assertEqual(cross_group["origin"], "mining")
             dashboard = (root / "wiki" / "meta" / "research.md").read_text(encoding="utf-8")
             self.assertIn("A cross-group control is missing.", dashboard)
             self.assertNotIn("wiki-paper-card:item", dashboard)
@@ -408,7 +422,18 @@ class PublishWikiTests(unittest.TestCase):
             open_part, archive_part = topic.split("## 已解决的研究空白", 1)
             self.assertNotIn("A unified benchmark is missing.", open_part)
             self.assertIn("A unified benchmark is missing.", archive_part)
-            self.assertIn("id=rg-unified-benchmark origin=mining", archive_part)
+            self.assertNotIn("wiki-paper-card:", topic)
+            state = json.loads(
+                (root / "wiki" / "meta" / "topic-state" / "Shared Topic.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            archived = next(
+                item for item in state["research_gaps"]
+                if item["id"] == "rg-unified-benchmark"
+            )
+            self.assertEqual(archived["origin"], "mining")
+            self.assertEqual(archived["status"], "answered")
             self.assertIn("answers the recorded gap", topic)
 
     def test_schema_v3_mining_create_is_stub_and_plan_replay_is_idempotent(self) -> None:
@@ -450,6 +475,7 @@ class PublishWikiTests(unittest.TestCase):
             topic = topic_path.read_text(encoding="utf-8")
             self.assertIn('status: "stub"', topic)
             self.assertIn(PUBLISH.MINING_STUB_OVERVIEW, topic)
+            self.assertNotIn("wiki-paper-card:", topic)
             self.assertNotIn("### ", PUBLISH.section_body(topic, "综合认识"))
             second = publish_plan(root, mining, "candidate.json")
             self.assertEqual(second.returncode, 0, second.stderr)
@@ -539,6 +565,38 @@ class PublishWikiTests(unittest.TestCase):
             action["narrative"]["synthesis_blocks"][0]["paragraphs"][0]["text"] = (
                 "Across five settings, the result is consistent only under a shared evaluation condition."
             )
+            action["narrative"]["synthesis_blocks"].extend(
+                [
+                    {
+                        "id": "synthesis-evaluation-shift",
+                        "heading": "Evaluation shifts expose the main failure mode",
+                        "paragraphs": [
+                            {
+                                "text": "Paper C shows that the shared result can fail after the evaluation setting changes.",
+                                "finding_refs": ["kf-transfer-challenge"],
+                            },
+                            {
+                                "text": "This separates evidence about the original settings from evidence about transfer under controlled shift.",
+                                "finding_refs": ["kf-transfer-challenge"],
+                            },
+                        ],
+                    },
+                    {
+                        "id": "synthesis-comparability",
+                        "heading": "A common protocol is needed for method choice",
+                        "paragraphs": [
+                            {
+                                "text": "The five papers cannot yet support a direct method ranking because their evaluation conditions differ.",
+                                "finding_refs": ["kf-shared-result", "kf-transfer-challenge"],
+                            },
+                            {
+                                "text": "A controlled shared protocol would distinguish method effects from setting effects and change which method is preferred.",
+                                "finding_refs": ["kf-shared-result", "kf-transfer-challenge"],
+                            },
+                        ],
+                    },
+                ]
+            )
             action["narrative"]["controversy_blocks"] = [
                 {
                     "id": "controversy-transfer-boundary",
@@ -546,6 +604,14 @@ class PublishWikiTests(unittest.TestCase):
                     "paragraphs": [
                         {
                             "text": "The original studies support transfer, whereas Paper C reports failure after a controlled shift. Evaluate all methods under one controlled shift to distinguish setting effects from method effects.",
+                            "finding_refs": [
+                                "kf-shared-result",
+                                "kf-transfer-challenge",
+                            ],
+                            "contradiction_refs": ["ct-transfer-boundary"],
+                        },
+                        {
+                            "text": "The disagreement may therefore reflect evaluation design rather than an intrinsic conflict between methods.",
                             "finding_refs": [
                                 "kf-shared-result",
                                 "kf-transfer-challenge",
@@ -586,10 +652,12 @@ class PublishWikiTests(unittest.TestCase):
                 "Evaluate all methods under one controlled shift to distinguish",
                 updated,
             )
-            for key in PUBLISH.MANAGED_KEYS:
-                self.assertIn(
-                    f"%% wiki-paper-card:managed-end {key} %%\n\n## ", updated
-                )
+            self.assertNotIn("wiki-paper-card:", updated)
+            self.assertLess(
+                updated.index("## 争议与不确定"),
+                updated.index("## 论文与方法对照"),
+            )
+            self.assertRegex(updated, r"\[\^topic-evidence-\d+\]:")
             self.assertIn(custom_section.strip(), updated)
             comparison = PUBLISH.section_body(updated, "论文与方法对照")
             for title in ("Paper A", "Paper C", "Paper D", "Paper E"):
@@ -632,6 +700,100 @@ class PublishWikiTests(unittest.TestCase):
                 if path.is_file()
             }
             self.assertEqual(wiki_after, wiki_before)
+
+    def test_schema_v3_managed_page_migrates_to_clean_markdown_and_sidecar(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            plan = valid_v3_plan()
+            action = plan["topic_actions"][0]
+            rendered = PUBLISH.render_v3_narrative(
+                action,
+                {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+                {"wiki/sources/a.md": "A", "wiki/sources/b.md": "B"},
+            )
+            frontmatter = PUBLISH.render_frontmatter(
+                ["topic"],
+                "2026-08-31",
+                "2026-08-31",
+                "draft",
+                sources=action["papers"],
+                aliases=[],
+                extra=[("last_topic_action_sha256", PUBLISH.action_fingerprint(action))],
+            )
+            question = PUBLISH.render_open_questions(
+                action["open_questions"], {}, {}
+            )[0]
+            gap = PUBLISH.render_research_gaps(
+                action["research_gaps"], {}, {}
+            )
+            legacy_lines = [
+                frontmatter.rstrip(),
+                "# Shared Topic",
+                "",
+                "## 概述",
+                "",
+                *PUBLISH.managed_block_lines("overview", rendered["overview"]),
+                "",
+                "## 综合认识",
+                "",
+                *PUBLISH.managed_block_lines("synthesis", rendered["synthesis"]),
+                "",
+                "## 争议与不确定",
+                "",
+                *PUBLISH.managed_block_lines("controversies", []),
+                "",
+                "## 论文与方法对照",
+                "",
+                "## 开放问题",
+                "",
+                *question,
+                "",
+                "## 研究空白与候选方向",
+                "",
+                *gap,
+            ]
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            legacy = "\n".join(legacy_lines).rstrip() + "\n"
+            topic_path.write_text(legacy, encoding="utf-8")
+
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(
+                legacy.encode("utf-8")
+            ).hexdigest()
+            result = publish_plan(root, plan, "migrate-legacy-v3.json")
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            migrated = topic_path.read_text(encoding="utf-8")
+            self.assertNotIn("wiki-paper-card:", migrated)
+            self.assertNotIn("last_topic_action_sha256", migrated)
+            self.assertIn("### A unified benchmark is missing. [待验证]", migrated)
+            state = json.loads(
+                (root / "wiki" / "meta" / "topic-state" / "Shared Topic.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(state["open_questions"][0]["id"], "oq-transfer")
+            self.assertEqual(state["research_gaps"][0]["origin"], "ingest")
+
+    def test_schema2_cannot_update_clean_schema3_topic(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "v3.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            before = topic_path.read_text(encoding="utf-8")
+
+            legacy_plan = valid_plan()
+            legacy_action = legacy_plan["topic_actions"][0]
+            legacy_action["action"] = "update_topic"
+            legacy_action["existing_page"] = "wiki/topics/Shared Topic.md"
+            second = publish_plan(root, legacy_plan, "schema2-update.json")
+            self.assertEqual(second.returncode, 1)
+            self.assertIn("schema2_cannot_update_schema3_topic", second.stderr)
+            self.assertEqual(topic_path.read_text(encoding="utf-8"), before)
 
     def test_schema_v3_mining_answer_emits_narrative_refresh_warning(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
