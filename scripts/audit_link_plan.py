@@ -955,6 +955,74 @@ def audit_topic_action_v3(
         require_string(item, "direction", findings, item_label)
         require_string(item, "continuity", findings, item_label)
         status = item.get("status", "open")
+        progress_updates = item.get("progress_updates", [])
+        if not isinstance(progress_updates, list):
+            findings.append(
+                finding(
+                    "error",
+                    "research_gap_progress_updates",
+                    f"{item_label} progress_updates must be a list.",
+                )
+            )
+            progress_updates = []
+        seen_progress_ids: set[str] = set()
+        for progress_index, progress in enumerate(progress_updates, start=1):
+            progress_label = f"{item_label} progress_update {progress_index}"
+            if not isinstance(progress, dict):
+                findings.append(
+                    finding(
+                        "error",
+                        "research_gap_progress_shape",
+                        f"{progress_label} must be an object.",
+                    )
+                )
+                continue
+            progress_id = require_string(progress, "id", findings, progress_label)
+            if progress_id:
+                if not ITEM_ID_RE.fullmatch(progress_id):
+                    findings.append(
+                        finding(
+                            "error",
+                            "progress_id",
+                            f"{progress_label} has an invalid stable progress id.",
+                            id=progress_id,
+                        )
+                    )
+                elif progress_id in seen_progress_ids:
+                    findings.append(
+                        finding(
+                            "error",
+                            "duplicate_progress_id",
+                            f"{item_label} reuses progress id {progress_id}.",
+                            id=progress_id,
+                        )
+                    )
+                else:
+                    seen_progress_ids.add(progress_id)
+            progress_refs = require_nonempty_string_list(
+                progress,
+                "source_refs",
+                findings,
+                progress_label,
+                "research_gap_progress_source_refs",
+            )
+            unknown_progress_refs = sorted(set(progress_refs) - papers)
+            if unknown_progress_refs:
+                findings.append(
+                    finding(
+                        "error",
+                        "item_source_outside_topic",
+                        f"{progress_label} references sources not listed in topic papers.",
+                        source_refs=unknown_progress_refs,
+                    )
+                )
+            for progress_field in (
+                "method",
+                "result",
+                "pointer",
+                "remaining_boundary",
+            ):
+                require_string(progress, progress_field, findings, progress_label)
         if status not in {"open", "answered"}:
             findings.append(
                 finding("error", "research_gap_status", f"{item_label} has unknown status.", status=status)
@@ -974,6 +1042,12 @@ def audit_topic_action_v3(
                     )
                 )
             require_string(item, "answered_pointer", findings, item_label)
+            for resolution_field in (
+                "resolution_method",
+                "resolution_summary",
+                "resolution_scope",
+            ):
+                require_string(item, resolution_field, findings, item_label)
         else:
             require_string(item, "significance", findings, item_label)
         for field in (

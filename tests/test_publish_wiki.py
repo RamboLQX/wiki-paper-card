@@ -280,6 +280,76 @@ class PublishWikiTests(unittest.TestCase):
         self.assertNotIn("共识：Both papers support", text)
         self.assertLess(text.index("## 综合认识"), text.index("## 论文与方法对照"))
 
+    def test_schema_v3_empty_open_questions_render_explanatory_placeholder(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        action["open_questions"] = []
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-08-31",
+            "2026-08-31",
+            {"wiki/sources/a.md": "A", "wiki/sources/b.md": "B"},
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        question_section = PUBLISH.section_body(text, "开放问题")
+        self.assertIn(PUBLISH.NO_OPEN_QUESTIONS_TEXT, question_section)
+        self.assertFalse(PUBLISH.section_bullet_blocks(text, "开放问题"))
+        self.assertIn("### A unified benchmark is missing.", text)
+
+    def test_schema_v3_open_question_placeholder_tracks_empty_transitions(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        action["open_questions"] = []
+        empty = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-08-31",
+            "2026-08-31",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+
+        action["open_questions"] = [
+            {
+                "id": "oq-new",
+                "origin": "ingest",
+                "question": "Does the result transfer?",
+                "source_refs": ["wiki/sources/a.md"],
+                "status": "open",
+            }
+        ]
+        nonempty = PUBLISH.merge_topic_page(
+            empty,
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-01",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertIn("- Does the result transfer?", nonempty)
+        self.assertNotIn(PUBLISH.NO_OPEN_QUESTIONS_TEXT, nonempty)
+
+        action["open_questions"] = []
+        empty_again = PUBLISH.merge_topic_page(
+            nonempty,
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-02",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertNotIn("Does the result transfer?", empty_again)
+        self.assertIn(PUBLISH.NO_OPEN_QUESTIONS_TEXT, empty_again)
+        idempotent = PUBLISH.merge_topic_page(
+            empty_again,
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-02",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertEqual(idempotent, empty_again)
+
     def test_schema_v3_mining_update_preserves_narrative_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -339,6 +409,121 @@ class PublishWikiTests(unittest.TestCase):
             dashboard = (root / "wiki" / "meta" / "research.md").read_text(encoding="utf-8")
             self.assertIn("A cross-group control is missing.", dashboard)
             self.assertNotIn("wiki-paper-card:item", dashboard)
+
+    def test_schema_v3_gap_progress_merges_and_remains_open(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "progress-initial.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+
+            first_update = valid_v3_plan()
+            action = first_update["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(
+                topic_path.read_bytes()
+            ).hexdigest()
+            action["research_gaps"][0]["progress_updates"] = [
+                {
+                    "id": "progress-shared-benchmark",
+                    "source_refs": ["wiki/sources/b.md"],
+                    "method": "Run both methods on one shared benchmark.",
+                    "result": "The shared benchmark removes one comparison confound.",
+                    "pointer": "[Paper: PDF p. 8, Table 3]",
+                    "remaining_boundary": "Cross-domain transfer remains untested.",
+                }
+            ]
+            second = publish_plan(root, first_update, "progress-first.json")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            topic = topic_path.read_text(encoding="utf-8")
+            self.assertIn("**已有进展 1。**", topic)
+            self.assertIn("The shared benchmark removes one comparison confound.", topic)
+            self.assertIn("**仍未解决。** Cross-domain transfer remains untested.", topic)
+            self.assertIn("A unified benchmark is missing.", PUBLISH.section_body(topic, "研究空白与候选方向"))
+            self.assertNotIn("A unified benchmark is missing.", PUBLISH.section_body(topic, "已解决的研究空白"))
+            dashboard = (root / "wiki" / "meta" / "research.md").read_text(
+                encoding="utf-8"
+            )
+            tree = (root / "wiki" / "meta" / "knowledge-tree.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("[已有进展] A unified benchmark is missing.", dashboard)
+            self.assertIn("[已有进展] A unified benchmark is missing.", tree)
+
+            second_update = valid_v3_plan()
+            action = second_update["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(
+                topic_path.read_bytes()
+            ).hexdigest()
+            action["research_gaps"][0]["progress_updates"] = [
+                {
+                    "id": "progress-transfer-probe",
+                    "source_refs": ["wiki/sources/a.md"],
+                    "method": "Probe one shifted domain.",
+                    "result": "The result transfers under a bounded shift.",
+                    "pointer": "[Paper: PDF p. 9]",
+                    "remaining_boundary": "Long-tail shifts remain untested.",
+                }
+            ]
+            third = publish_plan(root, second_update, "progress-second.json")
+            self.assertEqual(third.returncode, 0, third.stderr)
+            state = json.loads(
+                (root / "wiki" / "meta" / "topic-state" / "Shared Topic.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            gap = next(item for item in state["research_gaps"] if item["id"] == "rg-unified-benchmark")
+            self.assertEqual(
+                [item["id"] for item in gap["progress_updates"]],
+                ["progress-shared-benchmark", "progress-transfer-probe"],
+            )
+            replay = publish_plan(root, second_update, "progress-second.json")
+            self.assertEqual(replay.returncode, 0, replay.stderr)
+            report = json.loads(
+                (root / "progress-second-report.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(report["writes"], [])
+
+    def test_gap_progress_upsert_preserves_order_and_updates_same_id(self) -> None:
+        existing = [
+            {
+                "id": "progress-first",
+                "source_refs": ["wiki/sources/a.md"],
+                "method": "Old method.",
+                "result": "Old result.",
+                "pointer": "[Paper: PDF p. 2]",
+                "remaining_boundary": "Boundary one.",
+            },
+            {
+                "id": "progress-second",
+                "source_refs": ["wiki/sources/b.md"],
+                "method": "Second method.",
+                "result": "Second result.",
+                "pointer": "[Paper: PDF p. 3]",
+                "remaining_boundary": "Boundary two.",
+            },
+        ]
+        incoming = [
+            {
+                "id": "progress-first",
+                "source_refs": ["wiki/sources/a.md"],
+                "method": "Corrected method.",
+                "result": "Corrected result.",
+                "pointer": "[Paper: PDF p. 4]",
+                "remaining_boundary": "Corrected boundary.",
+            }
+        ]
+        merged = PUBLISH.merge_progress_updates(existing, incoming)
+        self.assertEqual(
+            [item["id"] for item in merged],
+            ["progress-first", "progress-second"],
+        )
+        self.assertEqual(merged[0]["method"], "Corrected method.")
+        self.assertEqual(merged[1]["result"], "Second result.")
 
     def test_schema_v3_stale_plan_blocks_all_writes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -411,6 +596,9 @@ class PublishWikiTests(unittest.TestCase):
                     "status": "answered",
                     "answered_by": ["wiki/sources/b.md"],
                     "answered_pointer": "[Paper: PDF p. 6]",
+                    "resolution_method": "Run both methods under one controlled benchmark.",
+                    "resolution_summary": "The controlled comparison closes the recorded comparability gap.",
+                    "resolution_scope": "The conclusion covers two matched settings.",
                 }
             ]
             action["narrative"]["synthesis_blocks"][0]["paragraphs"][0]["text"] = (
@@ -435,6 +623,32 @@ class PublishWikiTests(unittest.TestCase):
             self.assertEqual(archived["origin"], "mining")
             self.assertEqual(archived["status"], "answered")
             self.assertIn("answers the recorded gap", topic)
+            self.assertIn("**解决方法。** Run both methods under one controlled benchmark.", archive_part)
+            self.assertIn("**解决结果。** The controlled comparison closes the recorded comparability gap.", archive_part)
+            self.assertIn("**适用范围。** The conclusion covers two matched settings.", archive_part)
+
+    def test_schema_v3_old_answered_gap_renders_available_fields(self) -> None:
+        lines = PUBLISH.render_v3_resolved_research_gaps(
+            [
+                {
+                    "id": "rg-legacy-answer",
+                    "origin": "ingest",
+                    "gap": "Legacy gap",
+                    "source_refs": ["wiki/sources/a.md"],
+                    "direction": "Legacy direction",
+                    "continuity": "Legacy continuity",
+                    "status": "answered",
+                    "answered_by": ["wiki/sources/b.md"],
+                    "answered_pointer": "[Paper: PDF p. 8]",
+                }
+            ],
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+        )
+        rendered = "\n".join(lines)
+        self.assertIn("### Legacy gap", rendered)
+        self.assertIn("**解决论文。** [[b|Paper B]]", rendered)
+        self.assertIn("**证据位置。** [Paper: PDF p. 8]", rendered)
+        self.assertNotIn("历史记录未提供", rendered)
 
     def test_schema_v3_mining_create_is_stub_and_plan_replay_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -475,8 +689,17 @@ class PublishWikiTests(unittest.TestCase):
             topic = topic_path.read_text(encoding="utf-8")
             self.assertIn('status: "stub"', topic)
             self.assertIn(PUBLISH.MINING_STUB_OVERVIEW, topic)
+            self.assertIn(PUBLISH.NO_OPEN_QUESTIONS_TEXT, topic)
             self.assertNotIn("wiki-paper-card:", topic)
             self.assertNotIn("### ", PUBLISH.section_body(topic, "综合认识"))
+            dashboard = (root / "wiki" / "meta" / "research.md").read_text(
+                encoding="utf-8"
+            )
+            tree = (root / "wiki" / "meta" / "knowledge-tree.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertNotIn(PUBLISH.NO_OPEN_QUESTIONS_TEXT, dashboard)
+            self.assertNotIn(PUBLISH.NO_OPEN_QUESTIONS_TEXT, tree)
             second = publish_plan(root, mining, "candidate.json")
             self.assertEqual(second.returncode, 0, second.stderr)
             report = json.loads((root / "candidate-report.json").read_text(encoding="utf-8"))
@@ -1669,16 +1892,8 @@ class PublishWikiTests(unittest.TestCase):
             # Nested open items carry no 来源 suffix (the topic is the parent).
             self.assertNotIn("— 来源：", text)
             self.assertNotIn("### 实体", text)
-            # The agent tree is written alongside: signposts, no leaf lists.
             agent_tree_path = root / "wiki" / "meta" / "agent-tree.md"
-            self.assertTrue(agent_tree_path.is_file())
-            agent_text = agent_tree_path.read_text(encoding="utf-8")
-            self.assertIn(
-                "- [[Shared Topic|Shared Topic]] — Compare the two approaches.",
-                agent_text,
-            )
-            self.assertNotIn("####", agent_text)
-            self.assertNotIn("Topic question", agent_text)
+            self.assertFalse(agent_tree_path.exists())
 
     def test_merge_topic_moves_resolved_items_to_archive(self) -> None:
         existing = (
@@ -2223,7 +2438,7 @@ class PublishWikiTests(unittest.TestCase):
             self.assertNotIn("## llm-opt", tree)
             self.assertLess(tree.index("## rag"), tree.index("## 跨领域"))
 
-    def test_agent_tree_signposts_only(self) -> None:
+    def test_knowledge_tree_supports_progressive_topic_paper_and_gap_lookup(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             wiki = root / "wiki"
@@ -2243,7 +2458,8 @@ class PublishWikiTests(unittest.TestCase):
                 "status: stub\n"
                 "---\n\n"
                 "# T\n\n"
-                "## 开放问题\n\n- Q1\n",
+                "## 开放问题\n\n- Q1\n\n"
+                "## 研究空白与候选方向\n\n- gap1\n",
                 encoding="utf-8",
             )
             (wiki / "index.md").write_text(
@@ -2255,22 +2471,20 @@ class PublishWikiTests(unittest.TestCase):
                 "- [[wiki/topics/t.md|T]] - topic t\n",
                 encoding="utf-8",
             )
-            agent_tree = PUBLISH.build_agent_tree(root)
-            self.assertIsNotNone(agent_tree)
-            assert agent_tree is not None
-            # Signposts only: topic description and unassigned paper are
-            # listed; no nested leaf lists, open items, or category view.
-            self.assertIn("## rag", agent_tree)
-            self.assertIn("[[t|T]] — topic t", agent_tree)
-            self.assertIn("[[z|z]] — paper z", agent_tree)
-            self.assertNotIn("####", agent_tree)
-            self.assertNotIn("Q1", agent_tree)
-            self.assertNotIn("按主题分类", agent_tree)
-            # The human-facing knowledge tree keeps the full nested view.
             tree = PUBLISH.build_knowledge_tree(root)
             assert tree is not None
+            # One shared tree exposes the topic signpost, its assigned paper,
+            # open items, and the unassigned-paper fallback branch.
+            self.assertIn("## rag", tree)
+            self.assertIn("### T", tree)
+            self.assertIn("topic t", tree)
+            self.assertIn("[[x|x]] — paper x", tree)
             self.assertIn("#### 开放问题", tree)
             self.assertIn("- Q1", tree)
+            self.assertIn("#### 研究空白", tree)
+            self.assertIn("- gap1", tree)
+            self.assertIn("### 未归入主题的论文", tree)
+            self.assertIn("[[z|z]] — paper z", tree)
 
     def test_knowledge_tree_lists_paper_under_each_assigning_topic(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -2395,12 +2609,15 @@ class PublishWikiTests(unittest.TestCase):
             tree_path = root / "wiki" / "meta" / "knowledge-tree.md"
             agent_tree_path = root / "wiki" / "meta" / "agent-tree.md"
             original = tree_path.read_text(encoding="utf-8")
-            original_agent = agent_tree_path.read_text(encoding="utf-8")
+            legacy_agent = "# Legacy agent tree\n\nkeep this file untouched\n"
+            agent_tree_path.write_text(legacy_agent, encoding="utf-8")
             second = subprocess.run(command, check=False, capture_output=True, text=True)
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(tree_path.read_text(encoding="utf-8"), original)
-            self.assertEqual(
-                agent_tree_path.read_text(encoding="utf-8"), original_agent
+            self.assertEqual(agent_tree_path.read_text(encoding="utf-8"), legacy_agent)
+            report = json.loads((root / "publish-report.json").read_text(encoding="utf-8"))
+            self.assertFalse(
+                any(write.get("kind") == "agent-tree" for write in report["writes"])
             )
 
 

@@ -16,8 +16,8 @@
 1. 处理论文（单篇或批量、PDF 或 source map）→ 调用 `wiki-paper-card` skill。
 2. 在知识库上提问、检索、查证或写综述 → 不调用 `wiki-paper-card`，直接遵循
    `wiki-shared` 的 `references/retrieval-protocol.md`：先读
-   `wiki/meta/agent-tree.md`（不存在时读 `wiki/meta/knowledge-tree.md`；
-   选题类查询同时读 `wiki/meta/research.md`），
+   `wiki/meta/knowledge-tree.md`（具体论文未命中时回退 `wiki/index.md` 与
+   `wiki/sources/`；选题类查询同时读 `wiki/meta/research.md`），
    再按 lookup 或 survey 模式下降检索；结论必须带页面与证据指针。检索与
    综述只读，不回写 wiki。
 3. 跨组或全库挖掘研究空白与候选方向（在指定的若干组或整个知识库内深挖开放

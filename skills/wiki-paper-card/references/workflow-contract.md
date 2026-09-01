@@ -215,17 +215,17 @@ python "<REPO_ROOT>/scripts/publish_wiki.py" \
 The publisher:
 
 1. Re-checks the link plan with the deterministic link-plan audit.
-2. Preflights every reference before any write: each source page named by topic `papers`, research-gap `source_refs`, or answered evidence must be either part of the current batch or an existing page under `wiki/sources/`, and every batch source page must have a finalized `paper-card.md`. Any missing, escaping, or non-`wiki/sources/` reference blocks the whole publish.
+2. Preflights every reference before any write: each source page named by topic `papers`, research-gap/progress `source_refs`, or answered evidence must be either part of the current batch or an existing page under `wiki/sources/`, and every batch source page must have a finalized `paper-card.md`. Any missing, escaping, or non-`wiki/sources/` reference blocks the whole publish.
 3. Writes every finalized current source page and appends its `## 关联页面` backlinks.
 4. Applies only `create_topic` and `update_topic` actions.
 5. Updates `wiki/index.md` and `wiki/log.md`.
 6. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
 7. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
-8. Rebuilds `wiki/meta/knowledge-tree.md` (human navigation tree: per domain, topics as signpost nodes with nested papers and open items, plus unassigned papers, then the category-first topic view), `wiki/meta/agent-tree.md` (agent retrieval first hop: domain and topic signposts only), and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. All three aggregate only open items; answered items are archived on the topic pages and excluded.
+8. Rebuilds `wiki/meta/knowledge-tree.md` (shared human/Agent tree: per domain, topics as signpost nodes with nested papers and open items, plus unassigned papers, then the category-first topic view) and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. Both aggregate only open items; answered items are archived on the topic pages and excluded. Legacy `wiki/meta/agent-tree.md` files are left untouched and may be deleted after upgrading.
 
 For schema 3.0, ingest replaces the publisher-owned narrative sections as
 complete units and merges comparison/open-item state deterministically. Stable
-IDs, origins, annotations, and the replay fingerprint live in
+IDs, origins, research-gap progress/resolution records, annotations, and the replay fingerprint live in
 `wiki/meta/topic-state/*.json`; no publisher protocol appears in Topic
 Markdown. Mining preserves narrative and comparison content byte-for-byte,
 changing only stable-ID open items and monotonic source/backlink membership. A stale Topic

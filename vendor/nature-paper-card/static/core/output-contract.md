@@ -22,6 +22,8 @@ The file must contain:
 - title and evidence-status header;
 - input scope and paper-type classification;
 - Sections 01-16 in order;
+- a five-column Terminology Ledger inside Section 01, with a source pointer for
+  every row, or an explicit not-assessable statement in `source-limited` mode;
 - source pointers for substantive paper-derived claims;
 - provenance labels for external facts, analysis, hypotheses, and user-supplied judgments;
 - explicit `Not applicable` or `Not assessable` markers where needed.

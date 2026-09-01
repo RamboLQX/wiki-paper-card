@@ -199,6 +199,73 @@ class LinkPlanAuditTests(unittest.TestCase):
         self.assertIn("duplicate_item_id", codes)
         self.assertIn("item_origin", codes)
 
+    def test_schema_v3_research_gap_progress_requires_traceable_fields(self) -> None:
+        plan = valid_v3_link_plan()
+        gap = plan["topic_actions"][0]["research_gaps"][0]
+        gap["progress_updates"] = [
+            {
+                "id": "progress-shared-benchmark",
+                "source_refs": ["wiki/sources/b.md"],
+                "method": "Run both methods on one shared benchmark.",
+                "result": "The shared benchmark removes one comparison confound.",
+                "pointer": "[Paper: PDF p. 8, Table 3]",
+                "remaining_boundary": "Cross-domain transfer remains untested.",
+            }
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+
+        gap["progress_updates"][0].pop("method")
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(
+                item["code"] == "missing_string"
+                and item.get("details", {}).get("field") == "method"
+                for item in report["findings"]
+            )
+        )
+
+    def test_schema_v3_research_gap_progress_ids_and_sources_are_checked(self) -> None:
+        plan = valid_v3_link_plan()
+        gap = plan["topic_actions"][0]["research_gaps"][0]
+        progress = {
+            "id": "progress-shared-benchmark",
+            "source_refs": ["wiki/sources/outside.md"],
+            "method": "Run one shared benchmark.",
+            "result": "One confound is removed.",
+            "pointer": "[Paper: PDF p. 8]",
+            "remaining_boundary": "Transfer remains open.",
+        }
+        gap["progress_updates"] = [progress, dict(progress)]
+        report = LINK_AUDIT.audit(plan)
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("duplicate_progress_id", codes)
+        self.assertIn("item_source_outside_topic", codes)
+
+    def test_schema_v3_answered_gap_requires_resolution_record(self) -> None:
+        plan = valid_v3_link_plan()
+        gap = plan["topic_actions"][0]["research_gaps"][0]
+        gap["status"] = "answered"
+        gap.pop("significance")
+        gap["answered_by"] = ["wiki/sources/b.md"]
+        gap["answered_pointer"] = "[Paper: PDF p. 8, Table 3]"
+        report = LINK_AUDIT.audit(plan)
+        missing = {
+            item.get("details", {}).get("field")
+            for item in report["findings"]
+            if item["code"] == "missing_string"
+        }
+        self.assertTrue(
+            {"resolution_method", "resolution_summary", "resolution_scope"}
+            <= missing
+        )
+
+        gap["resolution_method"] = "Run a controlled comparison."
+        gap["resolution_summary"] = "The comparison closes the recorded gap."
+        gap["resolution_scope"] = "Three public datasets under matched settings."
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+
     def test_schema_v3_narrative_refs_must_resolve_and_be_prose(self) -> None:
         plan = valid_v3_link_plan()
         paragraph = plan["topic_actions"][0]["narrative"]["overview"]["paragraphs"][0]
@@ -260,6 +327,9 @@ class LinkPlanAuditTests(unittest.TestCase):
         gap.pop("significance")
         gap["answered_by"] = ["wiki/sources/outside.md"]
         gap["answered_pointer"] = "[Paper: PDF p. 8]"
+        gap["resolution_method"] = "Run a controlled comparison."
+        gap["resolution_summary"] = "The comparison closes the recorded gap."
+        gap["resolution_scope"] = "Matched settings only."
         report = LINK_AUDIT.audit(plan)
         self.assertTrue(
             any(

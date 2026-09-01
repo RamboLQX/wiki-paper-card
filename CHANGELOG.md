@@ -6,6 +6,9 @@
 
 ### 新增与改进
 
+- **Knowledge Tree 单树检索**：`wiki/meta/knowledge-tree.md` 统一为人与 Agent 共用的树入口。检索先匹配领域、Topic、论文叶子或开放项，再只展开候选分支；具体论文未命中时回退 `wiki/index.md` 与 `wiki/sources/`。publisher 不再创建或更新 `agent-tree.md`；升级前遗留的该文件保持不变，可由用户安全删除。
+- **Topic 空开放问题可读性**：没有独立开放问题时保留 `## 开放问题` 标题并显示说明性占位；具有明确推进方向的条目仍只进入研究空白区，不为填满栏目重复写入。新增真实问题时占位自动消失，问题全部归档或移除后自动恢复。
+- **研究空白生命周期记录**：研究空白继续用 open/answered 表达是否关闭，部分推进通过稳定 ID 的 `progress_updates` 保存论文、方法、结果、证据和剩余边界，并在 Topic 及聚合视图标记“已有进展”。完全解决时归档页就地展示解决论文、方法、结果、范围和证据；旧 sidecar 可按已有字段继续读取，无需全库迁移。
 - **Codex 正式适配**：新增 `.agents/skills/` 安装布局、Vault 级 `AGENTS.md`、`.agents/WIKI_PAPER_CARD_ROOT` 指针与 Codex 编排映射。`install.sh` 新增 `--host codex` 和 `--host all`，并保持默认值及 `both=claude+dsh` 的旧语义。Codex 每篇论文使用一个 fresh processor，同时最多三个且受当前会话可用子 Agent 槽位限制；全批次审计通过后只创建一个 linker。
 - **多宿主入口一致性**：`template/CLAUDE.md` 与新增的 `template/AGENTS.md` 使用字节一致的宿主无关 Vault 规则；安装器对已有入口文件继续 no-clobber，`all` 模式下两份最终内容不一致时明确警告。
 - **Paper Card 与 Topic 统一可读性契约**：共享 writing guide 改为“先完整、后精练”。Paper Card 的研究问题、背景、核心思想、方法、结论、公式解释和研究想法采用可连续阅读的段落；必要的模块、实验、局限和批判分析表格继续保留，并由本地审计阻断明显碎片化输出。
@@ -25,7 +28,7 @@
 - `docs/agent-quick-setup.md` / `docs/installation.md` / `adapters/{dsh,claude-code}/README.md` / `README.md` / `README.en.md`：指针文件机制与验证命令同步。
 - `scripts/audit_wiki_paper_card.py` / `scripts/publish_wiki.py`：新增 Paper Card 结构化可读性门禁、Topic sidecar、无标记叙事、标准脚注、段落化研究空白、过期计划预检、mining stub 和叙事刷新警告。
 - `skills/wiki-paper-card/references/`、`skills/wiki-gap-mining/`、`skills/wiki-shared/`：同步 Topic 叙事、证据台账、双入口权限与迁移边界。
-- 测试：`tests/test_install.py` 新增 Codex 安装与指针用例；`tests/test_audit_link_plan.py`、`tests/test_audit_wiki_paper_card.py` 与 `tests/test_publish_wiki.py` 增加 schema 3.0、可读性合同、二篇到五篇多批次、双入口冲突、迁移阻断和幂等回归；全量 154 个测试通过。
+- 测试：`tests/test_install.py` 新增 Codex 安装与指针用例；`tests/test_audit_link_plan.py`、`tests/test_audit_wiki_paper_card.py` 与 `tests/test_publish_wiki.py` 覆盖 schema 3.0、可读性合同、二篇到五篇多批次、双入口冲突、迁移阻断、研究空白生命周期和幂等回归；全量 166 个测试通过。
 
 ## [0.9.1] - 2026-08-30
 

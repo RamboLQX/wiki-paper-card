@@ -77,6 +77,7 @@ status: stub
 > Card completeness: Complete relative to supplied source
 
 ## 01. 基本信息
+### 术语规范表
 ## 02. 一句话总结
 ## 03. 研究问题
 ## 04. 研究背景与发展路径
@@ -108,6 +109,28 @@ For every substantive paper-derived statement, use a source pointer such as:
 Use only pointers present in the source bundle. Separate `[Paper]`, `[External]`, `[Analysis]`, `[Hypothesis]`, and `[User]`.
 
 Section 12 contains only limitations explicitly acknowledged by the authors. Section 13 contains Agent analysis.
+
+### Terminology Table
+
+Build the shared Terminology Ledger before drafting prose and render it inside
+Section 01 under the localized third-level heading `### 术语规范表` or
+`### Terminology Ledger`. Use this exact five-column shape, localized to the
+user's language:
+
+```markdown
+| 规范术语 | 首次定义或中文释义 | 原文变体 | 使用决策 | 来源 |
+|---|---|---|---|---|
+| <canonical term> | <first-use definition or Chinese gloss> | <variants, or 未发现显著变体> | <form used throughout the card> | [Paper: ...] |
+```
+
+Include only recurring terms essential to understanding the paper. Expand an
+abbreviation on first use, record observed naming variants, and state the form
+used throughout the card. Do not invent variants. Every data row requires a
+paper source pointer. In `source-limited` mode only, when the supplied material
+cannot support a reliable ledger, write `无法根据现有材料建立可靠术语表` or
+`Not assessable from supplied material` under the heading instead of fabricating
+rows. The terminology table remains part of the Paper Card and does not create
+Concept or Entity pages.
 
 ### Reader-facing Structure
 

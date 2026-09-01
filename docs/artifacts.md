@@ -46,8 +46,7 @@
 | `wiki/topics/…` | Topic，用完整段落综合多篇论文的领域认识、边界与争议，并保留对照表、开放问题和段落化研究空白 |
 | `wiki/meta/topic-state/…` | Topic 的机器 sidecar，保存稳定 ID、来源、annotation 和重放状态；不在正文暴露维护协议 |
 | `wiki/meta/research.md` | 研究仪表盘，汇总当前所有开放问题与研究空白 |
-| `wiki/meta/knowledge-tree.md` | 知识树，人类阅读用的导航 |
-| `wiki/meta/agent-tree.md` | Agent 检索用的入口索引 |
+| `wiki/meta/knowledge-tree.md` | 人与 Agent 共用的知识树；先匹配节点，再局部展开分支 |
 | `wiki/index.md` / `wiki/log.md` | 页面索引与每次处理的日志 |
 
 处理论文的过程不需要你做决策。Topic 的创建或更新由连接阶段根据准入规则自动判断。更新时，linker 输出基于全部当前证据的完整叙事，发布器按固定标题整块替换概述、综合认识和真实争议，不按批次追加摘要。精确证据使用标准 Markdown 脚注，维护状态进入 sidecar，因此 Obsidian 正文中不会出现内部 marker。Agent 收尾时会汇报本次创建和更新了哪些页面。
@@ -93,8 +92,7 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 | `wiki/topics/` 下的 Topic | 面向用户 | 多篇论文的综合认识、分歧、开放问题和段落化研究空白 |
 | `wiki/meta/topic-state/` | 机器 | Topic 的稳定 ID、来源、annotation 与重放状态，不需要手动编辑 |
 | `wiki/meta/research.md` | 面向用户 | 当前开放问题与空白的仪表盘 |
-| `wiki/meta/knowledge-tree.md` | 面向用户 | 人类阅读导航树 |
-| `wiki/meta/agent-tree.md` | 面向用户 | Agent 检索入口，也可快速浏览知识库结构 |
+| `wiki/meta/knowledge-tree.md` | 面向用户 | 人与 Agent 共用的导航树和渐进检索入口 |
 | `wiki/index.md`、`wiki/log.md` | 面向用户 | 页面索引与处理日志 |
 | `work/gap-mining-report.md` | 面向用户 | 研究空白报告，含待确认清单 |
 | `work/gap-mining-notes.md` | 中间 | 挖掘 Agent 的笔记，不需要读 |

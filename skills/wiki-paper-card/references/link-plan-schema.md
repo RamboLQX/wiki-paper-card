@@ -106,9 +106,9 @@ In schema 3.0, every `open_questions` and `research_gaps` entry is an object wit
 - a stable lowercase kebab-case `id`;
 - immutable provenance `origin: "ingest"|"mining"`;
 - non-empty `source_refs` contained in the action's `papers`;
-- `status: "open"|"answered"`; answered entries also carry `answered_by` and `answered_pointer`.
+- `status: "open"|"answered"`; this field expresses closure only, not partial progress.
 
-Research gaps retain `direction`, `continuity`, `significance`, and the optional v2 detail fields. The publisher stores `id`, `origin`, annotations, and the replay fingerprint in `wiki/meta/topic-state/*.json`. Dashboards read compact open-item fields from that sidecar while the Topic page renders reader-facing prose.
+Research gaps retain `direction`, `continuity`, `significance`, and the optional v2 detail fields. An open gap may carry `progress_updates`, each with a stable lowercase kebab-case `id`, non-empty `source_refs`, `method`, `result`, `pointer`, and `remaining_boundary`. Progress records are upserted by ID; unmentioned prior records remain. An answered research gap carries `answered_by`, `answered_pointer`, `resolution_method`, `resolution_summary`, and `resolution_scope`. Open questions retain the existing `answered_by` / `answered_pointer` contract. The publisher stores this lifecycle state and the replay fingerprint in `wiki/meta/topic-state/*.json`. Dashboards read compact open-item fields from that sidecar while the Topic page renders reader-facing prose.
 
 Schema 3.0 mutations address items by ID:
 
@@ -212,6 +212,16 @@ There are no hub actions: the linker writes topic actions only.
       "success_criterion": "What result counts as filling the gap.",
       "risk": "Where it may fail, per existing papers.",
       "priority": "高",
+      "progress_updates": [
+        {
+          "id": "progress-shared-benchmark",
+          "source_refs": ["wiki/sources/paper-b.md"],
+          "method": "Run both methods on one shared benchmark.",
+          "result": "The shared benchmark removes one comparison confound.",
+          "pointer": "[Paper: PDF p. 8, Table 3]",
+          "remaining_boundary": "Cross-domain transfer remains untested."
+        }
+      ],
       "status": "open"
     },
     {
@@ -221,7 +231,10 @@ There are no hub actions: the linker writes topic actions only.
       "continuity": "The answering paper closes this recorded direction.",
       "status": "answered",
       "answered_by": ["wiki/sources/paper-c.md"],
-      "answered_pointer": "[Paper: PDF p. 5]"
+      "answered_pointer": "[Paper: PDF p. 5]",
+      "resolution_method": "Run a controlled comparison on one benchmark.",
+      "resolution_summary": "The comparison closes the recorded benchmark gap.",
+      "resolution_scope": "The conclusion covers the matched public datasets."
     }
   ],
   "existing_page": null
@@ -231,12 +244,12 @@ There are no hub actions: the linker writes topic actions only.
 Rules:
 
 - `create_topic` requires at least two distinct batch source pages.
-- `update_topic` requires a non-empty `existing_page`; it may include one new paper that answers or challenges an existing open question. When a paper answers an existing open question or fills an existing research gap, the linker marks that entry `status: "answered"` with non-empty `answered_by` (the answering paper's source refs) and `answered_pointer` (the evidence). The publisher then moves the entry from the open `## 开放问题` / `## 研究空白与候选方向` sections into the archive sections `## 已解决的问题` / `## 已解决的研究空白` on the topic page; the research dashboard and knowledge tree stop listing it.
+- `update_topic` requires a non-empty `existing_page`; it may include one new paper that answers, challenges, or partially advances an existing open item. Partial gap advances keep `status: "open"` and add `progress_updates`. A fully answered gap uses the complete resolution record defined above; an answered open question keeps the existing `answered_by` / `answered_pointer` pair. Only answered items move into the archive and disappear from the research dashboard and knowledge tree.
 - Comparison rows use canonical keys `paper`, `source_ref` (optional, for a wikilink), `method`, `intervention_granularity`, `main_result`, `boundary`, `pointer`. The legacy key `granularity` is still rendered but deprecated.
 - Contradiction items use `position_a` / `position_b` with `position_a_source_ref` / `position_a_pointer` and `position_b_source_ref` / `position_b_pointer`, plus `resolving_evidence` naming the discriminating experiment that would settle the conflict. The legacy keys `source_ref_a` / `pointer_a` / `resolve` are still rendered but deprecated.
 - `key_findings` kinds: `consensus` (multiple independent sources), `single` (one source), `conflict` (disputed). Each finding carries `claim`, optional `source_refs`, and optional `pointer`. The list may be empty when no finding meets the value threshold.
 - `open_questions` entries are strings or objects with `question` and optional `status` (`open` default / `answered`). A string is shorthand for an open question. Answered objects require non-empty `answered_by` source refs and a non-empty `answered_pointer`. The list may be empty.
-- `research_gaps` entries in a new plan must be objects with non-empty `gap`, `source_refs` (a non-empty list of the papers it traces to), `direction`, `continuity`, and optional `status` (`open` default / `answered`). Open gaps additionally require a non-empty `significance`; answered gaps additionally require non-empty `answered_by` and `answered_pointer`. The publisher retains legacy string rendering for historical compatibility, but `audit_link_plan.py` rejects strings in every newly submitted plan.
+- `research_gaps` entries in a new plan must be objects with non-empty `gap`, `source_refs` (a non-empty list of the papers it traces to), `direction`, `continuity`, and optional `status` (`open` default / `answered`). Open gaps additionally require a non-empty `significance`; optional `progress_updates` must use the complete stable-ID record described above. Answered schema 3.0 gaps additionally require non-empty `answered_by`, `answered_pointer`, `resolution_method`, `resolution_summary`, and `resolution_scope`. The publisher retains legacy string input and renders older stored answered entries from whatever resolution fields are available, but `audit_link_plan.py` rejects incomplete objects in newly submitted schema 3.0 plans.
 - Every open `research_gaps` entry must carry a non-empty `significance` that names the judgment or choice it would change; the audit rejects an open gap without it (see the shared [writing guide](../../wiki-shared/references/writing-guide.md)). Answered gaps are exempt. The other five v2 detail fields `evidence_boundary`, `experiment`, `success_criterion`, `risk`, and `priority` remain optional. `priority` uses the labels 高/中/低 (audit rejects other values). An entry carrying any v2 field but lacking both `evidence_boundary` and `experiment` renders with a `[待验证]` tag (a tentative direction); entries without any v2 field render exactly as before. Empty optional fields should be omitted rather than set to `""` (audit warns).
 - Topic actions may carry an optional single-value `category` (for example `"评估框架"`): the publisher writes it into the topic frontmatter on create and on update (only when given), and the knowledge tree renders a category-first topic view from it. Omit it to leave a topic uncategorized. The category set is small and user-owned; proposing a new category requires user confirmation.
 - Semantic dedup fields (used by mining write-back, available to the linker as well): `remove_open_questions` and `remove_research_gaps` are lists of non-empty strings; the publisher drops existing bullets whose text contains the fragment (whitespace-normalized substring match). `annotate_research_gaps` is a list of `{match, note}` objects; the publisher appends `note` to the matching open gap's 承接 ending, or as a `- 相关空白：…` sub-bullet when there is no such ending. Fragments matching nothing are no-ops; audit rejects malformed shapes, and unknown fields on a topic action are ignored by the publisher, so name these exactly.
@@ -244,4 +257,4 @@ Rules:
 
 ## Publisher Boundary
 
-`publish_wiki.py` applies only the actions in this plan. It does not invent topic promotions, duplicate aliases, or rewrite unrelated prose. Before any write, the publisher verifies that every page named by topic-action `papers`, by research-gap `source_refs`, or by answered evidence (`answered_by`) is either part of the current batch or an existing page under `wiki/sources/`, and that every batch source page has a finalized `paper-card.md`; any missing or invalid reference blocks the whole publish.
+`publish_wiki.py` applies only the actions in this plan. It does not invent topic promotions, duplicate aliases, or rewrite unrelated prose. Before any write, the publisher verifies that every page named by topic-action `papers`, by research-gap or progress `source_refs`, or by answered evidence (`answered_by`) is either part of the current batch or an existing page under `wiki/sources/`, and that every batch source page has a finalized `paper-card.md`; any missing or invalid reference blocks the whole publish.

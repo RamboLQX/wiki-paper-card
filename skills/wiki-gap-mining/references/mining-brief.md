@@ -33,9 +33,8 @@ never writes `wiki/`, and never returns paper text to the parent agent.
 
 Follow the survey discipline of the retrieval protocol:
 
-1. Read `wiki/meta/agent-tree.md` (fallback: `wiki/meta/knowledge-tree.md`)
-   and `wiki/meta/research.md` to get the currently open questions and gaps
-   in scope.
+1. Read `wiki/meta/knowledge-tree.md` and `wiki/meta/research.md` to get the
+   scoped topics, papers, currently open questions, and gaps.
 2. Enumerate the scoped topic pages: topics whose `sources` frontmatter
    intersects the selected domains (cross-domain topics included when any
    source is inside).
@@ -78,6 +77,12 @@ The value discipline from the linker brief applies with a wider lens:
 - **Merge similar candidates instead of multiplying them.** Candidates that
   converge on the same missing setting become one entry with multiple
   `source_refs`, never one entry per group.
+- **Separate progress from closure.** A paper that narrows a gap but leaves a
+  decision-relevant boundary produces a stable-ID `progress_updates` record
+  (`source_refs`, `method`, `result`, `pointer`, `remaining_boundary`) while
+  the gap remains `status: "open"`. Use `status: "answered"` only when the
+  original gap is directly covered, its proposed or equivalent test has been
+  completed, and no remaining boundary could change the original judgment.
 - **Record only the 2-3 candidates that most affect decisions.** More may
   be recorded only when the user asks for an exhaustive list.
 - **Grade every candidate** into one of: (a) 已有 topic 的补充空白, (b)
@@ -187,8 +192,13 @@ After the user confirms candidates via the 待确认清单, write one
   a stable lowercase kebab-case `id`, `origin: "mining"`, `source_refs`,
   `status: "open"`, and the corresponding question/gap fields. Preserve an
   existing item's ID and origin when merging or answering it.
+- Partial advances keep the existing gap `status: "open"` and upsert
+  `progress_updates` by stable progress ID. Unmentioned prior progress records
+  remain in the sidecar.
 - Cross-group resolutions become `status: "answered"` entries with
-  `answered_by` and `answered_pointer` (the publisher archives them).
+  `answered_by`, `answered_pointer`, `resolution_method`, `resolution_summary`,
+  and `resolution_scope` (the publisher archives them with the solution
+  record in place).
 - A `create_topic` requires at least two existing source pages that share
   the same problem, mechanism, or evidence space, and the user's explicit
   confirmation; `papers` lists those existing pages. Such pages stay

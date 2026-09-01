@@ -45,6 +45,21 @@ IDEA_FAILURE_TERMS = [
 
 LOCATOR_MODES = ("page-grounded", "structure-grounded", "source-limited")
 SOURCE_LIMITED_LOCATORS = ("abstract", "metadata", "user-provided excerpt")
+TERMINOLOGY_HEADING_RE = re.compile(
+    r"^###\s+(?:术语规范表|Terminology Ledger)\s*$",
+    re.I | re.M,
+)
+TERMINOLOGY_NOT_ASSESSABLE = (
+    "无法根据现有材料建立可靠术语表",
+    "not assessable from supplied material",
+)
+TERMINOLOGY_HEADERS = (
+    {"规范术语", "canonical term"},
+    {"首次定义或中文释义", "first-use definition or chinese gloss"},
+    {"原文变体", "variants seen in source"},
+    {"使用决策", "decision"},
+    {"来源", "source"},
+)
 
 
 def finding(level: str, code: str, message: str, **details: Any) -> dict[str, Any]:
@@ -66,6 +81,40 @@ def section_text(card: str, number: str) -> str:
         re.M | re.S,
     )
     return match.group(1) if match else ""
+
+
+def terminology_subsection(section_01: str) -> str:
+    heading = TERMINOLOGY_HEADING_RE.search(section_01)
+    if not heading:
+        return ""
+    remainder = section_01[heading.end():]
+    next_heading = re.search(r"^###\s+", remainder, re.M)
+    return remainder[: next_heading.start()] if next_heading else remainder
+
+
+def markdown_table(text: str) -> tuple[list[str], list[list[str]]]:
+    lines = text.splitlines()
+    for index in range(len(lines) - 2):
+        header_line = lines[index].strip()
+        separator_line = lines[index + 1].strip()
+        if not (header_line.startswith("|") and header_line.endswith("|")):
+            continue
+        if not (separator_line.startswith("|") and separator_line.endswith("|")):
+            continue
+        header = [cell.strip() for cell in header_line.strip("|").split("|")]
+        separator = [cell.strip() for cell in separator_line.strip("|").split("|")]
+        if len(header) != len(separator) or not all(
+            re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+        ):
+            continue
+        rows: list[list[str]] = []
+        for raw_line in lines[index + 2:]:
+            line = raw_line.strip()
+            if not (line.startswith("|") and line.endswith("|")):
+                break
+            rows.append([cell.strip() for cell in line.strip("|").split("|")])
+        return header, rows
+    return [], []
 
 
 def evidence_item_mentioned(card: str, item_id: str) -> bool:
@@ -160,6 +209,59 @@ def audit(
                 f"The card header must declare canonical locator mode: {locator_mode}.",
             )
         )
+
+    terminology_rows = 0
+    section_01 = section_text(card, "01")
+    terminology = terminology_subsection(section_01)
+    not_assessable = contains_any(terminology, list(TERMINOLOGY_NOT_ASSESSABLE))
+    if not terminology:
+        findings.append(
+            finding(
+                "error",
+                "terminology_ledger",
+                "Section 01 must contain a Terminology Ledger subsection.",
+            )
+        )
+    elif locator_mode == "source-limited" and not_assessable:
+        findings.append(
+            finding(
+                "pass",
+                "terminology_ledger",
+                "Source-limited material explicitly marks the Terminology Ledger not assessable.",
+            )
+        )
+    else:
+        headers, rows = markdown_table(terminology)
+        normalized_headers = [header.casefold() for header in headers]
+        header_ok = len(normalized_headers) == len(TERMINOLOGY_HEADERS) and all(
+            header in allowed
+            for header, allowed in zip(normalized_headers, TERMINOLOGY_HEADERS)
+        )
+        valid_rows = [
+            row
+            for row in rows
+            if len(row) == 5 and all(row) and "[Paper:" in row[4]
+        ]
+        terminology_rows = len(valid_rows)
+        if header_ok and rows and len(valid_rows) == len(rows):
+            findings.append(
+                finding(
+                    "pass",
+                    "terminology_ledger",
+                    f"Terminology Ledger contains {terminology_rows} source-grounded row(s).",
+                )
+            )
+        else:
+            findings.append(
+                finding(
+                    "error",
+                    "terminology_ledger",
+                    "Terminology Ledger must use the required five columns and every non-empty row must include a [Paper: ...] pointer.",
+                    headers=headers,
+                    rows_found=len(rows),
+                    valid_rows=len(valid_rows),
+                )
+            )
 
     pointers = PAPER_POINTER_RE.findall(card)
     if pointers:
@@ -345,6 +447,7 @@ def audit(
             "locator_mode": locator_mode,
             "sections_found": sections,
             "paper_pointer_count": len(pointers),
+            "terminology_row_count": terminology_rows,
             "figures_in_bundle": len(inventory.get("figures", [])),
             "tables_in_bundle": len(inventory.get("tables", [])),
             "equations_in_bundle": len(inventory.get("equations", [])),

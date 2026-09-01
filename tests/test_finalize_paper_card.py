@@ -33,6 +33,13 @@ def finalizable_card() -> str:
             body = "核心假设：可证伪。验证方式：对照实验。可能失败：假设错误。"
         else:
             body = "Test text."
+        if number == 1:
+            body += (
+                "\n\n### 术语规范表\n\n"
+                "| 规范术语 | 首次定义或中文释义 | 原文变体 | 使用决策 | 来源 |\n"
+                "|---|---|---|---|---|\n"
+                "| Test method | A test method | 未发现显著变体 | 统一使用 Test method | [Paper: PDF p. 1] |"
+            )
         sections.append(f"## {number:02d}. Section {number}\n\n{body}\n")
     return (
         "---\n"

@@ -26,6 +26,19 @@ Use all headings in this order. Translate the headings and tables into the user'
 
 Record title, authors and affiliations, venue, year, paper type, field, keywords, DOI or arXiv identifier, code, dataset, reading date, and the paper's position in the user's research direction. Mark unavailable fields.
 
+Then add a localized third-level `Terminology Ledger` subsection using exactly
+five columns:
+
+| Canonical term | First-use definition or Chinese gloss | Variants seen in source | Decision | Source |
+|---|---|---|---|---|
+
+Include only recurring terms essential to understanding the paper. Expand
+abbreviations on first use, record observed variants without inventing them,
+state the canonical form used throughout the card, and give a `[Paper: ...]`
+pointer for every row. In `source-limited` mode only, explicitly write
+`Not assessable from supplied material` when the available material cannot
+support a reliable ledger.
+
 ## 02 One-Sentence Summary
 
 Answer in one sentence: what problem, what approach, through what mechanism, and what bounded result. Avoid promotional adjectives.

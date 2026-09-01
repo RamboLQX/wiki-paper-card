@@ -24,13 +24,13 @@ Topic pages are the primary synthesis surface for:
 - listing open questions and research gaps;
 - proposing discriminating experiments.
 
-Topics also serve as the tree's intermediate signpost nodes: the publisher nests each topic's assigned papers, currently open questions, and research gaps under the topic node in `knowledge-tree.md` (human navigation), and lists the same topics with their one-line index descriptions in `agent-tree.md` (agent retrieval first hop), which is how retrieval prunes by topic before opening pages.
+Topics also serve as the shared tree's intermediate signpost nodes: the publisher nests each topic's assigned papers, currently open questions, and research gaps under the topic node in `knowledge-tree.md`. Readers can inspect the full hierarchy, while retrieval prunes by topic or paper leaf before opening only the selected pages.
 
 Create or update a topic page when at least two papers share the same problem, mechanism, or evidence space, or when a single paper directly answers an existing open question.
 
 Research gaps and open questions are snapshots of the current corpus. Record a gap only when it carries a source anchor (which paper's limitation or uncovered setting) and a direction a future paper could advance; if a batch yields no genuine gap, leave the section empty rather than padding it.
 
-When a later paper answers an open question or fills a research gap, the linker preserves the item's stable ID and origin, then marks it answered (`status: "answered"` with `answered_by` and `answered_pointer`). The publisher moves the same ID to the archive, so the open sections and dashboards reflect only currently open items. The answer's substance enters the structured finding ledger and the complete reader-facing narrative.
+When a later paper advances a research gap but leaves a decision-relevant boundary, the gap remains open and receives a stable-ID progress record containing the paper, method, result, evidence pointer, and remaining boundary. It stays in the open sections and aggregations with an 已有进展 marker. Only evidence that closes the original judgment boundary may mark it answered. The linker then preserves the gap ID, origin, and progress history and supplies the answering papers, evidence pointer, resolution method, result summary, and scope. The publisher moves the same ID to the detailed archive; the answer's substance also enters the structured finding ledger and complete reader-facing narrative.
 
 ## Content Placement Map
 

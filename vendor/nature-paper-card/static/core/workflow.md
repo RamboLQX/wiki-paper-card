@@ -115,6 +115,6 @@ For Sections 14-16:
 
 ## 9. Write and audit the artifact
 
-Write `paper-card.md` using the exact schema and the user's language. Check internal consistency across terminology, datasets, sample sizes, baselines, metrics, and numbers. Add a short evidence-status summary at the top.
+Write `paper-card.md` using the exact schema and the user's language. Render the Terminology Ledger inside Section 01 before drafting the analytical prose. Check internal consistency across terminology, datasets, sample sizes, baselines, metrics, and numbers. Add a short evidence-status summary at the top.
 
 Run the bundled `scripts/audit_paper_card.py` with the selected locator mode. Supply `source_bundle.json` in page-grounded mode. In fallback modes, the bundle is optional and unavailable source-inventory checks become warnings. Correct all errors, assess warnings, and rerun until no audit error remains. The script checks structure and traceability; it does not replace scientific judgment.

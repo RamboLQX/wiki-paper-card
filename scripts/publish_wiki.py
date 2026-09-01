@@ -28,6 +28,10 @@ ITEM_METADATA_RE = re.compile(
 )
 MANAGED_KEYS = ("overview", "synthesis", "controversies")
 MINING_STUB_OVERVIEW = "当前仅记录经确认的研究空白，尚未形成跨论文综合。"
+NO_OPEN_QUESTIONS_TEXT = (
+    "当前没有独立的开放问题。具有明确研究方向的未解决项统一记录在"
+    "“研究空白与候选方向”，不在两处重复。"
+)
 TOPIC_STATE_SCHEMA_VERSION = "1.0"
 
 
@@ -489,6 +493,32 @@ def render_open_questions(
     return open_lines, resolved_lines
 
 
+def normalize_progress_updates(items: Any) -> list[dict[str, Any]]:
+    """Normalize stable, source-grounded progress records for one gap."""
+    normalized: list[dict[str, Any]] = []
+    if not isinstance(items, list):
+        return normalized
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        progress_id = str(item.get("id", "")).strip()
+        if not progress_id:
+            continue
+        normalized.append(
+            {
+                "id": progress_id,
+                "source_refs": string_list(item.get("source_refs")),
+                "method": str(item.get("method", "")).strip(),
+                "result": str(item.get("result", "")).strip(),
+                "pointer": str(item.get("pointer", "")).strip(),
+                "remaining_boundary": str(
+                    item.get("remaining_boundary", "")
+                ).strip(),
+            }
+        )
+    return normalized
+
+
 def normalize_gaps(items: Any) -> list[dict[str, Any]]:
     """Normalize research_gaps entries; strings become open items.
 
@@ -523,11 +553,23 @@ def normalize_gaps(items: Any) -> list[dict[str, Any]]:
             "success_criterion": str(item.get("success_criterion", "")).strip(),
             "risk": str(item.get("risk", "")).strip(),
             "priority": str(item.get("priority", "")).strip(),
+            "progress_updates": normalize_progress_updates(
+                item.get("progress_updates", [])
+            ),
             "status": item.get("status", "open"),
         }
         if entry["status"] == "answered":
             entry["answered_by"] = string_list(item.get("answered_by"))
             entry["answered_pointer"] = str(item.get("answered_pointer", "")).strip()
+            entry["resolution_method"] = str(
+                item.get("resolution_method", "")
+            ).strip()
+            entry["resolution_summary"] = str(
+                item.get("resolution_summary", "")
+            ).strip()
+            entry["resolution_scope"] = str(
+                item.get("resolution_scope", "")
+            ).strip()
         normalized.append(entry)
     return normalized
 
@@ -676,6 +718,77 @@ def render_resolved_research_gaps(
     return lines
 
 
+def render_gap_progress_updates(
+    entry: dict[str, Any],
+    titles: dict[str, str],
+    short_names: dict[str, str] | None,
+) -> list[str]:
+    """Render every recorded partial advance while keeping the gap open."""
+    short = short_names or {}
+    lines: list[str] = []
+    for index, progress in enumerate(entry.get("progress_updates", []), start=1):
+        refs = "、".join(
+            source_wikilink(ref, short, titles)
+            for ref in progress.get("source_refs", [])
+        )
+        first = [f"**已有进展 {index}。**"]
+        if refs:
+            first.append(f"{refs} 提供了新的推进证据。")
+        if progress.get("method"):
+            first.append(f"**采用方法。** {progress['method']}")
+        if progress.get("result"):
+            first.append(f"**取得结果。** {progress['result']}")
+        if progress.get("pointer"):
+            first.append(f"**证据位置。** {progress['pointer']}")
+        if lines:
+            lines.append("")
+        lines.append(" ".join(first))
+        if progress.get("remaining_boundary"):
+            lines.extend(
+                ["", f"**仍未解决。** {progress['remaining_boundary']}"]
+            )
+    return lines
+
+
+def render_v3_resolved_research_gaps(
+    items: Any,
+    titles: dict[str, str],
+    short_names: dict[str, str] | None = None,
+) -> list[str]:
+    """Render answered schema 3.0 gaps with an in-place resolution record."""
+    short = short_names or {}
+    lines: list[str] = []
+    for entry in normalize_gaps(items):
+        if entry["status"] != "answered":
+            continue
+        if lines:
+            lines.append("")
+        lines.extend([f"### {entry['gap']}", ""])
+        progress_lines = render_gap_progress_updates(entry, titles, short_names)
+        if progress_lines:
+            lines.extend(progress_lines)
+            lines.append("")
+        answered_refs = "、".join(
+            source_wikilink(ref, short, titles)
+            for ref in entry.get("answered_by", [])
+        )
+        resolution: list[str] = []
+        if answered_refs:
+            resolution.append(f"**解决论文。** {answered_refs}。")
+        if entry.get("resolution_method"):
+            resolution.append(f"**解决方法。** {entry['resolution_method']}")
+        if entry.get("resolution_summary"):
+            resolution.append(f"**解决结果。** {entry['resolution_summary']}")
+        if entry.get("resolution_scope"):
+            resolution.append(f"**适用范围。** {entry['resolution_scope']}")
+        if entry.get("answered_pointer"):
+            resolution.append(f"**证据位置。** {entry['answered_pointer']}")
+        if not resolution:
+            resolution.append("该空白已归档，但历史记录未提供进一步的解决摘要。")
+        lines.append(" ".join(resolution))
+    return lines
+
+
 def render_v3_research_gaps(
     items: Any,
     titles: dict[str, str],
@@ -731,6 +844,9 @@ def render_v3_research_gaps(
             second.append(f"**关联说明。** {note}")
         if second:
             lines.extend(["", " ".join(second)])
+        progress_lines = render_gap_progress_updates(entry, titles, short_names)
+        if progress_lines:
+            lines.extend(["", *progress_lines])
     return lines
 
 
@@ -945,17 +1061,16 @@ def topic_page_text_v3(
         short_names,
         include_metadata=False,
     )
-    lines.extend(q_open)
+    lines.extend(q_open or [NO_OPEN_QUESTIONS_TEXT])
     lines.extend(["", "## 研究空白与候选方向", ""])
     lines.extend(render_v3_research_gaps(action.get("research_gaps", []), titles, short_names))
     if q_resolved:
         lines.extend(["", "## 已解决的问题", ""])
         lines.extend(q_resolved)
-    resolved_gaps = render_resolved_research_gaps(
+    resolved_gaps = render_v3_resolved_research_gaps(
         action.get("research_gaps", []),
         titles,
         short_names,
-        include_metadata=False,
     )
     if resolved_gaps:
         lines.extend(["", "## 已解决的研究空白", ""])
@@ -1014,7 +1129,7 @@ def topic_page_text(
     q_open, q_resolved = render_open_questions(
         action.get("open_questions", []), titles, short_names
     )
-    lines.extend(q_open)
+    lines.extend(q_open or [NO_OPEN_QUESTIONS_TEXT])
     lines.extend(["", "## 研究空白与候选方向", ""])
     lines.extend(render_research_gaps(action.get("research_gaps", []), titles, short_names))
     if q_resolved:
@@ -1325,6 +1440,47 @@ def merge_state_entries(
     return merged
 
 
+def merge_progress_updates(existing: Any, incoming: Any) -> list[dict[str, Any]]:
+    """Upsert progress by stable ID while preserving unmentioned history."""
+    existing_items = normalize_progress_updates(existing)
+    incoming_items = normalize_progress_updates(incoming)
+    incoming_by_id = {item["id"]: item for item in incoming_items}
+    merged = [
+        incoming_by_id.pop(item["id"], item)
+        for item in existing_items
+    ]
+    merged.extend(incoming_by_id.values())
+    return merged
+
+
+def merge_gap_state_entries(
+    existing: Any,
+    incoming: list[dict[str, Any]],
+    removed_ids: set[str],
+) -> list[dict[str, Any]]:
+    """Merge gaps by ID and their nested progress histories by progress ID."""
+    existing_items = (
+        [dict(item) for item in existing if isinstance(item, dict)]
+        if isinstance(existing, list)
+        else []
+    )
+    existing_by_id = {
+        str(item.get("id", "")): item
+        for item in existing_items
+        if item.get("id")
+    }
+    prepared: list[dict[str, Any]] = []
+    for item in incoming:
+        copied = dict(item)
+        previous = existing_by_id.get(str(copied.get("id", "")), {})
+        copied["progress_updates"] = merge_progress_updates(
+            previous.get("progress_updates", []),
+            copied.get("progress_updates", []),
+        )
+        prepared.append(copied)
+    return merge_state_entries(existing_items, prepared, removed_ids)
+
+
 def build_topic_state(
     previous: dict[str, Any] | None,
     legacy_body: str,
@@ -1337,7 +1493,7 @@ def build_topic_state(
         normalize_questions(action.get("open_questions", [])),
         set(string_list(action.get("remove_open_question_ids"))),
     )
-    gaps = merge_state_entries(
+    gaps = merge_gap_state_entries(
         state.get("research_gaps", []),
         normalize_gaps(action.get("research_gaps", [])),
         set(string_list(action.get("remove_research_gap_ids"))),
@@ -1393,7 +1549,12 @@ def merge_v3_open_items(
     q_open_new, q_archive_new = render_open_questions(
         questions, titles, short_names
     )
-    body = replace_section_body(body, "开放问题", q_open_kept + q_open_new)
+    merged_questions = q_open_kept + q_open_new
+    body = replace_section_body(
+        body,
+        "开放问题",
+        merged_questions or [NO_OPEN_QUESTIONS_TEXT],
+    )
     if q_archive_kept or q_archive_new or section_exists(body, "已解决的问题"):
         body = replace_section_body(
             body, "已解决的问题", q_archive_kept + q_archive_new
@@ -1508,7 +1669,11 @@ def merge_topic_page_v3(
         short_names,
         include_metadata=False,
     )
-    body = replace_section_body(body, "开放问题", q_open)
+    body = replace_section_body(
+        body,
+        "开放问题",
+        q_open or [NO_OPEN_QUESTIONS_TEXT],
+    )
     body = replace_optional_section(body, "已解决的问题", q_archive)
 
     state_gaps = (
@@ -1530,11 +1695,10 @@ def merge_topic_page_v3(
     body = replace_optional_section(
         body,
         "已解决的研究空白",
-        render_resolved_research_gaps(
+        render_v3_resolved_research_gaps(
             state_gaps,
             titles,
             short_names,
-            include_metadata=False,
         ),
     )
     fields, lists = merge_frontmatter_sets(
@@ -1644,7 +1808,11 @@ def merge_topic_page(
     merged_q = [f"- {line}" for line in kept_q] + [
         line for line in q_open if bullet_text(line) not in kept_q
     ]
-    body = replace_section_body(body, "开放问题", merged_q)
+    body = replace_section_body(
+        body,
+        "开放问题",
+        merged_q or [NO_OPEN_QUESTIONS_TEXT],
+    )
     if q_resolved:
         existing_rq = section_bullets(body, "已解决的问题")
         merged_rq = [f"- {line}" for line in existing_rq] + [
@@ -1871,6 +2039,13 @@ def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
                 continue
             for source_ref in string_list(gap.get("source_refs")):
                 referenced.setdefault(source_ref, []).append(f"research gap sources in {label}")
+            for progress in gap.get("progress_updates", []):
+                if not isinstance(progress, dict):
+                    continue
+                for source_ref in string_list(progress.get("source_refs")):
+                    referenced.setdefault(source_ref, []).append(
+                        f"research gap progress evidence in {label}"
+                    )
             if gap.get("status") == "answered":
                 for source_ref in string_list(gap.get("answered_by")):
                     referenced.setdefault(source_ref, []).append(f"answered gap evidence in {label}")
@@ -2227,7 +2402,10 @@ def topic_open_items(
     ]
     gaps = [
         (
-            str(item.get("gap", "")).strip(),
+            (
+                "[已有进展] " if item.get("progress_updates") else ""
+            )
+            + str(item.get("gap", "")).strip(),
             str(item.get("priority", "")).strip(),
         )
         for item in state.get("research_gaps", [])
@@ -2434,18 +2612,19 @@ def render_knowledge_tree(
     """Render wiki/meta/knowledge-tree.md from collected topic nodes.
 
     Deterministic: identical nodes produce identical text. Topic-first
-    navigation view: each domain groups its topics as intermediate signpost
-    nodes (one-line index description) with the topic's papers, currently
-    open questions, and research gaps nested under them; papers assigned to
-    no topic land in the per-domain unassigned group. When categories are
-    supplied, a category-first topic view is appended after the domain view.
+    shared human/Agent navigation view: each domain groups its topics as
+    intermediate signpost nodes (one-line index description) with the
+    topic's papers, currently open questions, and research gaps nested under
+    them; papers assigned to no topic land in the per-domain unassigned
+    group. When categories are supplied, a category-first topic view is
+    appended after the domain view.
     Questions and gaps are open-only; answered items stay in the topic
     pages' archive sections.
     """
     lines = [
         "# 知识树",
         "",
-        "> 本页由 publish_wiki.py 确定性生成，用于 LLM 树检索导航（主题优先视图：每个主题节点带一句话摘要，其论文、开放问题与研究空白嵌套其下；未归入任何主题的论文在领域级单独分组；按主题分类视图随后。开放问题与研究空白与 research.md 为同一批数据的另一透视，只含仍开放的条目）。不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
+        "> 本页由 publish_wiki.py 确定性生成，是人与 Agent 共用的树状导航入口（主题优先视图：每个主题节点带一句话摘要，其论文、开放问题与研究空白嵌套其下；未归入任何主题的论文在领域级单独分组；按主题分类视图随后。开放问题与研究空白与 research.md 为同一批数据的另一透视，只含仍开放的条目）。Agent 先匹配节点，再只展开选中的分支与页面。不要手动编辑，每次发布后重建。检索协议见 wiki-shared 的 references/retrieval-protocol.md。",
         "",
     ]
     for domain in ordered_domains(nodes):
@@ -2529,56 +2708,6 @@ def build_knowledge_tree(wiki_root: Path) -> str | None:
     if nodes is None:
         return None
     return render_knowledge_tree(nodes, collect_topic_categories(wiki_root))
-
-
-def render_agent_tree(
-    nodes: dict[str, dict[str, list[Any]]],
-) -> str:
-    """Render wiki/meta/agent-tree.md: the signpost-only retrieval index.
-
-    This is the agent-facing counterpart of knowledge-tree.md. It contains
-    only domain names and their topic signposts (one-line index
-    descriptions) plus unassigned papers, with no nested leaf lists, so the
-    first retrieval hop stays small and the descent opens pages level by
-    level (progressive disclosure; see retrieval-protocol.md). Deterministic:
-    identical nodes produce identical text.
-    """
-    lines = [
-        "# Agent 检索索引",
-        "",
-        "> 本页由 publish_wiki.py 确定性生成，是 Agent 检索的第一跳：只含领域与主题 signpost（一句话摘要）及未归入主题的论文，不含叶子明细。检索时先读本页选分支，再打开候选页面逐层展开（见 wiki-shared 的 references/retrieval-protocol.md）。人读导航用 wiki/meta/knowledge-tree.md。不要手动编辑，每次发布后重建。",
-        "",
-    ]
-    for domain in ordered_domains(nodes):
-        data = nodes[domain]
-        topics = sorted(data["topics"], key=lambda row: row["label"])
-        unassigned = sorted(data["unassigned"], key=lambda row: row[1])
-        if not topics and not unassigned:
-            continue
-        lines.append(f"## {domain}")
-        lines.append("")
-        for node in topics:
-            stem = Path(node["path"]).stem
-            suffix = f" — {node['description']}" if node["description"] else ""
-            lines.append(f"- [[{stem}|{node['label']}]]{suffix}")
-        for path, label, description in unassigned:
-            stem = Path(path).stem
-            suffix = f" — {description}" if description else ""
-            lines.append(f"- [[{stem}|{label}]]{suffix}")
-        lines.append("")
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def build_agent_tree(wiki_root: Path) -> str | None:
-    """Render wiki/meta/agent-tree.md from the current wiki state.
-
-    Deterministic: identical wiki state produces identical text. Signposts
-    only: domain names, topic one-line descriptions, and unassigned papers.
-    """
-    nodes = collect_topic_tree(wiki_root)
-    if nodes is None:
-        return None
-    return render_agent_tree(nodes)
 
 
 def parse_args() -> argparse.Namespace:
@@ -2941,32 +3070,6 @@ def main() -> int:
                 )
     except (OSError, UnicodeDecodeError) as exc:
         errors.append(f"Failed to update knowledge tree: {exc}")
-
-    agent_tree_path = wiki_root / "wiki" / "meta" / "agent-tree.md"
-    try:
-        agent_tree_text = (
-            render_agent_tree(tree_nodes) if tree_nodes is not None else None
-        )
-        if agent_tree_text is not None:
-            agent_tree_path.parent.mkdir(parents=True, exist_ok=True)
-            existing_agent_tree = (
-                agent_tree_path.read_text(encoding="utf-8")
-                if agent_tree_path.is_file()
-                else None
-            )
-            if existing_agent_tree != agent_tree_text:
-                agent_tree_path.write_text(agent_tree_text, encoding="utf-8")
-                writes.append(
-                    {
-                        "kind": "agent-tree",
-                        "path": "wiki/meta/agent-tree.md",
-                        "action": (
-                            "create" if existing_agent_tree is None else "update"
-                        ),
-                    }
-                )
-    except (OSError, UnicodeDecodeError) as exc:
-        errors.append(f"Failed to update agent tree: {exc}")
 
     try:
         research_text = render_research_page(buckets, today, research_created)

@@ -18,9 +18,9 @@ Legacy `wiki/entities/` and `wiki/concepts/` directories from older installs are
 
 `wiki/meta/research.md` is the machine-maintained research dashboard. The publisher renders it deterministically after each publish: open questions and research gaps aggregated from topic pages, grouped by domain (first directory under `wiki/sources/papers/`). It is the question-type-first view of the same topic-page data that the knowledge tree shows topic-nested, so the two documents share the same open items. It aggregates only *currently open* items; answered items live in the topic pages' archive sections. When no open item remains, the dashboard shows a placeholder instead of stale content.
 
-`wiki/meta/agent-tree.md` is the machine-maintained first hop for LLM retrieval (progressive disclosure). The publisher rebuilds it deterministically after each publish: domain names with their topic signposts (one-line index description) and papers assigned to no topic — no nested leaf lists. The agent reads it to pick branches, then descends into the referenced pages level by level per `retrieval-protocol.md`.
+`wiki/meta/knowledge-tree.md` is the machine-maintained tree shared by readers and LLM retrieval. The publisher rebuilds it deterministically after each publish: topic-first — each domain groups its topics as signpost nodes (one-line index description), with the topic's assigned papers, currently open questions, and research gaps nested under each topic; papers assigned to no topic land in the per-domain unassigned group; a category-first topic view follows. It aggregates only *currently open* items; answered items live in the topic pages' archive sections. Retrieval remains progressive: match the hierarchy or a paper leaf first, then open only the selected branch and page per `retrieval-protocol.md`.
 
-`wiki/meta/knowledge-tree.md` is the machine-maintained human navigation tree. The publisher rebuilds it deterministically after each publish: topic-first — each domain groups its topics as signpost nodes (one-line index description), with the topic's assigned papers, currently open questions, and research gaps nested under each topic; papers assigned to no topic land in the per-domain unassigned group; a category-first topic view follows. It aggregates only *currently open* items; answered items live in the topic pages' archive sections.
+Legacy Vaults may still contain `wiki/meta/agent-tree.md`. Current publishers neither read nor update it; after upgrading, users may safely delete that obsolete generated file.
 
 ## Frontmatter
 
@@ -182,7 +182,9 @@ Markdown and a sidecar on their next valid update. A page with neither legacy
 markers nor a valid sidecar fails with `narrative_migration_required`; no
 implicit whole-vault migration exists.
 
-The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. Schema 3.0 stores each item's stable ID and immutable origin in the Topic sidecar. When an item is answered, the publisher moves the same ID into the archive. Dashboard and tree aggregation read the structured sidecar and include only open visible text.
+The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. Schema 3.0 stores each item's stable ID and immutable origin in the Topic sidecar. Research-gap `status` expresses closure only: partial advances remain open and are stored as stable-ID `progress_updates` with their sources, method, result, pointer, and remaining boundary. Topic prose renders the full history; dashboard and tree aggregation keep the gap visible with an `[已有进展]` marker. When an item is answered, the publisher moves the same ID into the archive and excludes it from both aggregations.
+
+When no independent open question remains, the publisher keeps the `## 开放问题` heading and renders a plain explanatory placeholder. The placeholder is not a list item, is never aggregated into the dashboard or knowledge tree, and is replaced automatically when a real open question is added. Questions with a concrete direction remain research gaps only; the placeholder does not relax that deduplication rule.
 
 ### Research Gap Rendering
 
@@ -196,6 +198,11 @@ fields appear:
 
 **推进方向。** ... **验证方式。** ... **成功条件。** ...
 **可能失败。** ... **后续承接。** ... **优先级。** 高/中/低。
+
+**已有进展 1。** [[论文B]] 提供了新的推进证据。 **采用方法。** ...
+**取得结果。** ... **证据位置。** [Paper: PDF p. X]
+
+**仍未解决。** ...
 ```
 
 Every open gap carries `significance`; the link-plan audit rejects an open gap
@@ -203,6 +210,12 @@ without it. An entry with detail fields but without both `evidence_boundary`
 and `experiment` is a tentative direction and its heading gains `[待验证]`.
 Dashboards use the sidecar's compact `gap` and `priority` fields rather than
 parsing or duplicating the visible prose.
+
+An answered schema 3.0 gap renders under `## 已解决的研究空白` with its
+answering paper, `resolution_method`, `resolution_summary`, `resolution_scope`,
+and `answered_pointer`. Older sidecar entries without these additive fields
+remain readable using the fields already present; no bulk Vault migration is
+performed.
 
 ## Index And Log
 
