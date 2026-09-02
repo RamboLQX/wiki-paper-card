@@ -1,0 +1,119 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "wiki-paper-card · 从论文到可持续复用的研究 Wiki",
+    "locale": "zh-CN",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "first_use",
+        "label": "第一次使用",
+        "focus": ["choose", "command", "prepare", "process", "paper_gate", "linker", "wiki", "use"],
+        "note": "从放入论文到打开第一批 Paper Card 与 Topic。"
+      },
+      {
+        "id": "paper_ingest",
+        "label": "论文入库",
+        "focus": ["raw", "prepare", "process", "work", "paper_gate", "linker", "wiki"],
+        "note": "看清 raw / work / wiki 的责任边界和全批审计门禁。"
+      },
+      {
+        "id": "knowledge_reuse",
+        "label": "知识复用",
+        "focus": ["wiki", "retrieve", "use"],
+        "note": "沿知识树局部展开 Paper Card 和 Topic，进行提问、查证与综述。"
+      },
+      {
+        "id": "gap_mining",
+        "label": "挖掘研究空白",
+        "focus": ["wiki", "retrieve", "confirm"],
+        "note": "先生成只读报告；只有你确认的候选才能经发布器写回。"
+      }
+    ],
+    "legend": {
+      "mode": "hidden"
+    }
+  },
+  "lanes": [
+    { "id": "researcher", "label": "研究者" },
+    { "id": "agent", "label": "Agent 工作流" },
+    { "id": "gate", "label": "审计与决策门禁", "variant": "exception" },
+    { "id": "knowledge", "label": "资料与知识层" }
+  ],
+  "phases": [
+    { "id": "input", "label": "选择与输入", "fromCol": 0, "toCol": 1 },
+    { "id": "analysis", "label": "分析与审计", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "reuse", "label": "连接与知识复用", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "paper_work", "label": "每篇论文独立处理", "lane": "agent", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "human_decision", "label": "仅空白写回需要你决策", "lane": "gate", "fromCol": 3, "toCol": 4, "variant": "security" },
+    { "id": "workspace", "label": "读写边界", "lane": "knowledge", "fromCol": 0, "toCol": 2, "variant": "dashed" }
+  ],
+  "mainPath": ["choose", "command", "prepare", "process", "paper_gate", "linker", "wiki", "use"],
+  "semanticChecks": {
+    "allowedRoots": ["choose"],
+    "allowedTerminals": ["use"],
+    "requiredEdges": [
+      { "from": "process", "to": "paper_gate" },
+      { "from": "paper_gate", "to": "linker" },
+      { "from": "linker", "to": "wiki" }
+    ],
+    "requiredPaths": [
+      { "from": "choose", "to": "use" },
+      { "from": "raw", "to": "wiki" },
+      { "from": "wiki", "to": "use" }
+    ]
+  },
+  "nodes": [
+    { "id": "choose", "lane": "researcher", "col": 0, "type": "external", "label": "选择论文与问题", "sublabel": "组织主题目录", "width": 148 },
+    { "id": "command", "lane": "researcher", "col": 1, "type": "frontend", "label": "向 Agent 发起任务", "sublabel": "处理 / 提问 / 挖空白", "width": 156 },
+    { "id": "confirm", "lane": "researcher", "col": 4, "type": "security", "label": "确认候选空白", "sublabel": "采用、落点、状态", "tag": "授权本次写回", "width": 148 },
+    { "id": "use", "lane": "researcher", "col": 5, "type": "frontend", "label": "阅读·提问·综述", "sublabel": "查证、比较与选题", "tag": "带来源依据", "width": 156 },
+    { "id": "prepare", "lane": "agent", "col": 1, "type": "backend", "label": "确定性准备", "sublabel": "文本、哈希、Wiki 上下文", "width": 148 },
+    { "id": "process", "lane": "agent", "col": 2, "type": "backend", "label": "独立分析每篇论文", "sublabel": "Paper Card + digest", "tag": "可并行", "width": 156 },
+    { "id": "linker", "lane": "agent", "col": 4, "type": "messagebus", "label": "跨论文连接", "sublabel": "创建 / 更新 Topic", "tag": "全批一次", "width": 148 },
+    { "id": "retrieve", "lane": "agent", "col": 5, "type": "backend", "label": "检索或空白挖掘", "sublabel": "知识树渐进展开", "width": 156 },
+    { "id": "paper_gate", "lane": "gate", "col": 3, "type": "security", "label": "全部单篇审计通过", "sublabel": "结构、证据、公式、digest", "tag": "失败则阻断", "width": 166 },
+    { "id": "raw", "lane": "knowledge", "col": 0, "type": "database", "label": "raw/", "sublabel": "PDF 与原始资料", "tag": "只读", "width": 132 },
+    { "id": "work", "lane": "knowledge", "col": 2, "type": "database", "label": "work/", "sublabel": "草稿、报告、计划", "tag": "中间产物", "width": 140 },
+    { "id": "wiki", "lane": "knowledge", "col": 5, "type": "database", "label": "wiki/", "sublabel": "Paper Card · Topic · Tree", "tag": "正式知识", "width": 164 }
+  ],
+  "edges": [
+    { "id": "choose_command", "from": "choose", "to": "command", "label": "明确任务", "variant": "default", "role": "main" },
+    { "id": "choose_raw", "from": "choose", "to": "raw", "label": "放入 PDF", "variant": "dashed", "role": "branch" },
+    { "id": "command_prepare", "from": "command", "to": "prepare", "label": "处理论文", "variant": "emphasis", "role": "main" },
+    { "id": "raw_prepare", "from": "raw", "to": "prepare", "label": "只读提取", "variant": "dashed" },
+    { "id": "prepare_process", "from": "prepare", "to": "process", "variant": "default", "role": "main" },
+    { "id": "process_work", "from": "process", "to": "work", "label": "保留中间证据", "variant": "dashed" },
+    { "id": "process_gate", "from": "process", "to": "paper_gate", "label": "提交确定性审计", "variant": "security", "role": "main" },
+    { "id": "gate_linker", "from": "paper_gate", "to": "linker", "label": "全批通过后才启动", "variant": "emphasis", "role": "main" },
+    { "id": "work_linker", "from": "work", "to": "linker", "label": "通过的 digest", "variant": "dashed" },
+    { "id": "linker_wiki", "from": "linker", "to": "wiki", "label": "审计计划后发布", "variant": "emphasis", "role": "main" },
+    { "id": "wiki_use", "from": "wiki", "to": "use", "label": "读取正式页面", "variant": "emphasis", "role": "main" },
+    { "id": "wiki_retrieve", "from": "wiki", "to": "retrieve", "label": "匹配分支与证据", "variant": "default" },
+    { "id": "retrieve_use", "from": "retrieve", "to": "use", "label": "带页面与证据指针", "variant": "default", "role": "return" },
+    { "id": "retrieve_confirm", "from": "retrieve", "to": "confirm", "label": "只读空白报告", "variant": "security", "role": "branch" },
+    { "id": "confirm_wiki", "from": "confirm", "to": "wiki", "label": "生成计划 · 审计 · 发布", "variant": "security", "role": "return" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "三层责任不混用",
+      "items": [
+        "raw/ 保留原始资料，处理过程始终只读",
+        "work/ 承载中间产物，wiki/ 只接收通过审计的页面"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "两个不可越过的门禁",
+      "items": [
+        "任一 Paper Card 或 digest 失败，整批不启动 linker",
+        "空白报告不等于写回；用户确认前 Wiki 不变"
+      ]
+    }
+  ]
+}

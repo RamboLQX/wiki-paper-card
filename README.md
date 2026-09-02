@@ -75,6 +75,8 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 
 原始论文始终保留在 `raw/`。中间报告写入 `work/`。通过审计的知识页面发布到 `wiki/`。这套分层结构将原始材料、处理过程和最终知识分开管理。
 
+[在线查看完整工作流](https://rambolqx.github.io/wiki-paper-card/) · [了解各类工作产物](docs/artifacts.md)
+
 ### 1.4 Skill 索引
 
 当前 `skills/` 下包含以下可触发技能；`skills/wiki-shared/` 是共享内容目录，不计入技能索引。点击技能名或“详情页”可以进入每个 Skill 的单独说明页面。
@@ -222,6 +224,21 @@ vault/
 ### 4.4 工作产物与工作流
 
 框架运行过程中会产生三类文件。`wiki/` 下是正式知识页面，`work/` 下是处理草稿、审计报告与计划文件，`raw/` 始终是你的原始资料。每个产物的含义、由谁生成、哪些需要你关注，以及处理论文和挖掘研究空白两个工作流的完整过程，见[工作产物与工作流说明](docs/artifacts.md)。
+
+<p align="center">
+  <a href="https://rambolqx.github.io/wiki-paper-card/">
+    <img src="assets/wiki-paper-card-workflow-preview.png" alt="wiki-paper-card 从论文入库、审计发布到知识复用和研究空白挖掘的完整工作流" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <strong><a href="https://rambolqx.github.io/wiki-paper-card/">在线打开交互式工作流</a></strong>
+  · 选择引导视图
+  · 播放流程
+  · 搜索与缩放
+</p>
+
+交互版由 GitHub Pages 提供，也可以下载仓库内的[自包含 HTML 文件](docs/wiki-paper-card-workflow.html)后直接打开。GitHub README 会直接展示上方静态预览图。工作流的可编辑源文件为 [`docs/wiki-paper-card-workflow.json`](docs/wiki-paper-card-workflow.json)。
 
 两个要点：
 
