@@ -75,8 +75,6 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 
 原始论文始终保留在 `raw/`。中间报告写入 `work/`。通过审计的知识页面发布到 `wiki/`。这套分层结构将原始材料、处理过程和最终知识分开管理。
 
-[在线查看完整工作流](https://rambolqx.github.io/wiki-paper-card/) · [了解各类工作产物](docs/artifacts.md)
-
 ### 1.4 Skill 索引
 
 当前 `skills/` 下包含以下可触发技能；`skills/wiki-shared/` 是共享内容目录，不计入技能索引。点击技能名或“详情页”可以进入每个 Skill 的单独说明页面。
