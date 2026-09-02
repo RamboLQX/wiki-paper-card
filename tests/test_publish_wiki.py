@@ -1318,6 +1318,71 @@ class PublishWikiTests(unittest.TestCase):
             }
             self.assertEqual(wiki_after, wiki_before)
 
+    def test_schema_v3_explicit_migration_creates_clean_topic_and_sidecar(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_plan(), "legacy.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            legacy_text = topic_path.read_text(encoding="utf-8")
+            topic_path.write_text(
+                legacy_text.rstrip()
+                + "\n\n## 自定义研究记录\n\n保留这段人工内容。\n",
+                encoding="utf-8",
+            )
+            legacy_text = topic_path.read_text(encoding="utf-8")
+
+            migration = valid_v3_plan()
+            migration["purpose"] = "migration"
+            migration.pop("workflow_mode")
+            migration["batch"] = {
+                "source_pages": [],
+                "label": "legacy Topic migration",
+            }
+            action = migration["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(
+                legacy_text.encode("utf-8")
+            ).hexdigest()
+            result = publish_plan(root, migration, "migration.json")
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            migrated = topic_path.read_text(encoding="utf-8")
+            self.assertIn("This topic studies whether", migrated)
+            self.assertIn("## 自定义研究记录\n\n保留这段人工内容。", migrated)
+            self.assertNotIn("## 关键发现", migrated)
+            self.assertNotIn("wiki-paper-card:", migrated)
+            state = json.loads(
+                (root / "wiki" / "meta" / "topic-state" / "Shared Topic.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(state["open_questions"][0]["id"], "oq-transfer")
+            self.assertIn("topic migration", (root / "wiki" / "log.md").read_text(encoding="utf-8"))
+
+    def test_schema_v3_migration_rejects_topic_with_current_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "v3.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            before = topic_path.read_text(encoding="utf-8")
+            migration = valid_v3_plan()
+            migration["purpose"] = "migration"
+            migration.pop("workflow_mode")
+            migration["batch"] = {"source_pages": [], "label": "not required"}
+            action = migration["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(before.encode("utf-8")).hexdigest()
+            result = publish_plan(root, migration, "migration-not-required.json")
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("migration_not_required", result.stderr)
+            self.assertEqual(topic_path.read_text(encoding="utf-8"), before)
+
     def test_schema_v3_managed_page_migrates_to_clean_markdown_and_sidecar(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -58,7 +58,17 @@ publisher preserves existing gaps. `wiki-full` keeps the complete gap behavior.
 
 - Resume by rescanning target report paths and processing only remaining papers.
 - Checks are event-driven: reconcile with `workflow_status.py` only when a processor settles or on session resume. Do not poll on a timer or create round-based re-check loops, and do not print time or round estimates.
-- If a processor output is missing, continue the same processor for the same paper with a compact instruction.
+- If a processor output is missing without a reported file-tool error, continue
+  the same processor for the same paper with a compact instruction.
+- Classify parser, escaping, serialization, and payload errors as
+  materialization failures rather than content failures. Do not repeat the same
+  failed serialization method. Give the same processor one alternative attempt
+  with smaller host-native file edits; if it fails, complete the remaining
+  artifact serially in the main session. Reuse valid partial outputs and do not
+  ask that processor for another full re-analysis.
+- Materialization recovery must preserve the complete drafted content and does
+  not consume the substantive audit-repair budget. Never shorten a Paper Card
+  because a file-edit operation is large.
 - If a finalizer error is substantive, send only the reported error items back to the same processor for the same paper.
 - Do not ask a processor to start a different paper after its current paper is complete.
 - Do not link or publish until all mode-required current outputs pass.

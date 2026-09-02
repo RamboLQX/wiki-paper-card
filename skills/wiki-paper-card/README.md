@@ -13,6 +13,7 @@
 - 重新生成已有 Paper Card。
 - 在满足准入条件时创建或更新跨论文 Topic。
 - 将 Paper Card 和 Topic 写成完整、易读的学术段落，以标准脚注保留证据，并将发布器状态移出可见 Markdown。
+- 只读检查已安装 Vault，分开升级运行入口与显式迁移旧 Topic。
 
 ## 可以直接这样说
 
@@ -22,6 +23,8 @@
 使用 wiki-paper-card 以 wiki-topic 模式处理 raw/papers/<主题名称>/，维护 Topic 但不维护研究空白。
 
 使用 wiki-paper-card 以 wiki-full 模式完整处理 raw/papers/<主题名称>/，包含研究空白维护。
+
+请升级 wiki-paper-card；先只读检查，在我确认范围前不要改写 wiki/。
 ```
 
 未说明范围时，Agent 会在开始前只询问一次；同一批论文不会逐篇询问。
@@ -44,6 +47,6 @@
 - Topic 需要至少两篇论文共享同一问题、机制或证据空间。
 - `raw/` 始终只读，最终知识页面只通过确定性发布流程写入。
 
-完整执行规则见 [`SKILL.md`](SKILL.md) 和[工作流契约](references/workflow-contract.md)。
+完整执行规则见 [`SKILL.md`](SKILL.md)、[工作流契约](references/workflow-contract.md) 和[升级契约](references/upgrade-contract.md)。
 
 知识库问答、信息查证和综述检索使用 [`wiki-shared` 的共享检索协议](../wiki-shared/references/retrieval-protocol.md)。

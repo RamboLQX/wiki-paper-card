@@ -662,12 +662,12 @@ def audit_topic_action_v3(
         )
     elif name:
         target_names.add(name)
-    if purpose == "refresh" and action_type != "update_topic":
+    if purpose in {"refresh", "migration"} and action_type != "update_topic":
         findings.append(
             finding(
                 "error",
-                "refresh_action",
-                f"{label} refresh plans may only update an existing Topic.",
+                f"{purpose}_action",
+                f"{label} {purpose} plans may only update an existing Topic.",
                 action=action_type,
             )
         )
@@ -784,6 +784,24 @@ def audit_topic_action_v3(
                     )
                 )
 
+    if purpose == "migration":
+        for field in (
+            "remove_open_question_ids",
+            "remove_research_gap_ids",
+            "remove_open_questions",
+            "remove_research_gaps",
+            "annotate_research_gaps",
+        ):
+            if field in action:
+                findings.append(
+                    finding(
+                        "error",
+                        "migration_field_forbidden",
+                        f"{label} migration action must reconstruct state without {field}.",
+                        field=field,
+                    )
+                )
+
     page_status = action.get("page_status")
     if page_status is not None and page_status not in {"stub", "draft", "evergreen"}:
         findings.append(
@@ -797,7 +815,7 @@ def audit_topic_action_v3(
 
     finding_ids: set[str] = set()
     contradiction_ids: set[str] = set()
-    if purpose in {"ingest", "refresh"}:
+    if purpose in {"ingest", "refresh", "migration"}:
         comparisons = require_list(action, "comparisons", findings, label)
         comparison_refs: set[str] = set()
         for index, item in enumerate(comparisons, start=1):
@@ -1346,12 +1364,12 @@ def audit(
         schema_version = "2.0"
 
     purpose = plan.get("purpose", "ingest")
-    if purpose not in {"ingest", "mining", "refresh"}:
+    if purpose not in {"ingest", "mining", "refresh", "migration"}:
         findings.append(
             finding(
                 "error",
                 "purpose",
-                "Link plan purpose must be 'ingest', 'mining', or 'refresh'.",
+                "Link plan purpose must be 'ingest', 'mining', 'refresh', or 'migration'.",
                 purpose=purpose,
             )
         )
@@ -1453,15 +1471,15 @@ def audit(
                 )
     if purpose == "ingest" and not batch_refs:
         findings.append(finding("error", "batch", "Link plan must define at least one batch source page."))
-    if purpose == "refresh" and schema_version != "3.0":
+    if purpose in {"refresh", "migration"} and schema_version != "3.0":
         findings.append(
             finding(
                 "error",
-                "refresh_schema",
-                "Refresh plans require schema_version 3.0.",
+                f"{purpose}_schema",
+                f"{purpose.capitalize()} plans require schema_version 3.0.",
             )
         )
-    if schema_version == "3.0" and purpose in {"mining", "refresh"}:
+    if schema_version == "3.0" and purpose in {"mining", "refresh", "migration"}:
         if batch_refs:
             findings.append(
                 finding(

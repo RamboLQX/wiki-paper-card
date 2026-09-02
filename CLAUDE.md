@@ -6,7 +6,7 @@
 
 ## 安装与适配入口
 
-当用户要求配置、安装、初始化或适配 `wiki-paper-card` 时，先读取并遵循 `docs/agent-quick-setup.md`。安装流程不得改写 `raw/`、删除已有知识页面或覆盖 Vault 级 `CLAUDE.md` / `AGENTS.md`。
+当用户要求配置、安装、初始化或适配 `wiki-paper-card` 时，先读取并遵循 `docs/agent-quick-setup.md`。更新已有 Vault 的运行入口或迁移旧 Topic 时，改为读取并遵循 `docs/agent-upgrade.md`；未获得用户确认不得执行迁移提交或回滚。安装与升级流程均不得改写 `raw/`、删除已有知识页面或覆盖 Vault 级 `CLAUDE.md` / `AGENTS.md`。
 
 ## 运行时 Skill 路由（在 Vault 中工作时）
 

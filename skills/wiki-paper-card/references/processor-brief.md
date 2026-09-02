@@ -38,6 +38,35 @@ paper-digest.json
 
 Do not read `raw/`. Do not write `wiki/`. Do not run audit scripts. Do not return the full paper text to the parent agent.
 
+## Artifact Materialization
+
+Keep semantic drafting separate from file materialization. The file-edit method
+must not change the depth, evidence coverage, or reader-facing structure of the
+draft.
+
+- Write `paper-card.md` and `paper-digest.json` in a separate file-edit
+  operation for each artifact. Complete and verify one artifact before editing
+  the other.
+- Use the host-native file-edit tool. Do not construct a complete long-form
+  artifact inside JavaScript, Python, or shell source strings, a generated
+  command, or a template literal. Markdown backticks and TeX backslashes must
+  remain document content, not source-code delimiters or escapes.
+- For a long card, use bounded contiguous section groups in final order. Each
+  section must appear exactly once. Do not shorten, summarize, or omit semantic
+  content to fit a file-edit operation.
+- After materializing the card, confirm that the frontmatter closes and Sections
+  01-16 occur exactly once in order. In Wiki modes, materialize the digest
+  separately in one bounded native edit and confirm that it parses as JSON.
+  These checks do not replace the parent finalizer or audits.
+
+A file-tool parser, escaping, serialization, or payload error is a
+materialization failure, not a semantic or evidence failure. Preserve the
+completed draft and do not re-read or re-analyze the paper. Do not repeat the
+same failed serialization method. Make one alternative materialization attempt
+with smaller bounded host-native edits. If that attempt also fails, stop and
+return an incomplete status with the exact tool error and any valid output path;
+do not spend another turn regenerating the analysis.
+
 ## Inputs
 
 The parent prompt supplies:

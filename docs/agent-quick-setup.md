@@ -1,5 +1,7 @@
 # Agent 快速安装适配说明
 
+> 已安装的旧版 Vault 请使用 [Agent 升级与 Topic 迁移说明](agent-upgrade.md)。升级不等同于首次安装，运行入口更新和 Topic 内容迁移必须分开。
+
 本文档供具备网络访问、终端执行和本地文件写入权限的 Agent 读取并执行。用户不需要手动复制安装命令，但必须提供或确认仓库安装目录、目标 Obsidian Vault 和运行宿主。
 
 当前项目支持三个论文处理运行宿主：Claude Code（Obsidian 入口推荐 Claudian 插件）、DeepSeek Harness（DSH）与 Codex。DSH 和 Codex 从 Vault 根目录启动会话。其他 Agent 运行宿主暂不属于正式支持范围。

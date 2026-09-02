@@ -1,6 +1,6 @@
 # 工作产物与工作流说明
 
-本文档解释 `wiki-paper-card` 框架在运行过程中产生的所有文件。每一份产物代表什么、由谁生成、哪些需要你关注、哪些不需要。本文同时解释两个主要工作流的完整过程，以及过程中需要你做决策的环节。
+本文档解释 `wiki-paper-card` 框架在运行过程中产生的所有文件。每一份产物代表什么、由谁生成、哪些需要你关注、哪些不需要。本文同时解释论文处理、研究空白挖掘和旧版 Vault 升级三个主要工作流，以及过程中需要你做决策的环节。
 
 ## 目录分层的职责
 
@@ -95,6 +95,25 @@
 
 gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照表。它与 paper-card 通过稳定条目 ID 共享开放项，并共用同一个确定性发布器。如果两份计划基于同一个旧 Topic，先发布的一份会使另一份过期；过期计划在任何 Wiki 写入前被阻断。
 
+## 工作流三：升级已有 Vault 与迁移旧 Topic
+
+升级先把运行入口更新和 Topic 内容迁移分开处理。`inspect` 只读取 Vault 并把分类报告写入 `work/upgrade/<run-id>/`；`install.sh --runtime-only` 只更新宿主运行文件和版本标记，不改动 `raw/` 或 `wiki/`。只有旧 Topic 确实需要迁移时，Agent 才生成显式 `purpose: migration` 计划并等待你确认。
+
+确认迁移后，升级器先在完整 `wiki/` 副本中发布、审计并检查写入白名单；全部通过后才备份真实目标并按计划提交。基线哈希过期、越界写入或审计失败都会在真实 Wiki 写入前阻断。需要回滚时，升级器先核对迁移后的哈希；页面已被后续编辑则拒绝覆盖。
+
+主要升级产物如下：
+
+| 产物 | 类型 | 说明 |
+|---|---|---|
+| `work/upgrade/<run-id>/inspection.json` | 机器 | 旧 Topic 分类、运行入口版本和需要人工复核的问题 |
+| `work/upgrade/<run-id>/migration-plan.json` | 机器 | 仅包含用户确认目标的 schema 3.0 迁移计划 |
+| `work/upgrade/<run-id>/migration-plan-report.json` | 机器 | 迁移计划的确定性审计结果 |
+| `work/upgrade/<run-id>/staged-*-report.json` | 机器 | 副本发布和完整 Wiki 审计结果 |
+| `work/upgrade/<run-id>/backup-manifest.json` 与 `backup/` | 恢复 | 提交前备份、迁移前后哈希和允许回滚的文件清单 |
+| `work/upgrade/<run-id>/wiki-audit-report.json` | 机器 | 真实 Wiki 提交后的最终审计结果 |
+
+完整命令、授权边界和失败处理见 [`agent-upgrade.md`](agent-upgrade.md)。
+
 ## 产物速查表
 
 | 文件 | 类别 | 一句话说明 |
@@ -113,6 +132,7 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 | `work/<名称>/paper-digest-finalize-report.json` | 机器 | 系统字段整理差异，便于检查脚本改了什么 |
 | `work/<名称>/link-plan.json` | 机器 | 写回计划，由确定性脚本执行 |
 | `work/` 下的各种 `*-report.json` | 机器 | 审计与发布结果记录，Agent 用它判断流程状态 |
+| `work/upgrade/<run-id>/` | 检查与恢复 | Vault 检查、迁移演练、备份、提交与回滚报告 |
 
 ## 决策点总览
 
@@ -123,6 +143,7 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 | 处理论文 | 开始前选择一次 `card-only` / `wiki-topic` / `wiki-full`；明确说出模式时无需再确认 |
 | 挖掘研究空白 | 阅读报告并逐项确认待确认清单。确认后才会写回 Topic |
 | 候选新 Topic | 挖掘出的跨组方向要建新 Topic 时，必须经你显式确认 |
+| 迁移旧 Topic | 先检查并预览迁移目标；只有你确认后才在副本演练并提交，回滚也需显式确认 |
 | 重新处理论文 | 内容未变化的论文默认跳过，由你主动要求时才重新生成 |
 
 每次工作结束时，Agent 都会列出本次产生的文件、它们各自的含义，以及是否有需要你决策的事项。看到不认识的产物文件名时，回到这张速查表对照即可。

@@ -56,6 +56,14 @@ def run_default_install(vault: Path) -> subprocess.CompletedProcess:
     )
 
 
+def run_runtime_upgrade(vault: Path, host: str = "codex") -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [str(INSTALL_SH), "--host", host, "--runtime-only", str(vault)],
+        capture_output=True,
+        text=True,
+    )
+
+
 def assert_skill_links(test: unittest.TestCase, vault: Path, host_dir: str) -> None:
     for name in SKILL_NAMES:
         link = vault / host_dir / "skills" / name
@@ -190,6 +198,51 @@ class InstallLayoutTests(unittest.TestCase):
             assert_resource_links(self, vault, ".agents")
             assert_repo_root_pointer(self, vault, ".agents")
 
+    def test_install_records_runtime_version_separately_from_wiki_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vault = make_vault(directory)
+            result = run_install(vault, host="codex")
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertEqual(
+                (vault / ".wiki-paper-card" / "runtime-version").read_text(
+                    encoding="utf-8"
+                ),
+                (REPO_ROOT / "VERSION").read_text(encoding="utf-8"),
+            )
+            self.assertFalse((vault / "wiki" / "meta" / "topic-state").exists())
+
+    def test_runtime_only_upgrade_leaves_raw_and_wiki_byte_identical(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vault = make_vault(directory)
+            (vault / "raw").mkdir()
+            (vault / "wiki").mkdir()
+            (vault / "raw" / "paper.pdf").write_bytes(b"paper")
+            (vault / "wiki" / "custom.md").write_text("# Keep\n", encoding="utf-8")
+            before = {
+                path.relative_to(vault): path.read_bytes()
+                for directory_name in ("raw", "wiki")
+                for path in (vault / directory_name).rglob("*")
+                if path.is_file()
+            }
+            result = run_runtime_upgrade(vault)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            after = {
+                path.relative_to(vault): path.read_bytes()
+                for directory_name in ("raw", "wiki")
+                for path in (vault / directory_name).rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(after, before)
+            self.assertTrue((vault / ".agents" / "skills" / "wiki-paper-card").is_symlink())
+            self.assertTrue((vault / ".wiki-paper-card" / "runtime-version").is_file())
+
+    def test_runtime_only_requires_an_existing_wiki(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vault = make_vault(directory)
+            result = run_runtime_upgrade(vault)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("requires an existing Vault", result.stderr)
+
     def test_all_install_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             vault = make_vault(directory)
@@ -230,6 +283,7 @@ class InstallLayoutTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("CONFLICT", result.stderr)
             self.assertIn("adapters", result.stderr)
+            self.assertFalse((vault / ".wiki-paper-card" / "runtime-version").exists())
             # The conflict must not be silently replaced.
             self.assertTrue((vault / ".agents" / "adapters").is_dir())
             self.assertFalse((vault / ".agents" / "adapters").is_symlink())

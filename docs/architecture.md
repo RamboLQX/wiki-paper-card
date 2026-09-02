@@ -33,6 +33,20 @@ paper types, analysis, Topic seed names, or other semantic content.
 
 Claude Code and Codex keep at most three processors active; Codex also obeys the current session's available subagent slots. DSH starts up to six by default and allows at most eight. Every host preserves the all-pass gate before creating the batch linker in the two Wiki modes, and only the main session runs deterministic publishing. `card-only` never creates a linker.
 
+## Vault Upgrade Flow
+
+Runtime upgrades and Topic-content migration are separate operations. A read-only
+inspection classifies existing Topics and writes reports only under `work/upgrade/`.
+`install.sh --runtime-only` updates host entry files, pointers, and the runtime
+version marker without changing `raw/` or `wiki/`.
+
+An explicit schema 3.0 `purpose: migration` plan is required for legacy Topic
+content. The upgrader audits that plan, publishes it into a complete staged copy
+of `wiki/`, runs the full Wiki audit, and verifies an exact write allowlist before
+backing up and atomically replacing real files. Baseline hashes reject stale plans
+before commit. Rollback uses the backup manifest and refuses to overwrite files
+whose post-migration hashes no longer match.
+
 ## Knowledge Layer
 
 - The Paper Card is the detailed, reader-facing record. Explanations use coherent prose; formulas, modules, experiments, and limitations retain the structured views needed for evidence lookup.

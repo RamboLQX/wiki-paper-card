@@ -184,6 +184,13 @@ Markdown and a sidecar on their next valid update. A page with neither legacy
 markers nor a valid sidecar fails with `narrative_migration_required`; no
 implicit whole-vault migration exists.
 
+Explicit migration is available through the wiki-paper-card
+`upgrade-contract.md`. It begins with a read-only inventory, freezes a selected
+or user-approved whole-Vault scope, rebuilds complete schema 3.0 actions from
+the legacy Topics and their source pages, stages and audits the result in a
+copy of `wiki/`, and creates a hash-addressed backup before committing. Runtime
+upgrade alone never changes Topic pages.
+
 New schema 3.0 Topics end with `## 研究者备注`. This is a manual safe zone:
 publisher updates preserve its body, including nested headings, byte-for-byte;
 it is excluded from sidecar state, dashboards, trees, and research mining.

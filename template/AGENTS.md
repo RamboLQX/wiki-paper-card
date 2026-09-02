@@ -14,20 +14,23 @@
 按场景选择入口，不按关键词猜测：
 
 1. 处理论文（单篇或批量、PDF 或 source map）→ 调用 `wiki-paper-card` skill。
-2. 在知识库上提问、检索、查证或写综述 → 不调用 `wiki-paper-card`，直接遵循
+2. 升级已安装的 wiki-paper-card 或迁移旧 Topic → 调用 `wiki-paper-card`
+   skill 的 `references/upgrade-contract.md`；先只读检查，将运行入口升级与
+   Topic 内容迁移分开。用户确认范围前不改写 `wiki/`，不隐式执行全库迁移。
+3. 在知识库上提问、检索、查证或写综述 → 不调用 `wiki-paper-card`，直接遵循
    `wiki-shared` 的 `references/retrieval-protocol.md`：先读
    `wiki/meta/knowledge-tree.md`（具体论文未命中时回退 `wiki/index.md` 与
    `wiki/sources/`；选题类查询同时读 `wiki/meta/research.md`），
    再按 lookup 或 survey 模式下降检索；结论必须带页面与证据指针。检索与
    综述只读，不回写 wiki。
-3. 跨组或全库挖掘研究空白与候选方向（在指定的若干组或整个知识库内深挖开放
+4. 跨组或全库挖掘研究空白与候选方向（在指定的若干组或整个知识库内深挖开放
    问题、研究空白，并综合已解决问题）→ 调用 `wiki-gap-mining` skill：先读后
    挖掘，报告经用户确认后才生成 link-plan 并走 `publish_wiki.py` 写回。
-4. 修改 wiki 结构（建页、合并、别名、矛盾记录）→ 先读 `wiki-shared` 的
+5. 修改 wiki 结构（建页、合并、别名、矛盾记录）→ 先读 `wiki-shared` 的
    `references/knowledge-model.md` 与 `references/wiki-schema.md`，且所有
    wiki 写入最终由确定性 `publish_wiki.py` 执行。
-5. 与论文处理、知识库检索或空白挖掘无关的请求 → 不调用本框架任何 skill。
-6. `wiki-shared` 是只读参考包，不作为独立流程调用。
+6. 与论文处理、知识库检索或空白挖掘无关的请求 → 不调用本框架任何 skill。
+7. `wiki-shared` 是只读参考包，不作为独立流程调用。
 
 ## 处理入口
 

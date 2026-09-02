@@ -45,6 +45,8 @@ references:
       path: references/link-plan-schema.md
     - condition: writing or updating wiki pages
       path: references/wiki-integration.md
+    - condition: upgrading or migrating an existing wiki-paper-card Vault
+      path: references/upgrade-contract.md
     - condition: drafting the exact Sections 01-16 card
       path: ../../vendor/nature-paper-card/references/card-schema.md
     - condition: assigning provenance labels
@@ -63,5 +65,6 @@ quality_tools:
   paper_digest_audit_script: ../../scripts/audit_paper_digest.py
   link_plan_audit_script: ../../scripts/audit_link_plan.py
   publish_script: ../../scripts/publish_wiki.py
+  upgrade_script: ../../scripts/upgrade_vault.py
   wiki_audit_script: ../../scripts/audit_wiki_paper_card.py
   script_resolution: relative to the loaded SKILL.md directory

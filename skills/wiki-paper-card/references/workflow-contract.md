@@ -161,8 +161,19 @@ Treat its exit status and `INCOMPLETE` lines as the only completion fact.
 
 - After spawning processors, do not poll. Do not re-run the status check on a timer, do not create a round-based re-check loop (for example a goal round that reconciles every few minutes), and do not compute or print elapsed-time or rounds-based estimates. A processor takes minutes to tens of minutes; intermediate checks add nothing. When all spawned processors are still running, end the turn and wait for their completion notices.
 - If a completion signal leaves a free processor slot, emit the next action in the same turn (spawn the next processor or start finalize). Do not end the turn after only writing a sentence that describes the next step.
-- If a required output is missing, send a continuation instruction to the same subagent naming only the mode-required files. Never request a digest in `card-only`.
-- Check files after each continuation. Allow at most three attempts before running that paper serially.
+- If a required output is missing without a reported materialization failure,
+  send a continuation instruction to the same subagent naming only the
+  mode-required files. Never request a digest in `card-only`.
+- A file-tool parser, escaping, serialization, or payload error is a
+  materialization failure. Do not repeat the same failed serialization method.
+  Ask the same processor for one alternative materialization attempt using
+  smaller host-native file edits, then check the files immediately when it
+  returns. If that attempt fails, run the remaining artifact serially in the
+  main session without asking the processor to re-analyze the paper.
+- A materialization failure does not consume a substantive audit-repair
+  attempt. Allow at most three substantive content or audit repairs before
+  running that paper serially. Never shorten a Paper Card to fit a file-edit
+  operation or to recover time.
 - A processor may continue only on the same paper. After that paper passes its audits, close or release the processor before creating one for another paper.
 - Never describe a paper with missing outputs as complete.
 

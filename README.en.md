@@ -6,7 +6,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.10.0-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.11.0-f59e0b"></a>
     <a href="#31-requirements"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH%20%7C%20Codex-111827"></a>
     <a href="#3-installation"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -83,7 +83,7 @@ The following triggerable Skills are available under `skills/`. `skills/wiki-sha
 
 | Skill | Status | Purpose | Trigger phrases | Details |
 |---|---|---|---|---|
-| [`wiki-paper-card`](skills/wiki-paper-card/README.en.md) | **Stable** | Analyze one paper or batch-process a topic folder, generate Paper Cards, and update admitted Topics, the index, and the log | `process this paper`, `analyze this paper`, `batch-process this topic`, `regenerate this card` | [View details](skills/wiki-paper-card/README.en.md) |
+| [`wiki-paper-card`](skills/wiki-paper-card/README.en.md) | **Stable** | Analyze papers, maintain Topics, or inspect and safely migrate an existing Vault | `process this paper`, `batch-process this topic`, `regenerate this card`, `upgrade wiki-paper-card` | [View details](skills/wiki-paper-card/README.en.md) |
 | [`wiki-gap-mining`](skills/wiki-gap-mining/README.en.md) | **Beta** | Mine open questions, research gaps, and candidate directions from the existing Wiki | `mine research gaps`, `find research directions`, `analyze the whole knowledge base` | [View details](skills/wiki-gap-mining/README.en.md) |
 
 Knowledge-base questions, verification, and survey retrieval use the shared [`wiki-shared` retrieval protocol](skills/wiki-shared/references/retrieval-protocol.md). It is shared by both Skills and is not indexed as a standalone Skill.
@@ -107,6 +107,7 @@ After installation, send one of the following prompts to your Agent. Replace the
 | Review a research direction | `Using the existing research Wiki, compare the main methods, experimental results, and applicability boundaries for this topic.` |
 | Mine research gaps | `Use wiki-gap-mining to mine research gaps and candidate directions across the whole research Wiki.` |
 | Regenerate an existing card | `Use wiki-paper-card to reprocess raw/papers/example.pdf.` |
+| Upgrade an existing Vault | `Upgrade wiki-paper-card. Inspect first, separate runtime update from Topic migration, and do not change wiki/ before I confirm the scope.` |
 
 If a request only says “process/analyze these papers” without selecting a scope, the Agent asks once whether the run should stop at Paper Cards, maintain Topics, or include full research-gap work; it does not ask once per paper. Questions and survey retrieval are read-only by default. Separate gap mining first creates a read-only report and writes back to Topics only after researcher confirmation.
 
@@ -161,7 +162,17 @@ Do not overwrite existing files in the vault. Report completed items separately 
 
 For a first-time clone, use the [remote setup guide](https://raw.githubusercontent.com/RamboLQX/wiki-paper-card/main/docs/agent-quick-setup.md).
 
-### 3.4 Verification and Troubleshooting
+### 3.4 Upgrade an Existing Vault
+
+Runtime update and legacy Topic migration are separate. The Agent first creates
+a read-only inventory, then lets the user defer migration, migrate only needed
+Topics, select pages, or approve all eligible Topics after preview. Explicit
+migration is first published and audited in a copy of `wiki/`, then backed up
+and committed to the real Vault. Conditional rollback refuses to overwrite
+later user edits. See the [Agent upgrade guide](docs/agent-upgrade.md) and the
+[installation guide](docs/installation.md).
+
+### 3.5 Verification and Troubleshooting
 
 Run this from the repository root:
 
@@ -209,7 +220,7 @@ A Paper Card covers one paper. A Topic brings together multiple related papers; 
 
 ### 4.3 Artifacts and Workflows
 
-Each run produces three kinds of files. `wiki/` holds the published knowledge pages, `work/` holds drafts, audit reports, and plans, and `raw/` always stays your untouched source material. For the meaning of every artifact, who generates it, and which ones you need to look at, plus the complete flows of both workflows (paper processing and gap mining), see [docs/artifacts.md](docs/artifacts.md) (written in Chinese).
+Each run produces three kinds of files. `wiki/` holds the published knowledge pages, `work/` holds drafts, audit reports, and plans, and `raw/` always stays your untouched source material. For the meaning of every artifact, who generates it, and which ones you need to look at, plus the complete flows of paper processing, gap mining, and legacy Vault upgrades, see [docs/artifacts.md](docs/artifacts.md) (written in Chinese).
 
 <p align="center">
   <a href="https://rambolqx.github.io/wiki-paper-card/">
@@ -228,7 +239,7 @@ The interactive version is hosted on GitHub Pages. You can also download the [se
 
 Two essentials:
 
-- Paper processing requires no decisions from you. Topics are created or updated automatically by the admission rules, and the agent reports the produced pages when the run finishes.
+- Beyond the one-time processing-scope choice, paper processing requires no per-paper decisions. Topics are created or updated automatically by the admission rules, and the agent reports the produced pages when the run finishes.
 - Gap mining requires your decisions. The confirmation checklist at the end of the report lists each candidate, and Topic pages change only after you confirm them. `work/gap-mining-notes.md` is the miner's intermediate notes and needs no reading.
 
 At the end of every run the agent explains which files were produced and whether anything awaits your decision.

@@ -6,7 +6,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.10.0-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.11.0-f59e0b"></a>
     <a href="#31-运行前提"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH%20%7C%20Codex-111827"></a>
     <a href="#3-安装"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.en.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -81,7 +81,7 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 
 | 技能 | 状态 | 用途 | 触发词 | 详情页 |
 |---|---|---|---|---|
-| [`wiki-paper-card`](skills/wiki-paper-card/README.md) | **Stable** | 分析单篇论文或批量处理主题目录，生成 Paper Card，并更新满足条件的 Topic、索引和日志 | `处理论文`、`分析这篇论文`、`批量处理这个主题`、`重新生成卡片` | [查看详情](skills/wiki-paper-card/README.md) |
+| [`wiki-paper-card`](skills/wiki-paper-card/README.md) | **Stable** | 分析论文、维护 Topic，或检查并安全迁移已有 Vault | `处理论文`、`批量处理这个主题`、`重新生成卡片`、`升级 wiki-paper-card` | [查看详情](skills/wiki-paper-card/README.md) |
 | [`wiki-gap-mining`](skills/wiki-gap-mining/README.md) | **Beta** | 基于已有研究 Wiki 挖掘开放问题、研究空白和候选方向，确认后写回 Topic 页 | `挖掘研究空白`、`寻找研究方向`、`分析整个知识库` | [查看详情](skills/wiki-gap-mining/README.md) |
 
 知识库问答、信息查证和综述检索由 [`wiki-shared` 的共享检索协议](skills/wiki-shared/references/retrieval-protocol.md) 提供。该协议供两个 Skill 共用，不作为独立 Skill 计入索引。
@@ -105,6 +105,7 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 | 梳理一个研究方向 | `请基于现有研究 Wiki，比较这个主题下的主要方法、实验结果和适用边界。` |
 | 挖掘研究空白 | `使用 wiki-gap-mining 挖掘整个研究 Wiki 中的研究空白与候选方向。` |
 | 重新生成已有卡片 | `使用 wiki-paper-card 重新处理 raw/papers/example.pdf。` |
+| 升级已有 Vault | `请升级 wiki-paper-card；先只读检查，区分运行入口升级和 Topic 迁移，在我确认范围前不要改写 wiki/。` |
 
 如果只说“处理/分析论文”而没有说明范围，Agent 会在开始前询问一次是只要 Paper Card、还要 Topic，还是执行含研究空白的完整流程；同一批论文不会逐篇询问。知识库问答和综述检索默认只读取现有 Wiki，不修改知识页面。独立研究空白挖掘会先生成只读报告，只有在研究者确认后才写回 Topic。
 
@@ -160,7 +161,13 @@ Obsidian Vault：/absolute/path/to/vault
 
 首次克隆也可以使用[远程安装说明](https://raw.githubusercontent.com/RamboLQX/wiki-paper-card/main/docs/agent-quick-setup.md)。
 
-### 3.4 安装验证与故障排查
+### 3.4 升级已有 Vault
+
+升级时先更新运行入口，不自动改写旧 Topic。Agent 会先生成只读检查报告，然后由用户选择暂不迁移、按需迁移或预览后迁移全部合格 Topic。显式迁移会在 `wiki/` 副本中先演练和审计，生成备份后才写入真实 Vault，并支持不覆盖后续编辑的条件式回滚。
+
+完整流程见 [Agent 升级与 Topic 迁移说明](docs/agent-upgrade.md)。
+
+### 3.5 安装验证与故障排查
 
 在仓库根目录运行：
 
@@ -227,7 +234,7 @@ Paper Card 记录单篇论文，Topic 用来组织多篇相关论文。单篇论
 
 两个要点：
 
-- 处理论文不需要你做决策。Topic 的创建与更新由准入规则自动判断，Agent 收尾时会汇报本次产出的页面。
+- 除开始时选择一次处理范围外，处理论文不需要逐篇决策。Topic 的创建与更新由准入规则自动判断，Agent 收尾时会汇报本次产出的页面。
 - 挖掘研究空白需要你做决策。报告末尾的待确认清单逐条列出候选，只有你确认后才写回 Topic 页。`work/gap-mining-notes.md` 是挖掘过程的中间笔记，不需要阅读。
 
 每次工作结束时，Agent 会说明本次产出的文件和是否需要你决策的事项。

@@ -164,7 +164,44 @@ def valid_v3_refresh_plan() -> dict:
     return plan
 
 
+def valid_v3_migration_plan() -> dict:
+    plan = valid_v3_link_plan()
+    plan["purpose"] = "migration"
+    plan.pop("workflow_mode")
+    plan["batch"] = {"source_pages": [], "label": "legacy Topic migration"}
+    action = plan["topic_actions"][0]
+    action["action"] = "update_topic"
+    action["existing_page"] = "wiki/topics/Shared Topic.md"
+    action["base_topic_sha256"] = "a" * 64
+    return plan
+
+
 class LinkPlanAuditTests(unittest.TestCase):
+    def test_schema_v3_migration_requires_complete_update_action(self) -> None:
+        report = LINK_AUDIT.audit(valid_v3_migration_plan())
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+
+        create = valid_v3_migration_plan()
+        action = create["topic_actions"][0]
+        action["action"] = "create_topic"
+        action.pop("existing_page")
+        action.pop("base_topic_sha256")
+        create_report = LINK_AUDIT.audit(create)
+        self.assertTrue(
+            any(item["code"] == "migration_action" for item in create_report["findings"])
+        )
+
+    def test_schema_v3_migration_forbids_incremental_removal_fields(self) -> None:
+        plan = valid_v3_migration_plan()
+        plan["topic_actions"][0]["remove_open_question_ids"] = ["oq-boundary"]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(
+                item["code"] == "migration_field_forbidden"
+                for item in report["findings"]
+            )
+        )
+
     def test_manifest_requires_exact_batch_membership_and_paths(self) -> None:
         plan = valid_link_plan()
         plan["batch"]["source_pages"][0]["source_ref"] = "wiki/sources/wrong-a.md"

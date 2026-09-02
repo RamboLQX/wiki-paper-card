@@ -28,6 +28,7 @@ Topic 与研究空白时，询问一次，不逐篇询问。所有 processor pro
 | Phase 0 确定性准备 | 主会话运行 prepare、processor pack 和 KB context；仅 Wiki 模式运行 batch manifest |
 | Phase 1 Paper Cards | 每篇论文创建一个 fresh processor 子 Agent，prompt 引用共享 `processor-brief.md` 与 schema |
 | Phase 1 完成检查 | 子 Agent 返回后以所选 `--mode` 运行一次 `workflow_status.py`；完成通知不代替文件与退出码验证 |
+| Phase 1 写入失败恢复 | 将工具解析、转义、序列化或 payload 错误与内容错误分开；切换为更小的原生文件编辑后只重试一次，仍失败则由主会话串行接管 |
 | Phase 1 修正循环 | 向同一 processor 发送精确 audit 错误，最多三次；之后该篇转主会话串行处理 |
 | Phase 2 确定性 finalize | 所有模式运行 card finalize；仅 Wiki 模式运行 digest identity finalize 与 manifest-aware digest audit |
 | Phase 3 批量 link | 仅 Wiki 模式在全部卡片与 digest 通过后创建一个 fresh linker 子 Agent，并传入 `workflow_mode` |
@@ -40,6 +41,21 @@ Topic 与研究空白时，询问一次，不逐篇询问。所有 processor pro
 - 每个 processor 只写自己的 `work/<paper-name>/`；完成后释放槽位，不复用已完成 processor 处理其他论文。
 - Wiki 模式下全批次只创建一个 linker，并等待所有 card、digest 和 audit 通过；`card-only` 不创建 linker。
 - 无子 Agent 能力时串行执行，并向用户说明主会话上下文消耗会增加。
+
+### 产物写入与失败恢复
+
+- processor prompt 必须保留 `processor-brief.md` 的 Artifact Materialization
+  规则：Card 与 digest 分开写，长 Card 按连续章节分成有界编辑，禁止把整份
+  长篇 Markdown 包进 JavaScript、Python、shell 源码字符串或模板字符串；
+  digest 单独使用一次有界原生编辑并完成 JSON 解析检查。
+- `SyntaxError`、转义错误、序列化错误和 payload 解析错误属于写入级故障，
+  不属于论文内容或审计修正。processor 首次遇到时必须保留已完成分析，改用
+  更小的原生文件编辑；不得重复同一种失败写法。
+- 主会话收到第一次写入级故障后，只向同一 processor 发一次紧凑 continuation，
+  明确缺失文件和替代写入方式。若替代写入仍失败，立即停止该 processor，并由
+  主会话根据已有有效产物和 source bundle 串行补齐；不要再次等待或要求重新分析。
+- 写入级恢复不占用最多三次的实质性 audit 修正次数。任何恢复都不得压缩章节、
+  省略证据或降低 finalizer、audit 和全批次通过门禁。
 
 ## 空白挖掘
 

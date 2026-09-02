@@ -2,7 +2,7 @@
 # Install wiki-paper-card into an Obsidian Vault for one or more agent hosts.
 #
 # Usage:
-#   install.sh [--host claude|dsh|both|codex|all] [--repo-root PATH] VAULT
+#   install.sh [--host claude|dsh|both|codex|all] [--repo-root PATH] [--runtime-only] VAULT
 #
 # The script is idempotent and never overwrites existing files or links:
 #   - Vault directories are created only when missing.
@@ -23,13 +23,15 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST="both"
 VAULT=""
+RUNTIME_ONLY=0
 
 usage() {
     cat <<'EOF'
-Usage: install.sh [--host claude|dsh|both|codex|all] [--repo-root PATH] VAULT
+Usage: install.sh [--host claude|dsh|both|codex|all] [--repo-root PATH] [--runtime-only] VAULT
 
   --host        which agent host(s) to configure: claude, dsh, both (default), codex, or all
   --repo-root   wiki-paper-card repository path (default: parent of this script)
+  --runtime-only update host links, pointers, and runtime version without touching raw/ or wiki/
   VAULT         target Obsidian Vault directory
 EOF
 }
@@ -43,6 +45,9 @@ while [[ $# -gt 0 ]]; do
         --repo-root)
             [[ $# -ge 2 ]] || { echo "ERROR: --repo-root requires a value." >&2; exit 2; }
             REPO_ROOT="$(cd "$2" && pwd)"; shift 2
+            ;;
+        --runtime-only)
+            RUNTIME_ONLY=1; shift
             ;;
         -h|--help)
             usage; exit 0
@@ -63,8 +68,8 @@ case "$HOST" in
 esac
 
 [[ -n "$VAULT" ]] || { echo "ERROR: VAULT argument is required." >&2; usage >&2; exit 2; }
-[[ -d "$REPO_ROOT/skills" && -d "$REPO_ROOT/template" ]] || {
-    echo "ERROR: $REPO_ROOT does not look like a wiki-paper-card repository (skills/ or template/ missing)." >&2
+[[ -d "$REPO_ROOT/skills" && -d "$REPO_ROOT/template" && -f "$REPO_ROOT/VERSION" ]] || {
+    echo "ERROR: $REPO_ROOT does not look like a wiki-paper-card repository (skills/, template/, or VERSION missing)." >&2
     exit 1
 }
 
@@ -72,6 +77,10 @@ VAULT="$(cd "$VAULT" 2>/dev/null && pwd)" || {
     echo "ERROR: vault directory does not exist: $VAULT" >&2
     exit 1
 }
+if [[ "$RUNTIME_ONLY" -eq 1 && ! -d "$VAULT/wiki" ]]; then
+    echo "ERROR: --runtime-only requires an existing Vault with wiki/." >&2
+    exit 1
+fi
 
 CONFLICTS=0
 report_conflict() {
@@ -79,12 +88,7 @@ report_conflict() {
     CONFLICTS=1
 }
 
-# 1. Vault directory skeleton.
-mkdir -p "$VAULT/raw/papers"
-mkdir -p "$VAULT/wiki/sources" \
-         "$VAULT/wiki/topics" "$VAULT/wiki/meta" "$VAULT/work"
-
-# 2. No-clobber copy of template wiki files.
+# 1. Vault directory skeleton and Wiki templates for first installation only.
 copy_if_missing() {
     local src="$1" dst="$2"
     if [[ -e "$dst" ]]; then
@@ -95,12 +99,17 @@ copy_if_missing() {
     cp "$src" "$dst"
     echo "copy  $dst"
 }
-copy_if_missing "$REPO_ROOT/template/wiki/index.md" "$VAULT/wiki/index.md"
-copy_if_missing "$REPO_ROOT/template/wiki/log.md" "$VAULT/wiki/log.md"
-copy_if_missing "$REPO_ROOT/template/wiki/meta/paper-processing-conventions.md" \
-                "$VAULT/wiki/meta/paper-processing-conventions.md"
+if [[ "$RUNTIME_ONLY" -eq 0 ]]; then
+    mkdir -p "$VAULT/raw/papers"
+    mkdir -p "$VAULT/wiki/sources" \
+             "$VAULT/wiki/topics" "$VAULT/wiki/meta" "$VAULT/work"
+    copy_if_missing "$REPO_ROOT/template/wiki/index.md" "$VAULT/wiki/index.md"
+    copy_if_missing "$REPO_ROOT/template/wiki/log.md" "$VAULT/wiki/log.md"
+    copy_if_missing "$REPO_ROOT/template/wiki/meta/paper-processing-conventions.md" \
+                    "$VAULT/wiki/meta/paper-processing-conventions.md"
+fi
 
-# 3. Host entry files. Claude Code and DSH use CLAUDE.md; Codex uses AGENTS.md.
+# 2. Host entry files. Claude Code and DSH use CLAUDE.md; Codex uses AGENTS.md.
 #    The templates intentionally carry the same host-neutral Vault rules so an
 #    all-host install cannot expose DSH to conflicting instructions.
 install_entry_file() {
@@ -290,6 +299,14 @@ install_codex() {
 [[ "$HOST" == "claude" || "$HOST" == "both" || "$HOST" == "all" ]] && install_claude
 [[ "$HOST" == "dsh" || "$HOST" == "both" || "$HOST" == "all" ]] && install_dsh
 [[ "$HOST" == "codex" || "$HOST" == "all" ]] && install_codex
+
+# Runtime code version is separate from the Vault's Topic content format. Only
+# record it after the selected host layout has no hard conflicts.
+if [[ "$CONFLICTS" -eq 0 ]]; then
+    mkdir -p "$VAULT/.wiki-paper-card"
+    cp "$REPO_ROOT/VERSION" "$VAULT/.wiki-paper-card/runtime-version"
+    echo "write $VAULT/.wiki-paper-card/runtime-version = $(cat "$REPO_ROOT/VERSION")"
+fi
 
 echo ""
 echo "Install complete for host: $HOST"

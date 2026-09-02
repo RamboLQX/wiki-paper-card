@@ -1,6 +1,6 @@
 ---
 name: wiki-paper-card
-description: Build a source-grounded 01-16 Paper Card, optionally integrate it into an Obsidian LLM Wiki, and optionally maintain cross-paper Topics and research gaps. Use when the user asks to read, analyze, ingest, or batch-process academic papers. Do not use for full-text translation, peer review, or slide generation.
+description: Build a source-grounded 01-16 Paper Card, optionally integrate it into an Obsidian LLM Wiki, maintain cross-paper Topics and research gaps, or safely inspect and migrate an existing wiki-paper-card Vault. Use when the user asks to read, analyze, ingest, batch-process papers, or upgrade an installed Vault. Do not use for full-text translation, peer review, or slide generation.
 ---
 
 # Wiki Paper Card Router
@@ -12,6 +12,14 @@ Turn one paper into one of three user-selected scopes:
 3. the complete Wiki workflow, including research-gap synthesis and maintenance.
 
 The analysis core comes from the pinned upstream `nature-paper-card`. The wiki integration and knowledge-crystallization rules are local.
+
+## Upgrade Requests
+
+When the user asks to update, upgrade, or migrate an existing installation,
+read [the upgrade contract](references/upgrade-contract.md) and follow that
+workflow instead of the paper-processing phases below. Start with read-only
+inspection. Runtime update and Topic migration are separate; never infer an
+implicit whole-Vault migration from a generic update request.
 
 ## Required Reads
 
@@ -118,4 +126,4 @@ The supported runtime hosts are Claude Code, DeepSeek Harness (DSH), and Codex. 
 - DeepSeek Harness: run each processor as a background subagent. Keep up to six processors active by default, at most eight. See `../../adapters/dsh/dsh-mode.md` for the phase mapping.
 - Codex: create a fresh subagent for each paper, keep at most three processors active and never exceed the current session's available subagent slots. See `../../adapters/codex/codex-mode.md` for the phase mapping.
 - If subagents are unavailable, run phases serially and explicitly say that context usage will increase.
-- `card-only` is a first-class mode on every host, not merely a light-host fallback.
+  - `card-only` is a first-class mode on every host, not merely a light-host fallback.

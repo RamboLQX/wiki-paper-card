@@ -61,7 +61,7 @@ Do not create a topic page merely because a paper discusses a subject.
 
 For schema 3.0, the linker writes complete reader-facing prose in `narrative` and keeps `key_findings` / `contradictions` as the evidence ledger. Fixed second-level headings define publisher-owned narrative sections. The publisher derives standard Markdown evidence footnotes and does not render a duplicate finding list. Grouped comparison records remain complete deterministic tables. Flat rows require `source_ref` and are upserted by that stable path, preserving order and unrelated rows instead of relying on a display-name match.
 
-The ingest linker and post-mining refresh linker are the only producers for 概述, 综合认识, 争议与不确定, and 论文与方法对照. Mining plans may update only stable-ID open items and their monotonic source/backlink union. The schema 3.0 audit rejects a mining plan that carries narrative, comparison, finding, contradiction, category, or status fields. Refresh is narrative-only: it cannot create Topics or mutate open-item state or page metadata.
+The ingest linker, post-mining refresh linker, and explicitly approved migration linker are the only producers for 概述, 综合认识, 争议与不确定, and 论文与方法对照. Mining plans may update only stable-ID open items and their monotonic source/backlink union. The schema 3.0 audit rejects a mining plan that carries narrative, comparison, finding, contradiction, category, or status fields. Refresh is narrative-only: it cannot create Topics or mutate open-item state or page metadata. Migration rebuilds the complete owned content and open-item state for selected legacy Topics, but it cannot create pages, perform incremental removals, or write source pages.
 
 ### Resolved Items
 
@@ -69,7 +69,7 @@ Schema 3.0 `open_questions` and `research_gaps` entries carry stable `id`, immut
 
 New Topics include `## 研究者备注` as a manual safe zone. Publisher updates preserve its exact body and never aggregate it; existing Topics without the section remain unchanged.
 
-Every schema 3.0 update carries `base_topic_sha256`. All target hashes and source references are checked before any write. A stale target blocks the complete plan. A legacy schema 3.0 Topic with complete managed comments migrates to clean Markdown and a sidecar on its next valid update. A Topic with neither complete legacy comments nor sidecar state rejects the update with `narrative_migration_required`.
+Every schema 3.0 update carries `base_topic_sha256`. All target hashes and source references are checked before any write. A stale target blocks the complete plan. A legacy schema 3.0 Topic with complete managed comments migrates to clean Markdown and a sidecar on its next valid update. A Topic with neither complete legacy comments nor sidecar state rejects ordinary updates with `narrative_migration_required`; only a user-approved `purpose: "migration"` plan may rebuild it through the staged upgrade workflow.
 
 ## Index And Log
 

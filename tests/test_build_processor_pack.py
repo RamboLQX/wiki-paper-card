@@ -173,6 +173,44 @@ class TopicDiscoveryContractTests(unittest.TestCase):
         self.assertNotIn("知识冲突", combined)
 
 
+class ArtifactMaterializationContractTests(unittest.TestCase):
+    def test_processor_uses_separate_bounded_native_file_edits(self) -> None:
+        processor = (
+            ROOT / "skills/wiki-paper-card/references/processor-brief.md"
+        ).read_text(encoding="utf-8")
+        normalized = " ".join(processor.split())
+        self.assertIn("separate file-edit operation", normalized)
+        self.assertIn("host-native file-edit tool", normalized)
+        self.assertIn("bounded contiguous section groups", normalized)
+        self.assertIn("Do not shorten, summarize, or omit semantic content", normalized)
+        self.assertIn("JavaScript, Python, or shell source", normalized)
+
+    def test_processor_classifies_and_caps_materialization_recovery(self) -> None:
+        processor = (
+            ROOT / "skills/wiki-paper-card/references/processor-brief.md"
+        ).read_text(encoding="utf-8")
+        codex = (ROOT / "adapters/codex/codex-mode.md").read_text(encoding="utf-8")
+        workflow = (
+            ROOT / "skills/wiki-paper-card/references/workflow-contract.md"
+        ).read_text(encoding="utf-8")
+        combined = " ".join((processor + codex + workflow).split())
+        self.assertIn("materialization failure", combined)
+        self.assertIn("Do not repeat the same failed serialization method", combined)
+        self.assertIn("one alternative materialization attempt", combined)
+        self.assertIn("does not consume a substantive audit-repair attempt", combined)
+        self.assertIn("Never shorten a Paper Card to fit a file-edit operation", combined)
+
+    def test_quality_and_publish_gates_remain_explicit(self) -> None:
+        processor = (
+            ROOT / "skills/wiki-paper-card/references/processor-brief.md"
+        ).read_text(encoding="utf-8")
+        batch = (
+            ROOT / "skills/wiki-paper-card/references/batch-mode.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Sections 01-16", processor)
+        self.assertIn("Do not link or publish until all mode-required", batch)
+
+
 class BuildPackTests(unittest.TestCase):
     def test_build_pack_merges_all_expected_sources(self) -> None:
         pack, records = PACK_MODULE.build_pack(ROOT)
@@ -197,6 +235,7 @@ class BuildPackTests(unittest.TestCase):
             "## lens:methods",
         ):
             self.assertIn(section, pack)
+        self.assertIn("## Artifact Materialization", pack)
         self.assertIn("Nature Paper Card - Router", pack)  # upstream router content
 
     def test_build_pack_is_deterministic(self) -> None:

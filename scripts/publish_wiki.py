@@ -1677,7 +1677,7 @@ def build_topic_state(
         for item_id, note in annotations.items()
         if item_id in live_gap_ids
     }
-    if purpose in {"ingest", "refresh"}:
+    if purpose in {"ingest", "refresh", "migration"}:
         refresh_ids: list[str] = []
     else:
         refresh_ids = list(
@@ -1788,7 +1788,7 @@ def merge_topic_page_v3(
     fields, lists, body = parse_frontmatter(existing_text)
     body = clean_legacy_topic_protocol(body)
 
-    if purpose in {"ingest", "refresh"}:
+    if purpose in {"ingest", "refresh", "migration"}:
         rendered = render_v3_narrative(action, titles, short_names)
         body = replace_section_body(body, "概述", rendered["overview"])
         body = replace_optional_section(
@@ -1827,6 +1827,9 @@ def merge_topic_page_v3(
                     comparisons,
                     titles,
                 )
+        if purpose == "migration":
+            body = replace_optional_section(body, "关键发现", [])
+            body = replace_optional_section(body, "争议与矛盾", [])
 
     state_questions = (
         topic_state.get("open_questions", [])
@@ -1896,7 +1899,7 @@ def merge_topic_page_v3(
         [],
         today,
     )
-    if purpose == "ingest":
+    if purpose in {"ingest", "migration"}:
         category = str(action.get("category", "")).strip()
         if category:
             fields["category"] = category
@@ -2127,6 +2130,7 @@ def append_log(
     synthesis_entries: list[dict[str, Any]],
     batch_title: str,
     today: str,
+    purpose: str = "ingest",
 ) -> str:
     additions: list[str] = []
     for entry in source_entries:
@@ -2139,7 +2143,8 @@ def append_log(
             ]
         )
     if synthesis_entries:
-        additions.append(f"## [{today}] batch synthesis | {batch_title}")
+        operation = "topic migration" if purpose == "migration" else "batch synthesis"
+        additions.append(f"## [{today}] {operation} | {batch_title}")
         for entry in synthesis_entries:
             action = "新建" if entry["created"] else "更新"
             additions.append(f"- {action}：{entry['path']}")
@@ -2325,6 +2330,10 @@ def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
                 errors.append(
                     f"narrative_refresh_not_required: {label} has no pending narrative refresh"
                 )
+            if purpose == "migration" and state is not None and not replay:
+                errors.append(
+                    f"migration_not_required: {label} already has valid topic state"
+                )
             if action.get("action") == "create_topic":
                 if existing_text is not None and not replay:
                     errors.append(
@@ -2340,7 +2349,11 @@ def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
                 errors.append(
                     f"stale_topic_plan: {label} expected {expected_hash} but found {actual_hash}"
                 )
-            if state is None and not has_managed_blocks(existing_body):
+            if (
+                purpose != "migration"
+                and state is None
+                and not has_managed_blocks(existing_body)
+            ):
                 errors.append(
                     f"narrative_migration_required: {label} has neither topic state nor complete legacy-v3 blocks"
                 )
@@ -3215,7 +3228,7 @@ def main() -> int:
     for action in plan.get("topic_actions", []):
         if not isinstance(action, dict):
             continue
-        if purpose == "refresh":
+        if purpose in {"refresh", "migration"}:
             continue
         name = action.get("name", "")
         for source_ref in string_list(action.get("papers")):
@@ -3267,7 +3280,14 @@ def main() -> int:
             writes.append({"kind": "index", "path": "wiki/index.md", "action": "update"})
 
         log_text = log_path.read_text(encoding="utf-8")
-        updated_log = append_log(log_text, source_log_entries, synthesis_log_entries, batch_title, today)
+        updated_log = append_log(
+            log_text,
+            source_log_entries,
+            synthesis_log_entries,
+            batch_title,
+            today,
+            purpose,
+        )
         if updated_log != log_text:
             log_path.write_text(updated_log, encoding="utf-8")
             writes.append({"kind": "log", "path": "wiki/log.md", "action": "update"})

@@ -1,6 +1,6 @@
 # Link Plan Schema
 
-`wiki-linker` writes one `link-plan.json` after every paper card and digest in the batch has passed its audits. The `wiki-gap-mining` miner writes mining-mode plans (`purpose: "mining"`) when a write-back is confirmed. When mining archives an answer, one fresh linker may write a batched narrative-only plan (`purpose: "refresh"`) for the affected Topics. New Topic work uses schema 3.0. Schema 2.0 remains accepted only for compatibility with existing plans and pages.
+`wiki-linker` writes one `link-plan.json` after every paper card and digest in the batch has passed its audits. The `wiki-gap-mining` miner writes mining-mode plans (`purpose: "mining"`) when a write-back is confirmed. When mining archives an answer, one fresh linker may write a batched narrative-only plan (`purpose: "refresh"`) for the affected Topics. An explicitly approved Vault upgrade may use `purpose: "migration"` to rebuild selected legacy Topics. New Topic work uses schema 3.0. Schema 2.0 remains accepted only for compatibility with existing plans and pages.
 
 ## Schema 3.0
 
@@ -109,7 +109,7 @@ Every schema 3.0 ingest plan must define one of these values:
   and removals.
 
 `card-only` has no link plan and is therefore not a valid `workflow_mode`
-value. Mining and refresh plans must omit `workflow_mode`; their permissions
+value. Mining, refresh, and migration plans must omit `workflow_mode`; their permissions
 continue to be controlled by `purpose`.
 
 ### Narrative And Evidence Rules
@@ -163,6 +163,26 @@ The publisher accepts a refresh only when the sidecar has
 remains a no-op. Refresh reads existing source pages and never writes batch
 source pages or invokes paper processors.
 
+### Migration Permission Boundary
+
+A schema 3.0 migration plan has an empty `batch.source_pages`, a non-empty
+`batch.label`, and one `update_topic` action per user-approved legacy Topic.
+Each action carries `existing_page`, the exact legacy-page
+`base_topic_sha256`, complete existing `papers`, `index_summary`, narrative,
+comparisons, evidence ledgers, `open_questions`, and `research_gaps`.
+Migration cannot create Topics and must omit incremental removal and annotation
+fields. Stable IDs and origins from complete legacy markers remain unchanged;
+plain legacy pages receive new stable IDs grounded in their existing content.
+
+Migration is the only purpose that may update a Topic with neither valid
+sidecar state nor complete managed markers. Ordinary ingest retains
+`narrative_migration_required`. Conversely, migration rejects a Topic that
+already has valid state unless the action is an exact successful-plan replay.
+The upgrade wrapper stages the complete plan in a copy of `wiki/`, audits it,
+enforces the selected write set, and creates a hash-addressed backup before
+committing to the real Vault. Migration reads existing source pages but never
+writes them.
+
 ## Schema 2.0 Compatibility
 
 ### Top-Level Fields
@@ -186,7 +206,7 @@ source pages or invokes paper processors.
 }
 ```
 
-`purpose` is optional and defaults to `ingest`. The three purposes are:
+`purpose` is optional and defaults to `ingest`. Schema 2.0 supports these historical purposes:
 
 - `ingest` (paper-processing batches): `source_pages` contains the current
   batch (at least one), and topic actions may only reference batch pages.

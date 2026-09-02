@@ -32,6 +32,9 @@ Host values:
 
 The installer uses no-clobber behavior for Vault pages and entry files. An existing different `CLAUDE.md` or `AGENTS.md` is preserved and reported for manual merging. Existing conflicting Skill or resource paths cause exit code 1 and are never replaced.
 
+After a conflict-free install, `.wiki-paper-card/runtime-version` records the
+runtime code version. It does not describe or migrate Topic content.
+
 ## Installed host layouts
 
 | Host | Skill directory | Vault entry | Repository pointer |
@@ -53,6 +56,50 @@ Without it, each host reads only its own pointer and verifies that `vendor/natur
 ## Manual installation notes
 
 When manual installation is explicitly required, reproduce the selected row above: link all three repository Skills (`wiki-paper-card`, `wiki-shared`, and `wiki-gap-mining`), link `adapters`, `vendor`, and `scripts` beside the host `skills/` directory, write the host pointer, and copy only the matching Vault entry file if it is missing. Claude Code additionally copies `adapters/claude-code/agents/*.md` into `.claude/agents/`. The installer is preferred because its self-check verifies this layout.
+
+## Upgrade an existing Vault
+
+Start with read-only inspection:
+
+```bash
+python3 scripts/upgrade_vault.py inspect \
+  --wiki-root /path/to/vault \
+  --report /path/to/vault/work/upgrade/inspection.json
+```
+
+Update the repository and rerun `install.sh --runtime-only` only after checking that the Git
+working tree is clean and the update can fast-forward. This updates linked
+Skills and runtime resources without rewriting `raw/` or `wiki/`. Existing
+different entry files remain untouched and require a reviewed merge.
+
+```bash
+./scripts/install.sh --host codex --runtime-only /path/to/vault
+```
+
+Legacy Topic migration is a separate, explicit workflow. The user may defer
+it, migrate only Topics needed by the current operation, select individual
+Topics, or approve all eligible Topics shown by inspection. The Agent writes a
+complete schema 3.0 `purpose: "migration"` plan and preview; after approval,
+the upgrade wrapper stages, audits, backs up, and applies it:
+
+```bash
+python3 scripts/upgrade_vault.py apply \
+  --wiki-root /path/to/vault \
+  --plan /path/to/vault/work/upgrade/RUN_ID/migration-plan.json \
+  --run-dir /path/to/vault/work/upgrade/RUN_ID
+```
+
+Rollback is allowed only while every migrated file still matches its recorded
+post-migration hash:
+
+```bash
+python3 scripts/upgrade_vault.py rollback \
+  --wiki-root /path/to/vault \
+  --run-dir /path/to/vault/work/upgrade/RUN_ID
+```
+
+See [the Agent upgrade guide](agent-upgrade.md) for the complete confirmation,
+staging, and recovery workflow.
 
 ## Invoke from the Vault
 

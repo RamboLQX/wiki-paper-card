@@ -13,6 +13,7 @@
 - Regenerating an existing Paper Card.
 - Creating or updating cross-paper Topics when admission rules are met.
 - Writing reader-facing Paper Cards and evidence-linked Topic prose, with clean Markdown footnotes and sidecar state instead of visible publisher protocol.
+- Inspecting an installed Vault and keeping runtime updates separate from explicit legacy Topic migration.
 
 ## Example prompts
 
@@ -22,6 +23,8 @@ Use wiki-paper-card in card-only mode for raw/papers/example.pdf. I only need th
 Use wiki-paper-card in wiki-topic mode for raw/papers/<topic-name>/. Maintain Topics without research-gap work.
 
 Use wiki-paper-card in wiki-full mode for raw/papers/<topic-name>/, including research-gap maintenance.
+
+Upgrade wiki-paper-card. Inspect first and do not change wiki/ before I confirm the migration scope.
 ```
 
 When scope is omitted, the Agent asks once before starting and never once per paper.
@@ -44,6 +47,6 @@ See [docs/artifacts.md](../../docs/artifacts.md) (written in Chinese) for the me
 - A Topic requires at least two papers sharing a problem, mechanism, or evidence space.
 - `raw/` remains read-only, and final knowledge pages are written through the deterministic publisher.
 
-See [`SKILL.md`](SKILL.md) and the [workflow contract](references/workflow-contract.md) for the full execution rules.
+See [`SKILL.md`](SKILL.md), the [workflow contract](references/workflow-contract.md), and the [upgrade contract](references/upgrade-contract.md) for the full execution rules.
 
 Knowledge-base questions, verification, and survey retrieval use the shared [`wiki-shared` retrieval protocol](../wiki-shared/references/retrieval-protocol.md).
