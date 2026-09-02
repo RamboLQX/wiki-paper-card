@@ -29,7 +29,7 @@
 - [2. 快速开始](#2-快速开始)
 - [3. 安装](#3-安装)
 - [4. 框架结构与运行约定](#4-框架结构与运行约定)
-  - [4.4 工作产物与工作流](#44-工作产物与工作流)
+  - [4.3 工作产物与工作流](#43-工作产物与工作流)
 - [5. 技术设计](#5-技术设计)
 - [6. 贡献](#6-贡献)
 - [7. 许可证](#7-许可证)
@@ -113,7 +113,7 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 
 | 项目 | 要求 |
 |---|---|
-| 运行宿主 | [Claude Code](https://code.claude.com/docs/en/overview)、[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 或 Codex，也可全部配置 |
+| 运行宿主 | [Claude Code](https://code.claude.com/docs/en/overview)、[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 或 [Codex](https://learn.chatgpt.com/docs/app)，也可全部配置 |
 | 知识库 | [Obsidian](https://obsidian.md/download) Vault |
 | Obsidian 中使用 Claude Code | 安装 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件 |
 | 本地环境 | Python 3。处理 PDF 时需要 PyMuPDF |
@@ -195,31 +195,17 @@ vault/
 
 ### 4.2 知识页面结构
 
-| 页面或视图 | 作用 |
+| 页面或视图 | 用途 |
 |---|---|
-| **Paper Card** | 以连续、易读的段落保存单篇论文的完整分析，同时保留证据位置、必要表格、局限和研究想法 |
-| **Topic** | 综合至少两篇相关论文，以完整段落维护概述、综合认识与真实争议，并保留方法对照、开放问题和段落化研究空白 |
-| **Knowledge Tree** | 人与 Agent 共用的树入口；展示主题优先嵌套全貌，并通过先匹配节点、再局部展开支持渐进式检索、问答和综述 |
-| **Research Dashboard** | 汇总当前仍开放的问题和研究空白 |
-| **Index / Log** | 记录知识页面入口和每次处理更新 |
+| **Paper Card** | 阅读和回顾单篇论文 |
+| **Topic** | 汇总多篇相关论文，了解一个研究问题的整体进展 |
+| **Knowledge Tree** | 按研究主题浏览和查找已有知识页面 |
+| **Research Dashboard** | 查看尚未解决的问题和研究空白 |
+| **Index / Log** | 查找全部知识页面，查看知识库更新记录 |
 
-单篇论文不会自动创建 Topic。只有多篇论文共享同一研究问题、机制或证据空间，或者新论文回答、挑战已有 Topic 中的问题时，Topic 才会创建或更新。
+Paper Card 记录单篇论文，Topic 用来组织多篇相关论文。单篇论文不会单独创建 Topic。
 
-### 4.3 处理、更新与写入约定
-
-- 每篇论文独立生成 Paper Card，并通过结构、证据和来源位置检查。
-- 批量处理先完成全部单篇分析，再建立跨论文关系。
-- ingest linker 和归档后的专用 refresh linker 负责 Topic 的完整叙事与对照表；gap-mining 本身只在用户确认后按稳定 ID 维护开放项。三种 purpose 都由同一确定性发布器写入，并用 Topic 哈希阻断过期计划。
-- Topic 正文不保存发布器 marker、开放项 ID 或重放指纹。这些机器状态进入 `wiki/meta/topic-state/` sidecar，正文证据使用标准 Markdown 脚注。
-- 相同且未发生变化的 PDF 会跳过。明确提出重新处理时才重新生成。
-- 知识库问答先在知识树中匹配 Topic、论文或开放项，再逐层展开选中的页面，回答中保留相关来源依据。
-- ingest 阶段不从单篇论文直接复制完成态研究空白。linker 只综合作者局限、Agent 批判观察、未解释结果和跨论文比较视角，并允许在证据不足时不产生候选。新空白用 1—2 个自然段落说明证据张力、被阻塞的判断与最小判别研究。
-- 研究空白挖掘先产出只读报告 `work/gap-mining-report.md`。你逐项确认报告中的候选后，才通过确定性发布流程把开放问题与研究空白写回 Topic 页和仪表盘。
-- 最终知识页面写入 `wiki/`，中间文件和审计报告保留在 `work/`。
-
-更详细的准入条件、页面 schema 和发布流程见[架构说明](docs/architecture.md)。
-
-### 4.4 工作产物与工作流
+### 4.3 工作产物与工作流
 
 框架运行过程中会产生三类文件。`wiki/` 下是正式知识页面，`work/` 下是处理草稿、审计报告与计划文件，`raw/` 始终是你的原始资料。每个产物的含义、由谁生成、哪些需要你关注，以及处理论文和挖掘研究空白两个工作流的完整过程，见[工作产物与工作流说明](docs/artifacts.md)。
 

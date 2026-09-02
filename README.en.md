@@ -29,7 +29,7 @@ In the age of Agents, research accumulation is moving from file storage to the d
 - [2. Quick Start](#2-quick-start)
 - [3. Installation](#3-installation)
 - [4. Framework Structure and Operating Rules](#4-framework-structure-and-operating-rules)
-  - [4.4 Artifacts and Workflows](#44-artifacts-and-workflows)
+  - [4.3 Artifacts and Workflows](#43-artifacts-and-workflows)
 - [5. Technical Design](#5-technical-design)
 - [6. Contributing](#6-contributing)
 - [7. License](#7-license)
@@ -115,7 +115,7 @@ Questions and survey retrieval are read-only by default. Gap mining first create
 
 | Item | Requirement |
 |---|---|
-| Runtime host | [Claude Code](https://code.claude.com/docs/en/overview), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), or Codex; all three may be configured together |
+| Runtime host | [Claude Code](https://code.claude.com/docs/en/overview), [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), or [Codex](https://learn.chatgpt.com/docs/app); all three may be configured together |
 | Knowledge base | An [Obsidian](https://obsidian.md/download) vault |
 | Claude Code inside Obsidian | The [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin |
 | Local environment | Python 3. PyMuPDF is required for PDF processing |
@@ -196,38 +196,39 @@ Researchers organize the topic directories under `raw/papers/`. The framework do
 
 ### 4.2 Knowledge Pages
 
-| Page or view | Purpose |
+| Page or view | What it is for |
 |---|---|
-| **Paper Card** | Explains one paper in coherent, readable prose while preserving evidence locators, necessary tables, limitations, and research ideas |
-| **Topic** | Synthesizes at least two related papers into complete overview, synthesis, and genuine controversy prose while retaining method comparisons, open questions, and paragraph-form research gaps |
-| **Knowledge Tree** | Shared tree entry for readers and agents; exposes the topic-first nested overview and supports progressive retrieval by matching nodes before expanding selected branches |
-| **Research Dashboard** | Collects the currently open questions and research gaps |
-| **Index / Log** | Records knowledge-page entry points and processing updates |
+| **Paper Card** | Read and revisit one paper |
+| **Topic** | Bring related papers together to understand progress on a research problem |
+| **Knowledge Tree** | Browse and find existing knowledge pages by research topic |
+| **Research Dashboard** | Review unanswered questions and research gaps |
+| **Index / Log** | Find all knowledge pages and review the Wiki's update history |
 
-One paper does not create a Topic by itself. A Topic is created or updated only when multiple papers share a research problem, mechanism, or evidence space, or when a new paper answers or challenges an existing Topic question.
+A Paper Card covers one paper. A Topic brings together multiple related papers; one paper does not create a Topic by itself.
 
-### 4.3 Processing, Updates, and Writes
-
-- Every paper produces an independent Paper Card that passes structural, evidence, and source-locator checks.
-- Batch processing completes all paper analyses before creating cross-paper relationships.
-- The ingest linker and bounded post-archive refresh linker own the complete Topic narrative and comparison table. After user confirmation, gap mining itself can maintain only stable-ID open items. All three purposes write through the same deterministic publisher, which rejects stale plans using the Topic hash.
-- Topic Markdown contains no publisher markers, open-item IDs, or replay fingerprints. That machine state lives under `wiki/meta/topic-state/`, while precise evidence uses standard Markdown footnotes.
-- An unchanged PDF is skipped unless the researcher explicitly requests reprocessing.
-- Knowledge-base questions first match Topics, papers, or open items in the knowledge tree, then descend only through selected pages while retaining the relevant source evidence.
-- Ingest does not copy completed research gaps from individual papers. The linker synthesizes only author-stated limitations, Agent critical observations, unexplained results, and cross-paper comparison views, and may return no candidate when the evidence is insufficient. New gaps use one or two natural paragraphs to explain the evidence tension, blocked judgment, and smallest discriminating study.
-- Gap mining first writes a read-only report `work/gap-mining-report.md`. Only after you confirm its candidates item by item does the deterministic publisher write the open questions and research gaps back into topic pages and the dashboard.
-- Final knowledge pages go to `wiki/`. Intermediate files and audit reports remain under `work/`.
-
-See [Architecture](docs/architecture.md) for the detailed admission rules, page schemas, and publishing flow.
-
-### 4.4 Artifacts and Workflows
+### 4.3 Artifacts and Workflows
 
 Each run produces three kinds of files. `wiki/` holds the published knowledge pages, `work/` holds drafts, audit reports, and plans, and `raw/` always stays your untouched source material. For the meaning of every artifact, who generates it, and which ones you need to look at, plus the complete flows of both workflows (paper processing and gap mining), see [docs/artifacts.md](docs/artifacts.md) (written in Chinese).
+
+<p align="center">
+  <a href="https://rambolqx.github.io/wiki-paper-card/">
+    <img src="assets/wiki-paper-card-workflow-preview.png" alt="The complete wiki-paper-card workflow from paper ingestion and audited publishing to knowledge reuse and research-gap mining" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <strong><a href="https://rambolqx.github.io/wiki-paper-card/">Open the interactive workflow</a></strong>
+  · Choose a guided view
+  · Play the workflow
+  · Search and zoom
+</p>
+
+The interactive version is hosted on GitHub Pages. You can also download the [self-contained HTML file](docs/wiki-paper-card-workflow.html) and open it directly. GitHub displays the static preview above in the README. The editable source is [`docs/wiki-paper-card-workflow.json`](docs/wiki-paper-card-workflow.json).
 
 Two essentials:
 
 - Paper processing requires no decisions from you. Topics are created or updated automatically by the admission rules, and the agent reports the produced pages when the run finishes.
-- Gap mining requires your decisions. The 待确认清单 at the end of the report lists each candidate, and topic pages change only after you confirm them. `work/gap-mining-notes.md` is the miner's intermediate notes and needs no reading.
+- Gap mining requires your decisions. The confirmation checklist at the end of the report lists each candidate, and Topic pages change only after you confirm them. `work/gap-mining-notes.md` is the miner's intermediate notes and needs no reading.
 
 At the end of every run the agent explains which files were produced and whether anything awaits your decision.
 
