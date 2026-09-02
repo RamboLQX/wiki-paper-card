@@ -7,7 +7,7 @@
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
     <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.10.0-f59e0b"></a>
-    <a href="#31-requirements"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
+    <a href="#31-requirements"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH%20%7C%20Codex-111827"></a>
     <a href="#3-installation"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
   </p>
@@ -88,6 +88,12 @@ The following triggerable Skills are available under `skills/`. `skills/wiki-sha
 
 Knowledge-base questions, verification, and survey retrieval use the shared [`wiki-shared` retrieval protocol](skills/wiki-shared/references/retrieval-protocol.md). It is shared by both Skills and is not indexed as a standalone Skill.
 
+**Planned Skill**
+
+| Skill | Status | Planned purpose |
+|---|---|---|
+| `wiki-literature-review` | **Planned** | Generate traceable literature reviews from audited Paper Cards, Topics, method comparisons, and evidence boundaries in the Wiki; its writing contract and publishing format will be defined during implementation |
+
 ## 2. Quick Start
 
 After installation, send one of the following prompts to your Agent. Replace the example path or question with your own.
@@ -113,6 +119,8 @@ Questions and survey retrieval are read-only by default. Gap mining first create
 | Knowledge base | An [Obsidian](https://obsidian.md/download) vault |
 | Claude Code inside Obsidian | The [Claudian](https://community.obsidian.md/plugins/realclaudian) plugin |
 | Local environment | Python 3. PyMuPDF is required for PDF processing |
+
+The project formally supports all three hosts. Claude Code uses `.claude/skills/` with `CLAUDE.md`, DSH uses `.dsh/skills/` with `CLAUDE.md`, and Codex uses `.agents/skills/` with `AGENTS.md`. All three share the same workflow contracts, deterministic audits, and publisher. The installer creates the matching entry files and repository pointers without modifying global Codex configuration.
 
 Use a standalone vault. Do not open this repository root as the vault because it also contains scripts, tests, and pinned upstream implementation files.
 

@@ -7,7 +7,7 @@
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
     <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.10.0-f59e0b"></a>
-    <a href="#31-运行前提"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
+    <a href="#31-运行前提"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH%20%7C%20Codex-111827"></a>
     <a href="#3-安装"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.en.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
   </p>
@@ -86,6 +86,12 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 
 知识库问答、信息查证和综述检索由 [`wiki-shared` 的共享检索协议](skills/wiki-shared/references/retrieval-protocol.md) 提供。该协议供两个 Skill 共用，不作为独立 Skill 计入索引。
 
+**规划中的 Skill**
+
+| 技能 | 状态 | 计划用途 |
+|---|---|---|
+| `wiki-literature-review` | **Planned** | 基于 Wiki 中经过核验的 Paper Card、Topic、方法对照与证据边界，生成可追溯的文献综述；具体写作契约和发布形式将在实现阶段确定 |
+
 ## 2. 快速开始
 
 安装完成后，可以直接把下面的指令发送给 Agent。将示例路径和问题替换为自己的内容。
@@ -111,6 +117,8 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 | 知识库 | [Obsidian](https://obsidian.md/download) Vault |
 | Obsidian 中使用 Claude Code | 安装 [Claudian](https://community.obsidian.md/plugins/realclaudian) 插件 |
 | 本地环境 | Python 3。处理 PDF 时需要 PyMuPDF |
+
+项目为三种宿主提供正式适配。Claude Code 使用 `.claude/skills/` 与 `CLAUDE.md`，DSH 使用 `.dsh/skills/` 与 `CLAUDE.md`，Codex 使用 `.agents/skills/` 与 `AGENTS.md`。三种宿主共享同一套工作流契约、确定性审计和发布器；安装脚本负责生成对应入口和仓库根指针，不修改 Codex 全局配置。
 
 建议新建一个独立 Vault。不要直接把本仓库根目录作为 Vault。仓库中还包含脚本、测试和上游快照等实现文件。
 
