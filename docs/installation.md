@@ -57,7 +57,7 @@ When manual installation is explicitly required, reproduce the selected row abov
 ## Invoke from the Vault
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf.
 ```
 
 Batch process all PDFs under a directory:
@@ -78,7 +78,7 @@ Force regeneration of an unchanged PDF:
 Use wiki-paper-card to reprocess raw/papers/example.pdf.
 ```
 
-A single paper creates its source page under `wiki/sources/`. New topic pages require the cross-paper knowledge gates described in the main README. Claude Code and Codex keep at most three processors active; DSH defaults to six and allows at most eight. Every host starts the linker only after every card and digest passes.
+A paper request first selects one processing scope. `card-only` leaves an audited Paper Card under `work/` and never writes `wiki/`; `wiki-topic` publishes cards and Topics without changing research gaps; `wiki-full` runs the complete workflow. New Topic pages require the cross-paper knowledge gates described in the main README. Claude Code and Codex keep at most three processors active; DSH defaults to six and allows at most eight. In the two Wiki modes, every host starts the linker only after every card and digest passes.
 
 ## Optional: Anthropic-compatible model endpoint
 

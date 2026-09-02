@@ -12,24 +12,26 @@ Host adapters    Claude Code, DSH, and Codex orchestration mappings
 ## Runtime Flow
 
 ```text
-prepare bundles
-    -> deterministic batch-manifest.json (source path, SHA, target page, work dir)
-    -> KB context
-    -> independent wiki-processor per paper
-    -> paper-card.md + paper-digest.json
-    -> deterministic card finalize + digest identity finalize
-    -> evidence and manifest-aware digest audits
-    -> one wiki-linker per batch
-    -> schema 3.0 link-plan.json with complete narrative + evidence ledger
-    -> manifest-aware deterministic link-plan audit
-    -> publish_wiki.py rechecks the manifest, then publishes source and topic pages
+select scope once
+    -> card-only: prepare + KB context -> paper-card.md -> card audits -> stop in work/
+    -> wiki-topic or wiki-full:
+       prepare -> batch manifest + KB context
+       -> paper-card.md + paper-digest.json per paper
+       -> card/digest audits -> one linker
+       -> schema 3.0 link-plan.json with workflow_mode
+       -> manifest-aware link-plan audit -> deterministic publish
 ```
+
+`wiki-topic` and `wiki-full` share the same Paper Card and Topic quality gates.
+The difference is an enforced write boundary: `wiki-topic` rejects all
+research-gap content and mutation fields while preserving existing gaps;
+`wiki-full` applies the complete research-gap lifecycle.
 
 The manifest owns only mechanically reproducible identity fields. The digest
 identity finalizer records every replacement and does not change titles,
 paper types, analysis, Topic seed names, or other semantic content.
 
-Claude Code and Codex keep at most three processors active; Codex also obeys the current session's available subagent slots. DSH starts up to six by default and allows at most eight. Every host preserves the all-pass gate before creating the batch linker, and only the main session runs deterministic publishing.
+Claude Code and Codex keep at most three processors active; Codex also obeys the current session's available subagent slots. DSH starts up to six by default and allows at most eight. Every host preserves the all-pass gate before creating the batch linker in the two Wiki modes, and only the main session runs deterministic publishing. `card-only` never creates a linker.
 
 ## Knowledge Layer
 

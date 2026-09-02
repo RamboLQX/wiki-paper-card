@@ -2,7 +2,7 @@
 
 **Status: Stable**
 
-`wiki-paper-card` turns one paper or a topic folder into a source-grounded, connected research Wiki.
+`wiki-paper-card` turns one paper or a topic folder into source-grounded Paper Cards and optionally connects them to a research Wiki.
 
 [Back to the project README](../../README.en.md)
 
@@ -17,16 +17,19 @@
 ## Example prompts
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Use wiki-paper-card in card-only mode for raw/papers/example.pdf. I only need the Paper Card.
 
-Use wiki-paper-card to batch-process every paper under raw/papers/<topic-name>/.
+Use wiki-paper-card in wiki-topic mode for raw/papers/<topic-name>/. Maintain Topics without research-gap work.
 
-Use wiki-paper-card to reprocess raw/papers/example.pdf.
+Use wiki-paper-card in wiki-full mode for raw/papers/<topic-name>/, including research-gap maintenance.
 ```
+
+When scope is omitted, the Agent asks once before starting and never once per paper.
 
 ## Main outputs
 
-- Paper Cards under `wiki/sources/papers/`.
+- `card-only` delivers audited Paper Cards under `work/` and does not write `wiki/`.
+- The two Wiki modes publish Paper Cards under `wiki/sources/papers/`.
 - Admitted Topics under `wiki/topics/`.
 - Updated index, knowledge tree, and log.
 - Intermediate reports and audits under `work/`.
@@ -37,6 +40,7 @@ See [docs/artifacts.md](../../docs/artifacts.md) (written in Chinese) for the me
 
 - Paper Cards explain the research question, methods, experiments, conclusions, limitations, and research ideas in readable prose while preserving source locators and comparison tables.
 - Every paper is analyzed and audited independently before cross-paper linking begins.
+- `wiki-topic` preserves existing research gaps without creating, progressing, answering, annotating, or removing them; only `wiki-full` applies the complete gap lifecycle.
 - A Topic requires at least two papers sharing a problem, mechanism, or evidence space.
 - `raw/` remains read-only, and final knowledge pages are written through the deterministic publisher.
 

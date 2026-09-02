@@ -65,6 +65,7 @@ def valid_link_plan() -> dict:
 def valid_v3_link_plan() -> dict:
     plan = valid_link_plan()
     plan["schema_version"] = "3.0"
+    plan["workflow_mode"] = "wiki-full"
     action = plan["topic_actions"][0]
     action.pop("summary")
     action["index_summary"] = "Two papers establish a shared topic with a remaining boundary."
@@ -152,6 +153,7 @@ def valid_v3_link_plan() -> dict:
 def valid_v3_refresh_plan() -> dict:
     plan = valid_v3_link_plan()
     plan["purpose"] = "refresh"
+    plan.pop("workflow_mode")
     plan["batch"] = {"source_pages": [], "label": "topic refresh 2026-09"}
     action = plan["topic_actions"][0]
     action["action"] = "update_topic"
@@ -196,6 +198,61 @@ class LinkPlanAuditTests(unittest.TestCase):
         report = LINK_AUDIT.audit(valid_v3_link_plan())
         self.assertEqual(report["summary"]["errors"], 0, report["findings"])
         self.assertEqual(report["schema_version"], "3.0")
+        self.assertEqual(report["workflow_mode"], "wiki-full")
+
+    def test_schema_v3_ingest_requires_valid_workflow_mode(self) -> None:
+        plan = valid_v3_link_plan()
+        plan.pop("workflow_mode")
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(any(item["code"] == "workflow_mode" for item in report["findings"]))
+
+        plan["workflow_mode"] = "card-only"
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(any(item["code"] == "workflow_mode" for item in report["findings"]))
+
+    def test_schema_v3_non_ingest_rejects_workflow_mode(self) -> None:
+        plan = valid_v3_refresh_plan()
+        plan["workflow_mode"] = "wiki-topic"
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "workflow_mode_forbidden" for item in report["findings"])
+        )
+
+    def test_wiki_topic_accepts_empty_research_gaps(self) -> None:
+        plan = valid_v3_link_plan()
+        plan["workflow_mode"] = "wiki-topic"
+        plan["topic_actions"][0]["research_gaps"] = []
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+
+    def test_wiki_topic_rejects_research_gap_content_and_mutations(self) -> None:
+        plan = valid_v3_link_plan()
+        plan["workflow_mode"] = "wiki-topic"
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "workflow_mode_research_gaps" for item in report["findings"])
+        )
+
+        for field, value in (
+            ("remove_research_gap_ids", ["rg-unified-test"]),
+            ("remove_research_gaps", ["unified test"]),
+            ("annotate_research_gaps", [{"id": "rg-unified-test", "note": "note"}]),
+        ):
+            with self.subTest(field=field):
+                plan = valid_v3_link_plan()
+                plan["workflow_mode"] = "wiki-topic"
+                action = plan["topic_actions"][0]
+                action["research_gaps"] = []
+                action[field] = value
+                report = LINK_AUDIT.audit(plan)
+                self.assertTrue(
+                    any(
+                        item["code"] == "workflow_mode_gap_mutation"
+                        and item.get("details", {}).get("field") == field
+                        for item in report["findings"]
+                    ),
+                    report["findings"],
+                )
 
     def test_schema_v3_refresh_plan_passes_without_batch_sources(self) -> None:
         report = LINK_AUDIT.audit(valid_v3_refresh_plan())
@@ -245,6 +302,7 @@ class LinkPlanAuditTests(unittest.TestCase):
     def test_schema_v3_mining_update_rejects_narrative_fields(self) -> None:
         plan = valid_v3_link_plan()
         plan["purpose"] = "mining"
+        plan.pop("workflow_mode")
         plan["batch"] = {"source_pages": [], "label": "gap mining 2026-08"}
         action = plan["topic_actions"][0]
         action["action"] = "update_topic"
@@ -266,6 +324,7 @@ class LinkPlanAuditTests(unittest.TestCase):
     def test_schema_v3_mining_groups_multiple_candidates_in_one_topic_action(self) -> None:
         plan = valid_v3_link_plan()
         plan["purpose"] = "mining"
+        plan.pop("workflow_mode")
         plan["batch"] = {"source_pages": [], "label": "gap mining 2026-09"}
         action = plan["topic_actions"][0]
         action.update(

@@ -11,7 +11,7 @@ Open `/path/to/your/vault/` in Obsidian, not the repository root. Choose `claude
 Then place PDFs or `nature-reader` source-map JSON files under `raw/papers/` and invoke:
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf.
 ```
 
 Batch process a topic directory:

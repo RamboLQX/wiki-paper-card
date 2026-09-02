@@ -1,8 +1,8 @@
 name: wiki-paper-card
 version: 0.1.0
 description: >
-  Source-grounded 01-16 paper card with LLM Wiki integration and
-  knowledge-crystallization gates.
+  Source-grounded 01-16 Paper Card with optional LLM Wiki integration,
+  user-selected processing scope, and knowledge-crystallization gates.
 
 always_load:
   - ../../vendor/nature-paper-card/SKILL.md
@@ -58,6 +58,7 @@ quality_tools:
   upstream_audit_script: ../../vendor/nature-paper-card/scripts/audit_paper_card.py
   kb_context_script: ../../scripts/build_kb_context.py
   finalize_script: ../../scripts/finalize_paper_card.py
+  workflow_status_script: ../../scripts/workflow_status.py
   paper_digest_finalize_script: ../../scripts/finalize_paper_digest.py
   paper_digest_audit_script: ../../scripts/audit_paper_digest.py
   link_plan_audit_script: ../../scripts/audit_link_plan.py

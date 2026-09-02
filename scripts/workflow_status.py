@@ -9,15 +9,26 @@ import sys
 from pathlib import Path
 
 
-REQUIRED_FILES = ("paper-card.md", "paper-digest.json")
+WORKFLOW_MODES = ("card-only", "wiki-topic", "wiki-full")
+REQUIRED_FILES = {
+    "card-only": ("paper-card.md",),
+    "wiki-topic": ("paper-card.md", "paper-digest.json"),
+    "wiki-full": ("paper-card.md", "paper-digest.json"),
+}
 MARKER_FILES = ("source_bundle.json", "paper-card.md", "paper-digest.json")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Report which paper work directories are missing their card or digest."
+        description="Report which paper work directories are missing mode-required outputs."
     )
     parser.add_argument("--work-dir", type=Path, required=True)
+    parser.add_argument(
+        "--mode",
+        choices=WORKFLOW_MODES,
+        default="wiki-full",
+        help="Completion contract to apply (default: wiki-full).",
+    )
     parser.add_argument("--report", type=Path)
     return parser.parse_args()
 
@@ -32,10 +43,10 @@ def paper_dirs(work_dir: Path) -> list[Path]:
     )
 
 
-def paper_status(paper_dir: Path) -> dict[str, object]:
+def paper_status(paper_dir: Path, required_files: tuple[str, ...]) -> dict[str, object]:
     missing = [
         name
-        for name in REQUIRED_FILES
+        for name in required_files
         if not (paper_dir / name).is_file() or (paper_dir / name).stat().st_size == 0
     ]
     return {
@@ -53,7 +64,8 @@ def main() -> int:
         print(f"ERROR: --work-dir must point to an existing directory: {work_dir}", file=sys.stderr)
         return 2
 
-    papers = [paper_status(path) for path in paper_dirs(work_dir)]
+    required_files = REQUIRED_FILES[args.mode]
+    papers = [paper_status(path, required_files) for path in paper_dirs(work_dir)]
     if not papers:
         print("No paper work directories found under the batch work directory.", file=sys.stderr)
         return 1
@@ -68,6 +80,8 @@ def main() -> int:
     complete = sum(1 for paper in papers if paper["complete"])
     report = {
         "schema_version": "1.0",
+        "workflow_mode": args.mode,
+        "required_files": list(required_files),
         "papers": papers,
         "summary": {
             "total": total,

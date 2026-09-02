@@ -29,7 +29,7 @@ printf '%s\n' /path/to/wiki-paper-card > /path/to/vault/.claude/WIKI_PAPER_CARD_
 ## Invoke
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf.
 ```
 
 Use the agents named in `adapters/claude-code/agents/`.

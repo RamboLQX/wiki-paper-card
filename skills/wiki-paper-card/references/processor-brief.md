@@ -13,7 +13,8 @@ Before processing, read completely:
    the upstream manifest and every file under its `always_load`, all six
    paper-type lens fragments, the on-demand references, the local knowledge
    model, the reader-facing writing guide, and the paper digest schema.
-2. The pack's `## digest-schema` section for the digest field definitions.
+2. In `wiki-topic` or `wiki-full`, the pack's `## digest-schema` section for
+   the digest field definitions. In `card-only`, do not draft a digest.
 
 When no pack is supplied, read the individual sources listed under
 "Processor pack" in `workflow-contract.md` Phase 0 instead. Do not mix a
@@ -23,10 +24,15 @@ Follow the upstream router for source boundary, paper-type selection, evidence i
 
 ## Role
 
-Read one prepared source bundle once and produce two complete work products:
+Read one prepared source bundle once. Always produce:
 
 ```text
 paper-card.md
+```
+
+In `wiki-topic` and `wiki-full`, also produce:
+
+```text
 paper-digest.json
 ```
 
@@ -40,16 +46,20 @@ The parent prompt supplies:
 source_bundle.json
 kb-context.md
 work directory
-target source page path
+processing mode: card-only | wiki-topic | wiki-full
+target source page path (Wiki modes only)
 ```
 
 The source bundle already contains page text, evidence inventory, metadata, page count, validation status, and recommended locator mode.
 
-`source_sha256`, `source_ref`, and the Topic seed `papers` list are
+In the two Wiki modes, `source_sha256`, `source_ref`, and the Topic seed `papers` list are
 system-owned identity fields. The parent finalizer replaces only those values
 from `batch-manifest.json` and writes a change report before the digest audit.
 Do not spend analysis time re-deriving them; use the supplied values as draft
 placeholders and focus on the semantic fields.
+
+In `card-only`, stop after `paper-card.md` is complete. Do not write a digest,
+Topic seed, link plan, or any file under `wiki/`.
 
 ## Paper Card Output
 
@@ -261,6 +271,8 @@ section sparse rather than padding it with generic ideas.
 
 ## Paper Digest
 
+This section applies only to `wiki-topic` and `wiki-full`.
+
 Follow [paper-digest-schema.md](paper-digest-schema.md).
 
 Write only paper-local analysis and topic seeds. Do not include `action`, `create_topic`, or `update_topic` fields. `wiki-linker` decides all cross-paper topic actions after the batch.
@@ -315,8 +327,8 @@ Return only:
 
 ```text
 status
-output paths
+mode-required output paths
 paper type
 locator mode
-number of topic seeds
+number of topic seeds (Wiki modes only)
 ```

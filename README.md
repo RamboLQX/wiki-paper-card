@@ -98,14 +98,15 @@ Paper Card 保留单篇论文的完整上下文。Topic 维护多篇论文围绕
 
 | 想做什么 | 直接这样说 |
 |---|---|
-| 分析一篇论文 | `使用 wiki-paper-card 处理 raw/papers/example.pdf。` |
-| 批量处理一个研究主题 | `使用 wiki-paper-card 批量处理 raw/papers/<主题名称>/ 下的全部论文。` |
+| 只生成 Paper Card | `使用 wiki-paper-card 以 card-only 模式处理 raw/papers/example.pdf，只需要 Paper Card。` |
+| 生成 Paper Card 并维护 Topic | `使用 wiki-paper-card 以 wiki-topic 模式处理 raw/papers/<主题名称>/，不要维护研究空白。` |
+| 执行完整 Wiki 入库 | `使用 wiki-paper-card 以 wiki-full 模式处理 raw/papers/<主题名称>/，包含研究空白维护。` |
 | 向知识库提问 | `请基于现有研究 Wiki 回答：……，并标明相关 Paper Card、Topic 和来源依据。` |
 | 梳理一个研究方向 | `请基于现有研究 Wiki，比较这个主题下的主要方法、实验结果和适用边界。` |
 | 挖掘研究空白 | `使用 wiki-gap-mining 挖掘整个研究 Wiki 中的研究空白与候选方向。` |
 | 重新生成已有卡片 | `使用 wiki-paper-card 重新处理 raw/papers/example.pdf。` |
 
-知识库问答和综述检索默认只读取现有 Wiki，不修改知识页面。研究空白挖掘会先生成只读报告，只有在研究者确认后才写回 Topic。
+如果只说“处理/分析论文”而没有说明范围，Agent 会在开始前询问一次是只要 Paper Card、还要 Topic，还是执行含研究空白的完整流程；同一批论文不会逐篇询问。知识库问答和综述检索默认只读取现有 Wiki，不修改知识页面。独立研究空白挖掘会先生成只读报告，只有在研究者确认后才写回 Topic。
 
 ## 3. 安装
 

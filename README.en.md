@@ -100,14 +100,15 @@ After installation, send one of the following prompts to your Agent. Replace the
 
 | What you want | What to say |
 |---|---|
-| Analyze one paper | `Use wiki-paper-card to process raw/papers/example.pdf.` |
-| Batch-process a research topic | `Use wiki-paper-card to batch-process every paper under raw/papers/<topic-name>/.` |
+| Produce only a Paper Card | `Use wiki-paper-card in card-only mode for raw/papers/example.pdf. I only need the Paper Card.` |
+| Publish cards and maintain Topics | `Use wiki-paper-card in wiki-topic mode for raw/papers/<topic-name>/. Do not maintain research gaps.` |
+| Run complete Wiki ingestion | `Use wiki-paper-card in wiki-full mode for raw/papers/<topic-name>/, including research-gap maintenance.` |
 | Ask the knowledge base | `Using the existing research Wiki, answer: ... Include the relevant Paper Cards, Topics, and source evidence.` |
 | Review a research direction | `Using the existing research Wiki, compare the main methods, experimental results, and applicability boundaries for this topic.` |
 | Mine research gaps | `Use wiki-gap-mining to mine research gaps and candidate directions across the whole research Wiki.` |
 | Regenerate an existing card | `Use wiki-paper-card to reprocess raw/papers/example.pdf.` |
 
-Questions and survey retrieval are read-only by default. Gap mining first creates a read-only report and writes back to Topics only after researcher confirmation.
+If a request only says “process/analyze these papers” without selecting a scope, the Agent asks once whether the run should stop at Paper Cards, maintain Topics, or include full research-gap work; it does not ask once per paper. Questions and survey retrieval are read-only by default. Separate gap mining first creates a read-only report and writes back to Topics only after researcher confirmation.
 
 ## 3. Installation
 

@@ -3328,6 +3328,7 @@ def main() -> int:
 
     report = {
         "schema_version": "1.0",
+        "workflow_mode": plan.get("workflow_mode"),
         "summary": {
             "status": "fail" if errors else "pass",
             "created_sources": sum(item["kind"] == "source" and item["action"] == "create" for item in writes),

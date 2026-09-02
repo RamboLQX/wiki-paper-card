@@ -16,7 +16,16 @@
 
 ## 工作流一：处理论文（wiki-paper-card）
 
-把一篇或多篇论文整理进知识库，流程分五步：
+开始前先固定一次处理范围：
+
+| 模式 | 结果 | 不会执行 |
+|---|---|---|
+| `card-only` | `work/` 中经过整理和审计的 Paper Card | digest、连接、发布和全部 `wiki/` 写入 |
+| `wiki-topic` | 发布 Paper Card，并维护 Topic、索引、日志和聚合视图 | 新增、推进、回答、标注或删除研究空白；既有空白保持不变 |
+| `wiki-full` | 完整入库与研究空白维护 | 仅受常规证据与审计边界限制 |
+
+用户已经说明范围时直接开始；只说“处理/分析论文”时，Agent 在开始前询问一次，
+同一批论文不逐篇询问。完整 Wiki 流程分五步：
 
 ```text
 1. 准备   提取论文文本和已有知识库上下文
@@ -31,10 +40,10 @@
 | 阶段 | 产物 | 类型 | 说明 |
 |---|---|---|---|
 | 准备 | `work/<名称>/source_bundle.json` | 机器 | 提取出的论文文本，供分析使用 |
-| 准备 | `work/<批次>/batch-manifest.json` | 机器 | 从 source bundle 复算并固定本批论文的原始路径、SHA、目标页面和 work_dir，后续阶段共同使用 |
+| 准备 | `work/<批次>/batch-manifest.json` | 机器 | 仅两个 Wiki 模式生成；从 source bundle 复算并固定本批论文的原始路径、SHA、目标页面和 work_dir |
 | 准备 | `work/<名称>/kb-context.md` | 机器 | 已有知识库的相关上下文摘要 |
 | 分析 | `work/<名称>/paper-card.md` | 中间 | 论文分析的完整草稿，发布前会经过审计和整理 |
-| 分析 | `work/<名称>/paper-digest.json` | 机器 | 论文的结构化摘要，连接阶段使用 |
+| 分析 | `work/<名称>/paper-digest.json` | 机器 | 仅两个 Wiki 模式生成；论文的结构化摘要，连接阶段使用 |
 | 检查 | `work/<名称>/paper-digest-finalize-report.json` | 机器 | 记录 digest 中 SHA、来源页路径和单篇 seed 成员等系统字段的整理前后值；不修改语义内容 |
 | 检查 | `work/<名称>/audit-report.json` 等 | 机器 | 结构与证据审计报告，失败会阻止继续 |
 | 连接 | `work/<名称>/link-plan.json` | 机器 | schema 3.0 跨论文计划，包含完整叙事、证据台账、稳定开放项 ID 和 Topic 基线哈希 |
@@ -51,7 +60,7 @@
 | `wiki/meta/knowledge-tree.md` | 人与 Agent 共用的知识树；先匹配节点，再局部展开分支 |
 | `wiki/index.md` / `wiki/log.md` | 页面索引与每次处理的日志 |
 
-处理论文的过程不需要你做决策。Topic 的创建或更新由连接阶段根据准入规则自动判断。更新时，linker 输出基于全部当前证据的完整叙事，发布器按固定标题整块替换概述、综合认识和真实争议，不按批次追加摘要。精确证据使用标准 Markdown 脚注，维护状态进入 sidecar，因此 Obsidian 正文中不会出现内部 marker。Agent 收尾时会汇报本次创建和更新了哪些页面。
+除开始时选择一次处理范围外，处理论文的过程不需要逐篇决策。Topic 的创建或更新由连接阶段根据准入规则自动判断。`wiki-topic` 的链接计划受到确定性门禁约束，不能携带任何研究空白内容或变更指令，发布时保留已有空白。更新时，linker 输出基于全部当前证据的完整叙事，发布器按固定标题整块替换概述、综合认识和真实争议，不按批次追加摘要。精确证据使用标准 Markdown 脚注，维护状态进入 sidecar，因此 Obsidian 正文中不会出现内部 marker。Agent 收尾时会汇报本次创建和更新了哪些页面。
 
 ## 工作流二：挖掘研究空白（wiki-gap-mining）
 
@@ -100,7 +109,7 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 | `work/gap-mining-notes.md` | 中间 | 挖掘 Agent 的笔记，不需要读 |
 | `work/topic-refresh-plan.json` 及对应 report | 机器 | mining 归档答案后，批量刷新受影响 Topic 综合叙述的计划、审计与发布结果 |
 | `work/<批次>/batch-manifest.json` | 机器 | 当前论文批次的系统身份清单，是 digest、link-plan 和发布阶段共同核对的唯一来源 |
-| `work/<名称>/paper-card.md` | 中间 | Paper Card 草稿，最终版发布到 wiki/sources |
+| `work/<名称>/paper-card.md` | 中间或交付 | Wiki 模式下是待发布草稿；`card-only` 下是经过审计的最终交付 |
 | `work/<名称>/paper-digest-finalize-report.json` | 机器 | 系统字段整理差异，便于检查脚本改了什么 |
 | `work/<名称>/link-plan.json` | 机器 | 写回计划，由确定性脚本执行 |
 | `work/` 下的各种 `*-report.json` | 机器 | 审计与发布结果记录，Agent 用它判断流程状态 |
@@ -111,7 +120,7 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 
 | 环节 | 需要你做什么 |
 |---|---|
-| 处理论文 | 无需决策。Topic 自动创建或更新，Agent 收尾汇报结果 |
+| 处理论文 | 开始前选择一次 `card-only` / `wiki-topic` / `wiki-full`；明确说出模式时无需再确认 |
 | 挖掘研究空白 | 阅读报告并逐项确认待确认清单。确认后才会写回 Topic |
 | 候选新 Topic | 挖掘出的跨组方向要建新 Topic 时，必须经你显式确认 |
 | 重新处理论文 | 内容未变化的论文默认跳过，由你主动要求时才重新生成 |

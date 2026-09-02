@@ -18,6 +18,7 @@ except ModuleNotFoundError:  # Imported as scripts.audit_link_plan in tests.
 
 ALLOWED_TOPIC_ACTIONS = {"create_topic", "update_topic"}
 ALLOWED_SCHEMA_VERSIONS = {"2.0", "3.0"}
+ALLOWED_WORKFLOW_MODES = {"wiki-topic", "wiki-full"}
 ITEM_ID_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 HISTORY_TERMS = ("本批", "本次新增", "追加证据")
@@ -644,6 +645,7 @@ def audit_topic_action_v3(
     batch_refs: set[str],
     target_names: set[str],
     purpose: str,
+    workflow_mode: str | None,
 ) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     label = f"topic action {action.get('id') or action.get('name') or '<unnamed>'}"
@@ -995,6 +997,29 @@ def audit_topic_action_v3(
         if purpose == "refresh"
         else require_list(action, "research_gaps", findings, label)
     )
+    if workflow_mode == "wiki-topic":
+        if research_gaps:
+            findings.append(
+                finding(
+                    "error",
+                    "workflow_mode_research_gaps",
+                    f"{label} wiki-topic mode requires research_gaps to be empty.",
+                )
+            )
+        for field in (
+            "remove_research_gap_ids",
+            "remove_research_gaps",
+            "annotate_research_gaps",
+        ):
+            if field in action:
+                findings.append(
+                    finding(
+                        "error",
+                        "workflow_mode_gap_mutation",
+                        f"{label} wiki-topic mode must not mutate research gaps through {field}.",
+                        field=field,
+                    )
+                )
     for index, item in enumerate(research_gaps, start=1):
         item_label = f"{label} research_gap {index}"
         if not isinstance(item, dict):
@@ -1332,6 +1357,33 @@ def audit(
         )
         purpose = "ingest"
 
+    workflow_mode_value = plan.get("workflow_mode")
+    workflow_mode = (
+        workflow_mode_value.strip()
+        if isinstance(workflow_mode_value, str)
+        else None
+    )
+    if schema_version == "3.0" and purpose == "ingest":
+        if workflow_mode not in ALLOWED_WORKFLOW_MODES:
+            findings.append(
+                finding(
+                    "error",
+                    "workflow_mode",
+                    "Schema 3.0 ingest plans must define workflow_mode as "
+                    "'wiki-topic' or 'wiki-full'.",
+                    workflow_mode=workflow_mode_value,
+                )
+            )
+    elif "workflow_mode" in plan:
+        findings.append(
+            finding(
+                "error",
+                "workflow_mode_forbidden",
+                "workflow_mode is only valid for schema 3.0 ingest plans.",
+                workflow_mode=workflow_mode_value,
+            )
+        )
+
     batch = plan.get("batch", {})
     source_pages = require_list(batch, "source_pages", findings, "batch") if isinstance(batch, dict) else []
     batch_refs: set[str] = set()
@@ -1446,7 +1498,13 @@ def audit(
             continue
         if schema_version == "3.0":
             findings.extend(
-                audit_topic_action_v3(action, batch_refs, target_names, purpose)
+                audit_topic_action_v3(
+                    action,
+                    batch_refs,
+                    target_names,
+                    purpose,
+                    workflow_mode,
+                )
             )
         else:
             findings.extend(
@@ -1455,6 +1513,7 @@ def audit(
 
     return {
         "schema_version": schema_version,
+        "workflow_mode": workflow_mode,
         "summary": {
             "status": "fail"
             if any(item["level"] == "error" for item in findings)

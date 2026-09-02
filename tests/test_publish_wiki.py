@@ -110,6 +110,7 @@ def valid_v3_plan() -> dict:
     plan = valid_plan()
     plan["schema_version"] = "3.0"
     plan["purpose"] = "ingest"
+    plan["workflow_mode"] = "wiki-full"
     action = plan["topic_actions"][0]
     action.pop("summary")
     action["index_summary"] = "The papers support a shared result with an unresolved boundary."
@@ -259,6 +260,41 @@ def publish_plan(
 
 
 class PublishWikiTests(unittest.TestCase):
+    def test_wiki_topic_preserves_existing_research_gaps(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "wiki-full-initial.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            state_path = root / "wiki" / "meta" / "topic-state" / "Shared Topic.json"
+            initial_state = json.loads(state_path.read_text(encoding="utf-8"))
+            initial_gaps = initial_state["research_gaps"]
+
+            plan = valid_v3_plan()
+            plan["workflow_mode"] = "wiki-topic"
+            action = plan["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(
+                topic_path.read_bytes()
+            ).hexdigest()
+            action["research_gaps"] = []
+            result = publish_plan(root, plan, "wiki-topic-update.json")
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            updated_state = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(updated_state["research_gaps"], initial_gaps)
+            self.assertIn(
+                "A unified benchmark is missing.",
+                topic_path.read_text(encoding="utf-8"),
+            )
+            report = json.loads(
+                (root / "wiki-topic-update-report.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(report["workflow_mode"], "wiki-topic")
+
     def test_schema_v3_create_renders_clean_narrative_with_footnotes(self) -> None:
         action = valid_v3_plan()["topic_actions"][0]
         text = PUBLISH.topic_page_text(
@@ -656,6 +692,7 @@ class PublishWikiTests(unittest.TestCase):
 
             refresh = valid_v3_plan()
             refresh["purpose"] = "refresh"
+            refresh.pop("workflow_mode")
             refresh["batch"] = {
                 "source_pages": [],
                 "label": "topic refresh after gap mining",
@@ -716,6 +753,7 @@ class PublishWikiTests(unittest.TestCase):
             before = topic_path.read_text(encoding="utf-8")
             refresh = valid_v3_plan()
             refresh["purpose"] = "refresh"
+            refresh.pop("workflow_mode")
             refresh["batch"] = {"source_pages": [], "label": "unneeded refresh"}
             action = refresh["topic_actions"][0]
             action["action"] = "update_topic"

@@ -303,7 +303,7 @@ echo "Repository root pointer(s) written for the selected host(s):"
 echo "Optional: export WIKI_PAPER_CARD_ROOT=$REPO_ROOT"
 echo ""
 echo "Next: open $VAULT in Obsidian and invoke:"
-echo "  Use wiki-paper-card to process raw/papers/example.pdf."
+echo "  Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf."
 echo "Verify with:"
 echo "  PYTHONDONTWRITEBYTECODE=1 WIKI_PAPER_CARD_ROOT=$REPO_ROOT python3 $REPO_ROOT/scripts/smoke_test.py"
 

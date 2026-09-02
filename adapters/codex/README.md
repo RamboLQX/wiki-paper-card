@@ -17,7 +17,7 @@ Codex 运行宿主适配。Codex 从 Vault 的 `.agents/skills/` 发现本框架
 从 Vault 根目录启动 Codex 任务，然后请求：
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf.
 ```
 
 Codex 应从 `.agents/skills/` 发现 `wiki-paper-card`，并按 `codex-mode.md` 映射执行。

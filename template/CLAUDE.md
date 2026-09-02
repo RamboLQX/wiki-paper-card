@@ -31,7 +31,7 @@
 
 ## 处理入口
 
-用户给出明确输入路径后，使用 `wiki-paper-card` skill 执行单篇或批量流程。子 Agent 可用时，每篇论文使用一个独立 processor，全批次使用一个 linker；所有 wiki 写入最终由确定性 `publish_wiki.py` 执行。具体宿主映射见安装后的 `adapters/` 目录。
+用户给出论文后，先按 `wiki-paper-card` skill 固定一次处理范围：仅 Paper Card（`card-only`）、Paper Card + Topic 且不维护研究空白（`wiki-topic`），或完整 Wiki（`wiki-full`）。用户已经明确范围时直接执行；只说“处理/分析论文”而未说明范围时询问一次，不逐篇询问。子 Agent 可用时，每篇论文使用一个独立 processor；只有两个 Wiki 模式才为全批次使用一个 linker，并由确定性 `publish_wiki.py` 执行所有 wiki 写入。`card-only` 在 `work/` 中完成且不得写入 `wiki/`。具体宿主映射见安装后的 `adapters/` 目录。
 
 如果 skill 或脚本不在 vault 中，使用 `WIKI_PAPER_CARD_ROOT` 指向 `wiki-paper-card` 仓库根目录。未设置环境变量时，只读取当前宿主目录下的指针文件 `WIKI_PAPER_CARD_ROOT`（Claude Code：`.claude/`；DSH：`.dsh/`；Codex：`.agents/`，由 `install.sh` 写入）。解析后先验证 `<REPO_ROOT>/vendor/nature-paper-card/SKILL.md` 可读；失败即停止并向用户报告，不读取其他宿主指针，不猜测路径。
 

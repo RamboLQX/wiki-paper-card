@@ -36,6 +36,7 @@ batch-manifest.json
 the batch link KB context
 the batch work directory
 the wiki root
+processing mode: wiki-topic | wiki-full
 ```
 
 Prefer the digests for context. A final card may be read only for a specific ambiguous section named by the linker.
@@ -50,6 +51,17 @@ pages listed in those Topics. Read only those materials; never read `raw/` or
 rerun a processor. All affected Topics belong in one plan.
 
 ## Link Decisions
+
+The supplied processing mode is immutable. Copy it into top-level
+`workflow_mode`. `card-only` must never reach this role.
+
+- In `wiki-topic`, maintain Topic narrative, comparisons, findings,
+  contradictions, and open questions, but emit `research_gaps: []` and omit
+  `remove_research_gap_ids`, legacy `remove_research_gaps`, and
+  `annotate_research_gaps`. Do not synthesize, advance, answer, annotate, or
+  remove a research gap. Do not relabel a rejected gap candidate as an open
+  question. The publisher preserves existing gaps.
+- In `wiki-full`, apply the complete link and research-gap lifecycle below.
 
 - Compare candidate identity, definitions, methods, evidence, contradictions, and open questions across all batch papers.
 - Compare batch digests with the existing wiki context.
@@ -114,6 +126,9 @@ number of actions to save narrative-writing work.
 
 ### Research-Gap Synthesis Order
 
+This subsection applies only to `wiki-full`. In `wiki-topic`, skip candidate
+clustering and gap prose entirely.
+
 Research gaps are synthesized at batch level, never copied from a single-paper
 proposal. Use only these four inputs: author-stated `limitations`, Agent
 `critical_observations`, `unexplained_results`, and Topic seeds that support a
@@ -176,7 +191,8 @@ Follow [link-plan-schema.md](link-plan-schema.md).
 - Include every finalized current batch source page, copying `source_ref` and
   `work_dir` exactly from the manifest and adding a short display name (`short`)
   used for wikilinks.
-- Use `schema_version: "3.0"` and `purpose: "ingest"` for new plans.
+- Use `schema_version: "3.0"`, `purpose: "ingest"`, and the supplied
+  `workflow_mode` for new plans.
 - For an update, compute `base_topic_sha256` from the exact Topic-page bytes read before planning. Include every existing source referenced by the complete narrative in the action's `papers`, while `batch.source_pages` still contains only the current batch.
 - For every existing schema 3.0 Topic, read its matching `wiki/meta/topic-state/<topic-relative-path>.json` before editing open items. Give every new open question and research gap a stable ID and `origin`; preserve the sidecar values when updating, annotating, removing, or answering an existing item. Do not infer identity from visible wording.
 - Keep evidence, definitions, and `index_summary` compact.

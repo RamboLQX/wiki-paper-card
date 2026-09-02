@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,31 @@ class WorkflowStatusTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("INCOMPLETE", result.stdout)
             self.assertIn("paper-digest.json", result.stdout)
+
+    def test_card_only_does_not_require_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            batch = Path(directory) / "work" / "batch"
+            report_path = Path(directory) / "status.json"
+            make_paper(batch, "a", digest=False)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "--work-dir",
+                    str(batch),
+                    "--mode",
+                    "card-only",
+                    "--report",
+                    str(report_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["workflow_mode"], "card-only")
+            self.assertEqual(report["summary"]["complete"], 1)
 
     def test_empty_card_counts_as_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -5,6 +5,14 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
 （prepare、finalize、audit、publish、workflow_status）仍然通过 bash 工具调用
 `python3 <REPO_ROOT>/scripts/...`，不变。
 
+## 处理范围
+
+主会话在 Phase 0 前按 router 固定一次 `card-only`、`wiki-topic` 或
+`wiki-full`。用户已经明确时直接执行；只有“处理/分析论文”而未说明是否需要
+Topic 与研究空白时，询问一次，不逐篇询问。所有 processor prompt 都携带该
+模式。`card-only` 不创建 manifest、digest 或 linker，Paper Card 审计通过后
+结束且不写 `wiki/`；另外两种模式才进入 link/publish。
+
 ## 环境确认
 
 - DSH 自动发现 `<VAULT_ROOT>/.dsh/skills/` 与 `<VAULT_ROOT>/.agents/skills/` 下的
@@ -31,12 +39,12 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
 
 | 契约阶段 | DSH 执行方式 |
 |---|---|
-| Phase 0 确定性准备 | bash 工具直接运行 prepare_paper.py、batch_manifest.py、build_processor_pack.py、build_kb_context.py |
+| Phase 0 确定性准备 | bash 运行 prepare_paper.py、build_processor_pack.py、build_kb_context.py；仅 Wiki 模式运行 batch_manifest.py |
 | Phase 1 Paper Cards | `subagent` 工具：每篇论文一个后台子代理，prompt 携带 processor-brief、输入路径与输出约束 |
-| Phase 1 完成检查 | bash 运行 `workflow_status.py`；子代理返回/唤醒后只看文件系统状态与退出码，通知信息不是完成证明 |
+| Phase 1 完成检查 | bash 以所选 `--mode` 运行 `workflow_status.py`；子代理返回/唤醒后只看文件系统状态与退出码，通知信息不是完成证明 |
 | Phase 1 修正循环 | `send_message` 向同一子代理发送精确错误项（最多 3 次尝试，之后该篇转串行） |
-| Phase 2 确定性 finalize | bash 工具运行 finalize_paper_card.py、finalize_paper_digest.py 与 manifest-aware audit_paper_digest.py |
-| Phase 3 批量 link | `subagent` 工具：每批一个 linker 子代理 |
+| Phase 2 确定性 finalize | 所有模式运行 finalize_paper_card.py；仅 Wiki 模式运行 finalize_paper_digest.py 与 manifest-aware audit_paper_digest.py |
+| Phase 3 批量 link | 仅 Wiki 模式使用 `subagent`：每批一个 linker，并传入 `workflow_mode` |
 | Phase 4 链接计划审计 | bash 工具使用同一 batch manifest 运行 audit_link_plan.py |
 | Phase 5 发布 | bash 工具使用同一 batch manifest 运行 publish_wiki.py；禁止用子代理执行 wiki 写入 |
 
@@ -94,5 +102,5 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
 
 1. skill 目录里出现 `wiki-paper-card`、`wiki-shared` 与 `wiki-gap-mining`；
 2. `python3 <REPO_ROOT>/scripts/smoke_test.py` 通过；
-3. 调用 `Use wiki-paper-card to process raw/papers/example.pdf.` 能进入 Phase 0
+3. 调用 `Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf.` 能进入 Phase 0
    并生成 source bundle 与 kb-context。

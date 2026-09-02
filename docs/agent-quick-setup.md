@@ -226,7 +226,7 @@ smoke test 结果
 示例调用：
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf.
 ```
 
 ## 设计与来源

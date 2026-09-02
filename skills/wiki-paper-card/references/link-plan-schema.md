@@ -4,7 +4,7 @@
 
 ## Schema 3.0
 
-Schema 3.0 separates the reader-facing narrative from its structured evidence ledger and makes `purpose` an enforced write boundary.
+Schema 3.0 separates the reader-facing narrative from its structured evidence ledger and makes `purpose` and the user-selected `workflow_mode` enforced write boundaries.
 
 ### Ingest Example
 
@@ -12,6 +12,7 @@ Schema 3.0 separates the reader-facing narrative from its structured evidence le
 {
   "schema_version": "3.0",
   "purpose": "ingest",
+  "workflow_mode": "wiki-full",
   "batch": {"source_pages": []},
   "topic_actions": [
     {
@@ -93,6 +94,24 @@ Schema 3.0 separates the reader-facing narrative from its structured evidence le
 
 For `update_topic`, `base_topic_sha256` is the SHA-256 of the exact UTF-8 Topic-page bytes read by the plan writer. The publisher rejects the complete plan with `stale_topic_plan` when the target changed. An exact replay of the last applied action is accepted as an idempotent no-op. `create_topic` omits the base hash and fails when a different page with the same target already exists.
 
+### Ingest Workflow Mode
+
+Every schema 3.0 ingest plan must define one of these values:
+
+- `workflow_mode: "wiki-topic"`: publish source pages and maintain Topic
+  synthesis without changing research gaps. Every Topic action must contain
+  `research_gaps: []` and must omit `remove_research_gap_ids`, legacy
+  `remove_research_gaps`, and `annotate_research_gaps`. Existing gaps remain in
+  the Topic sidecar and rendered page. A would-be gap must not be moved into
+  `open_questions` merely to bypass this boundary.
+- `workflow_mode: "wiki-full"`: use the complete ingest behavior, including
+  evidence-grounded research-gap synthesis, progress, answers, annotations,
+  and removals.
+
+`card-only` has no link plan and is therefore not a valid `workflow_mode`
+value. Mining and refresh plans must omit `workflow_mode`; their permissions
+continue to be controlled by `purpose`.
+
 ### Narrative And Evidence Rules
 
 - `index_summary` is the one-sentence index/tree signpost. It is not rendered as the visible overview.
@@ -167,7 +186,7 @@ source pages or invokes paper processors.
 }
 ```
 
-`purpose` is optional and defaults to `ingest`. The three modes are:
+`purpose` is optional and defaults to `ingest`. The three purposes are:
 
 - `ingest` (paper-processing batches): `source_pages` contains the current
   batch (at least one), and topic actions may only reference batch pages.

@@ -2,7 +2,15 @@
 
 ## Objective
 
-Process one paper or one batch into:
+Process one paper or one batch under the scope selected once at the router:
+
+| Mode | Required outputs | Terminal phase |
+|---|---|---|
+| `card-only` | finalized and audited `paper-card.md` plus its card audit reports | Phase 2; keep the card in `work/` and perform no `wiki/` writes |
+| `wiki-topic` | Paper Cards, digests, source pages, Topic synthesis, index/log/tree/dashboard | Phase 5; preserve existing research gaps and forbid all gap mutations |
+| `wiki-full` | the complete current output set, including research-gap synthesis and maintenance | Phase 5 |
+
+The superset of possible outputs is:
 
 ```text
 source_bundle.json
@@ -28,7 +36,7 @@ wiki/meta/research.md (research dashboard: currently open questions and gaps, qu
 updated index and log
 ```
 
-Paper cards are generated independently and concurrently. Cross-paper knowledge actions and topic pages are decided only after every card and digest in the batch passes its audits.
+Paper cards are generated independently and concurrently. Cross-paper knowledge actions and topic pages are decided only in `wiki-topic` and `wiki-full`, after every card and digest in the batch passes its audits. The selected mode is immutable for the batch.
 
 ## Phase 0: Deterministic Preparation
 
@@ -43,10 +51,13 @@ rediscover the pinned `vendor/` location.
 
 1. Identify every PDF or supported paper input.
 2. Compute each source SHA-256 in `source_bundle.json`.
-3. Resolve each target path by mirroring the raw relative path under `wiki/sources/`.
-4. Skip papers whose target report has the same SHA-256 unless the user asks to reprocess.
+3. Resolve one work directory per paper. In the two Wiki modes, also resolve
+   the target path by mirroring the raw relative path under `wiki/sources/`.
+4. Skip unchanged work only when the mode's final target already carries the
+   same SHA-256, unless the user asks to reprocess: the audited work card in
+   `card-only`, or the published source page in either Wiki mode.
 5. Run the pinned `prepare_paper.py` for every paper.
-6. After all source bundles exist, build the batch identity manifest once:
+6. In `wiki-topic` and `wiki-full`, after all source bundles exist, build the batch identity manifest once. Skip this step in `card-only`:
 
 ```bash
 python "<REPO_ROOT>/scripts/batch_manifest.py" \
@@ -91,11 +102,13 @@ source SHA-256
 page count
 recommended locator mode
 extraction confidence
-target report path
+mode-required output path
 ```
 
-Read these values from `batch-manifest.json` and `source_bundle.json`; do not
-retype or shorten paths in a subagent prompt.
+In the two Wiki modes, read these values from `batch-manifest.json` and
+`source_bundle.json`; do not retype or shorten paths in a subagent prompt. In
+`card-only`, use `source_bundle.json` for source metadata and do not invent a
+future Wiki target.
 
 Full paper text must not enter the main conversation.
 
@@ -112,12 +125,14 @@ One processor per paper:
 
 1. Reads the processor pack once. If no pack was built, it reads the processor
    brief, upstream router and manifest dependencies, shared knowledge model,
-   shared writing guide, paper digest schema, and applicable paper-type lens
-   individually.
+   shared writing guide, and applicable paper-type lens individually. It also
+   reads the paper digest schema in either Wiki mode.
 2. Reads the source bundle once.
 3. Reads `kb-context.md`.
 4. Writes the complete Sections 01-16 `paper-card.md`.
-5. Writes the paper-local `paper-digest.json` (see the digest schema).
+5. In `wiki-topic` and `wiki-full`, writes the paper-local
+   `paper-digest.json` (see the digest schema). In `card-only`, it must not
+   spend time generating a digest.
 
 The processor does not run audit scripts, read `raw/`, write `wiki/`, or return full paper text.
 
@@ -132,19 +147,21 @@ The processor does not run audit scripts, read `raw/`, write `wiki/`, or return 
 
 ### Completion And Recovery
 
-- A processor is complete only when `paper-card.md` and `paper-digest.json` both exist and are non-empty.
+- A `card-only` processor is complete when `paper-card.md` exists and is non-empty. A processor in either Wiki mode is complete only when both `paper-card.md` and `paper-digest.json` exist and are non-empty.
 - A subagent status message is not completion proof.
 - Checks are event-driven, not timer-driven. Run the deterministic status check only when a new completion signal arrives: a processor subagent settles, the host reports a finished background job, or a continuation instruction was just answered:
 
 ```bash
-python "<REPO_ROOT>/scripts/workflow_status.py" --work-dir "<BATCH_WORKDIR>"
+python "<REPO_ROOT>/scripts/workflow_status.py" \
+  --work-dir "<BATCH_WORKDIR>" \
+  --mode "<card-only|wiki-topic|wiki-full>"
 ```
 
 Treat its exit status and `INCOMPLETE` lines as the only completion fact.
 
 - After spawning processors, do not poll. Do not re-run the status check on a timer, do not create a round-based re-check loop (for example a goal round that reconciles every few minutes), and do not compute or print elapsed-time or rounds-based estimates. A processor takes minutes to tens of minutes; intermediate checks add nothing. When all spawned processors are still running, end the turn and wait for their completion notices.
 - If a completion signal leaves a free processor slot, emit the next action in the same turn (spawn the next processor or start finalize). Do not end the turn after only writing a sentence that describes the next step.
-- If either output is missing, send a continuation instruction to the same subagent: `Continue until both output files exist. Do not return a summary before they are written.`
+- If a required output is missing, send a continuation instruction to the same subagent naming only the mode-required files. Never request a digest in `card-only`.
 - Check files after each continuation. Allow at most three attempts before running that paper serially.
 - A processor may continue only on the same paper. After that paper passes its audits, close or release the processor before creating one for another paper.
 - Never describe a paper with missing outputs as complete.
@@ -170,9 +187,14 @@ The finalizer:
 5. Runs the upstream paper audit and wiki audit.
 6. Writes `formula-report.json`, `html-lint-report.json`, `audit-report.json`, and `wiki-audit-report.json`.
 
-Then inject the digest fields that are mechanically determined by the batch
-manifest. This command changes only `paper.source_sha256`, `paper.source_ref`,
-and each Topic seed's single-paper `papers` list, and records every change:
+In `card-only`, the successful Paper Card finalizer and its audits end the
+workflow. Return the finalized `work/<paper>/paper-card.md` path; do not run a
+digest command, linker, publisher, or any command that writes `wiki/`.
+
+In `wiki-topic` and `wiki-full`, inject the digest fields that are mechanically
+determined by the batch manifest. This command changes only
+`paper.source_sha256`, `paper.source_ref`, and each Topic seed's single-paper
+`papers` list, and records every change:
 
 ```bash
 python "<REPO_ROOT>/scripts/finalize_paper_digest.py" \
@@ -196,7 +218,7 @@ Audit errors block the link phase. If correction is needed, send only the exact 
 
 ## Phase 3: Batch Link
 
-After every paper card and digest passes:
+Only in `wiki-topic` and `wiki-full`, after every Paper Card and digest passes:
 
 1. Build one compact existing-wiki context for the batch with the combined paper titles:
 
@@ -209,7 +231,7 @@ python "<REPO_ROOT>/scripts/build_kb_context.py" \
 
 2. Run one `wiki-linker` agent. Under Codex, create one fresh linker subagent using the shared linker brief; do not start it before the all-pass gate.
 
-The linker:
+The linker receives the frozen `workflow_mode` and:
 
 1. Reads [linker-brief.md](linker-brief.md) and [link-plan-schema.md](link-plan-schema.md).
 2. Reads `batch-manifest.json` once and copies `batch.source_pages[].source_ref`
@@ -218,7 +240,14 @@ The linker:
 4. Reads the batch existing-wiki context.
 5. Reads the exact current bytes of every Topic it plans to update and records
    `base_topic_sha256` before composing the complete schema 3.0 narrative.
-6. Writes one `link-plan.json` in the batch work directory.
+6. Writes one `link-plan.json` in the batch work directory with the same
+   top-level `workflow_mode`.
+
+In `wiki-topic`, every action must use `research_gaps: []` and must omit
+`remove_research_gap_ids`, legacy `remove_research_gaps`, and
+`annotate_research_gaps`. It must not convert a rejected gap candidate into an
+open question. Existing Topic research gaps are preserved by the publisher.
+In `wiki-full`, the existing research-gap synthesis and lifecycle rules apply.
 
 For a single paper, the linker may only update an existing topic page that the paper directly connects to or answers. It cannot create a topic from one paper alone.
 
@@ -233,9 +262,11 @@ python "<REPO_ROOT>/scripts/audit_link_plan.py" \
 
 Audit errors block wiki writes.
 
-New ingest plans use schema 3.0. The audit verifies that paper-card actions own
+New ingest plans use schema 3.0 and must define `workflow_mode` as
+`wiki-topic` or `wiki-full`. The audit verifies that paper-card actions own
 the complete narrative and evidence ledger, while mining actions cannot write
-those fields. Both entrances use stable open-item IDs and the Topic hash;
+those fields. In `wiki-topic`, it additionally rejects any research-gap
+content or mutation field. Both entrances use stable open-item IDs and the Topic hash;
 answered questions and gaps additionally require source-bound `answered_by`
 and `answered_pointer` evidence. Schema 2.0 remains available for historical
 plans only.
@@ -264,7 +295,9 @@ The publisher:
 8. Rebuilds `wiki/meta/knowledge-tree.md` (shared human/Agent tree: per domain, topics as signpost nodes with nested papers and open items, plus unassigned papers, then the category-first topic view) and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. Both aggregate only open items; answered items are archived on the topic pages and excluded. Legacy `wiki/meta/agent-tree.md` files are left untouched and may be deleted after upgrading.
 
 For schema 3.0, ingest replaces the publisher-owned narrative sections as
-complete units and merges comparison/open-item state deterministically. Stable
+complete units and merges comparison/open-item state deterministically.
+`wiki-topic` supplies no gap changes, so prior research gaps remain unchanged;
+`wiki-full` may apply the normal gap lifecycle. Stable
 IDs, origins, research-gap progress/resolution records, annotations, narrative-refresh state, and the replay fingerprint live in
 `wiki/meta/topic-state/*.json`; no publisher protocol appears in Topic
 Markdown. Mining preserves narrative and comparison content byte-for-byte,

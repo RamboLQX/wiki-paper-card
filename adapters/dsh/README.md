@@ -27,7 +27,7 @@ export WIKI_PAPER_CARD_ROOT=/path/to/wiki-paper-card
 ## Invoke
 
 ```text
-Use wiki-paper-card to process raw/papers/example.pdf.
+Use wiki-paper-card in wiki-full mode to process raw/papers/example.pdf.
 ```
 
 DSH 会话会从 `.dsh/skills/` 发现 `wiki-paper-card` skill 并按其工作流契约执行。
