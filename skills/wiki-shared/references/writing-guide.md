@@ -69,8 +69,10 @@ Markdown. Store them in structured plans or sidecar state.
 A Paper Card explains one paper as an evidence-grounded argument. It keeps the
 fixed Sections 01-16, but each section uses the form suited to its job.
 
-- Sections 01-02 stay compact: metadata belongs in a table and the one-sentence
-  summary remains one bounded sentence.
+- Sections 01-02 stay compact: metadata belongs in a table. The one-sentence
+  summary first states the concrete problem or motivation, then the core
+  approach, and finally the main result or contribution in evidence-bounded
+  language. It must not merely list what the paper did.
 - Section 03 uses two prose units: 问题情境 explains the concrete problem, why
   it matters, and why existing approaches are insufficient; 核心研究问句
   states the precise, testable question. Do not create a second overlapping
@@ -91,11 +93,16 @@ fixed Sections 01-16, but each section uses the form suited to its job.
   paragraphs: the source observation and 核心假设; the relative difference,
   method, and 验证方式; then 可能失败 and 创新状态. Preserve these field labels
   in natural prose so deterministic audits can still find them.
+- Do not expose `[Paper-framed; external verification not performed]` or an
+  equivalent internal protocol label in reader-facing Markdown. Preserve the
+  evidence boundary through appropriately qualified claims, not a visible
+  replacement disclaimer.
 
 ## Topic Page Contract
 
-A Topic page synthesizes multiple papers by research question, not by paper
-order. It is a long-lived judgment surface rather than a batch report.
+A Topic page synthesizes multiple papers around one coherent comparison view,
+not by paper order. It is a long-lived judgment surface rather than a batch
+report.
 
 - 概述 uses two or three complete paragraphs. Define the problem and value,
   state what the field can currently support, then name the central evidence
@@ -109,10 +116,19 @@ order. It is a long-lived judgment surface rather than a batch report.
   distinguish them. Do not render an empty section.
 - 论文与方法对照 remains a table because comparison is its primary purpose.
 - 开放问题 remains a short list of self-contained questions.
-- Each 研究空白 uses a heading and prose rather than a main bullet with many
-  nested fields. Explain why the gap matters and where current evidence stops,
-  then describe a test, success condition, and meaningful failure risk. The
-  structured link plan retains the individual fields for agents and dashboards.
+- Each 研究空白 uses a heading followed by one or two natural prose
+  paragraphs. The heading names an explicit research object as its grammatical
+  subject and states one blocked judgment. It does not compress variables,
+  controls, metrics, budgets, and study-design steps into one title. New Chinese
+  headings do not begin with 缺少, 需要, 尚缺, or 亟需. The first paragraph
+  should connect the observed evidence tension to the concrete judgment that
+  cannot yet be made. Split independent conditions or explanations into short
+  sentences instead of chaining a long enumeration. The optional second should
+  explain the smallest discriminating study, what contribution a positive
+  result would make, and what negative or null result would rule out. Do not
+  expose a fixed sequence of labels such as 为什么值得做, 现有证据边界,
+  验证方式, or 优先级 in new reader prose. The structured link plan and
+  sidecar retain those fields for lifecycle, audit, and retrieval.
 
 ## What Never Counts As Content
 

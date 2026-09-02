@@ -32,6 +32,16 @@ NO_OPEN_QUESTIONS_TEXT = (
     "当前没有独立的开放问题。具有明确研究方向的未解决项统一记录在"
     "“研究空白与候选方向”，不在两处重复。"
 )
+NO_RESEARCH_GAPS_TEXT = (
+    "当前已纳入的文献没有形成可独立成立的研究空白候选。"
+    "已有局限和批判观察仍保留在论文证据中，不为填满栏目重复生成。"
+)
+NARRATIVE_REFRESH_SECTION = "内容更新状态"
+NARRATIVE_REFRESH_NOTICE = [
+    "> [!note] 综合叙述待更新",
+    "> 已有问题或研究空白转为已解决；框架正在等待本轮综合叙述刷新，成功后本提示会自动移除。",
+]
+RESEARCHER_NOTES_PLACEHOLDER = "本节由研究者维护，自动流程不会修改。"
 TOPIC_STATE_SCHEMA_VERSION = "1.0"
 
 
@@ -319,10 +329,20 @@ def comparison_paper_name(item: dict[str, Any], titles: dict[str, str]) -> str:
     return (item.get("paper") or source_label(item.get("source_ref", ""), titles)).strip()
 
 
+def comparison_wiki_link(source_ref: str, label: str) -> str:
+    """Render a comparison link with its stable Vault-relative source path."""
+    target = Path(source_ref).with_suffix("").as_posix()
+    return f"[[{target}|{label}]]"
+
+
 def comparison_row(row: dict[str, Any], titles: dict[str, str]) -> str:
     source_ref = row.get("source_ref", "")
     paper = row.get("paper") or source_label(source_ref, titles)
-    paper_cell = escape_table(wiki_link(source_ref, paper)) if source_ref else escape_table(paper)
+    paper_cell = (
+        escape_table(comparison_wiki_link(source_ref, paper))
+        if source_ref
+        else escape_table(paper)
+    )
     return (
         "| "
         + " | ".join(
@@ -522,9 +542,8 @@ def normalize_progress_updates(items: Any) -> list[dict[str, Any]]:
 def normalize_gaps(items: Any) -> list[dict[str, Any]]:
     """Normalize research_gaps entries; strings become open items.
 
-    The optional v2 detail fields (significance, evidence_boundary,
-    experiment, success_criterion, risk, priority) are carried through when
-    present; entries without them render exactly as before.
+    Structured detail fields and optional reader_narrative are carried through.
+    Entries without reader_narrative keep the legacy labelled rendering.
     """
     normalized: list[dict[str, Any]] = []
     if not isinstance(items, list):
@@ -553,6 +572,7 @@ def normalize_gaps(items: Any) -> list[dict[str, Any]]:
             "success_criterion": str(item.get("success_criterion", "")).strip(),
             "risk": str(item.get("risk", "")).strip(),
             "priority": str(item.get("priority", "")).strip(),
+            "reader_narrative": string_list(item.get("reader_narrative")),
             "progress_updates": normalize_progress_updates(
                 item.get("progress_updates", [])
             ),
@@ -811,39 +831,64 @@ def render_v3_research_gaps(
         heading = entry["gap"] + (" [待验证]" if tentative else "")
         lines.extend([f"### {heading}", ""])
 
-        first: list[str] = []
+        narrative = entry.get("reader_narrative", [])
+        if narrative:
+            paragraphs = list(narrative)
+            refs = "、".join(
+                source_wikilink(ref, short, titles)
+                for ref in entry.get("source_refs", [])
+            )
+            if refs:
+                paragraphs[0] = f"{paragraphs[0]} 这一判断基于 {refs}。"
+            for index, paragraph in enumerate(paragraphs):
+                if index:
+                    lines.append("")
+                lines.append(paragraph)
+            note = notes.get(str(entry.get("id", "")), "")
+            if note:
+                lines.extend(["", f"关联说明：{note}"])
+            progress_lines = render_gap_progress_updates(entry, titles, short_names)
+            if progress_lines:
+                lines.extend(["", *progress_lines])
+            continue
+
+        paragraphs: list[str] = []
         if entry.get("significance"):
-            first.append(f"**为什么值得做。** {entry['significance']}")
+            paragraphs.append(f"**为什么值得做。** {entry['significance']}")
+        boundary: list[str] = []
         if entry.get("evidence_boundary"):
-            first.append(f"**现有证据边界。** {entry['evidence_boundary']}")
+            boundary.append(f"**现有证据边界。** {entry['evidence_boundary']}")
         refs = "、".join(
             source_wikilink(ref, short, titles)
             for ref in entry.get("source_refs", [])
         )
         if refs:
-            first.append(f"这一判断来自 {refs}。")
-        if not first:
-            first.append("当前记录明确了待解决的问题，但现有证据还不足以界定其边界。")
-        lines.append(" ".join(first))
+            boundary.append(f"这一判断来自 {refs}。")
+        if boundary:
+            paragraphs.append(" ".join(boundary))
+        if not paragraphs:
+            paragraphs.append(
+                "当前记录明确了待解决的问题，但现有证据还不足以界定其边界。"
+            )
 
-        second: list[str] = []
-        if entry.get("direction"):
-            second.append(f"**推进方向。** {entry['direction']}")
-        if entry.get("experiment"):
-            second.append(f"**验证方式。** {entry['experiment']}")
-        if entry.get("success_criterion"):
-            second.append(f"**成功条件。** {entry['success_criterion']}")
-        if entry.get("risk"):
-            second.append(f"**可能失败。** {entry['risk']}")
-        if entry.get("continuity"):
-            second.append(f"**后续承接。** {entry['continuity']}")
+        for field, label in (
+            ("direction", "推进方向"),
+            ("experiment", "验证方式"),
+            ("success_criterion", "成功条件"),
+            ("risk", "可能失败"),
+            ("continuity", "后续承接"),
+        ):
+            if entry.get(field):
+                paragraphs.append(f"**{label}。** {entry[field]}")
         if entry.get("priority"):
-            second.append(f"**优先级。** {entry['priority']}。")
+            paragraphs.append(f"**优先级。** {entry['priority']}。")
         note = notes.get(str(entry.get("id", "")), "")
         if note:
-            second.append(f"**关联说明。** {note}")
-        if second:
-            lines.extend(["", " ".join(second)])
+            paragraphs.append(f"**关联说明。** {note}")
+        for index, paragraph in enumerate(paragraphs):
+            if index:
+                lines.append("")
+            lines.append(paragraph)
         progress_lines = render_gap_progress_updates(entry, titles, short_names)
         if progress_lines:
             lines.extend(["", *progress_lines])
@@ -1009,6 +1054,40 @@ def render_v3_narrative(
     return rendered
 
 
+def narrative_refresh_item_ids(action: dict[str, Any]) -> list[str]:
+    """Return stable IDs of items archived by this action."""
+    item_ids: list[str] = []
+    for field in ("open_questions", "research_gaps"):
+        items = action.get(field, [])
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict) or item.get("status") != "answered":
+                continue
+            item_id = str(item.get("id", "")).strip()
+            if item_id and item_id not in item_ids:
+                item_ids.append(item_id)
+    return item_ids
+
+
+def newly_answered_item_ids(
+    state: dict[str, Any], action: dict[str, Any]
+) -> list[str]:
+    previous_status: dict[str, str] = {}
+    for field in ("open_questions", "research_gaps"):
+        items = state.get(field, [])
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict) and item.get("id"):
+                previous_status[str(item["id"])] = str(item.get("status", "open"))
+    return [
+        item_id
+        for item_id in narrative_refresh_item_ids(action)
+        if previous_status.get(item_id) != "answered"
+    ]
+
+
 def topic_page_text_v3(
     action: dict[str, Any],
     titles: dict[str, str],
@@ -1063,7 +1142,10 @@ def topic_page_text_v3(
     )
     lines.extend(q_open or [NO_OPEN_QUESTIONS_TEXT])
     lines.extend(["", "## 研究空白与候选方向", ""])
-    lines.extend(render_v3_research_gaps(action.get("research_gaps", []), titles, short_names))
+    rendered_gaps = render_v3_research_gaps(
+        action.get("research_gaps", []), titles, short_names
+    )
+    lines.extend(rendered_gaps or [NO_RESEARCH_GAPS_TEXT])
     if q_resolved:
         lines.extend(["", "## 已解决的问题", ""])
         lines.extend(q_resolved)
@@ -1075,6 +1157,9 @@ def topic_page_text_v3(
     if resolved_gaps:
         lines.extend(["", "## 已解决的研究空白", ""])
         lines.extend(resolved_gaps)
+    if purpose == "mining" and narrative_refresh_item_ids(action):
+        lines.extend(["", f"## {NARRATIVE_REFRESH_SECTION}", "", *NARRATIVE_REFRESH_NOTICE])
+    lines.extend(["", "## 研究者备注", "", RESEARCHER_NOTES_PLACEHOLDER])
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -1266,6 +1351,79 @@ def merge_table_rows(body: str, section_name: str, new_rows: list[str]) -> str:
         + "\n"
         + rest
     )
+
+
+def normalize_source_target(value: str) -> str:
+    value = value.strip().replace("\\", "/")
+    return value[:-3] if value.endswith(".md") else value
+
+
+def comparison_row_target(line: str) -> str:
+    if not line.lstrip().startswith("|"):
+        return ""
+    match = re.search(r"\[\[([^\]|]+?)(?:\\?\|[^\]]*)?\]\]", line)
+    return normalize_source_target(match.group(1)) if match else ""
+
+
+def upsert_flat_comparisons(
+    body: str,
+    section_name: str,
+    comparisons: list[dict[str, Any]],
+    titles: dict[str, str],
+) -> str:
+    """Update flat comparison rows by source_ref while preserving row order."""
+    by_target: dict[str, dict[str, Any]] = {}
+    for item in comparisons:
+        if not isinstance(item, dict) or not str(item.get("source_ref", "")).strip():
+            continue
+        by_target[normalize_source_target(str(item["source_ref"]))] = item
+    if not by_target:
+        return body
+    incoming = list(by_target.values())
+    pending = dict(by_target)
+    current = section_body(body, section_name)
+    if not current:
+        return replace_section_body(
+            body,
+            section_name,
+            FLAT_COMPARISON_HEADER + [comparison_row(item, titles) for item in incoming],
+        )
+
+    lines = current.rstrip("\n").splitlines()
+    legacy_target_counts: dict[str, int] = {}
+    for line in lines:
+        target = comparison_row_target(line)
+        if target and "/" not in target:
+            legacy_target_counts[target] = legacy_target_counts.get(target, 0) + 1
+    for index, line in enumerate(lines):
+        target = comparison_row_target(line)
+        if not target:
+            continue
+        matched = target if target in pending else ""
+        if (
+            not matched
+            and "/" not in target
+            and legacy_target_counts.get(target) == 1
+        ):
+            legacy_matches = [
+                candidate
+                for candidate in pending
+                if Path(candidate).name == target
+            ]
+            if len(legacy_matches) == 1:
+                matched = legacy_matches[0]
+        if matched:
+            lines[index] = comparison_row(pending.pop(matched), titles)
+
+    if pending:
+        if not any(line.startswith("|---") for line in lines):
+            lines.extend(FLAT_COMPARISON_HEADER)
+        lines.extend(
+            comparison_row(item, titles)
+            for item in incoming
+            if normalize_source_target(str(item["source_ref"])) in pending
+        )
+    return replace_section_body(body, section_name, lines)
 
 
 def merge_frontmatter_sets(
@@ -1473,6 +1631,10 @@ def merge_gap_state_entries(
     for item in incoming:
         copied = dict(item)
         previous = existing_by_id.get(str(copied.get("id", "")), {})
+        if not copied.get("reader_narrative") and previous.get("reader_narrative"):
+            copied["reader_narrative"] = string_list(
+                previous.get("reader_narrative")
+            )
         copied["progress_updates"] = merge_progress_updates(
             previous.get("progress_updates", []),
             copied.get("progress_updates", []),
@@ -1486,6 +1648,7 @@ def build_topic_state(
     legacy_body: str,
     action: dict[str, Any],
     topic_path_value: str,
+    purpose: str,
 ) -> dict[str, Any]:
     state = dict(previous) if previous is not None else legacy_topic_state(legacy_body, topic_path_value)
     questions = merge_state_entries(
@@ -1514,6 +1677,15 @@ def build_topic_state(
         for item_id, note in annotations.items()
         if item_id in live_gap_ids
     }
+    if purpose in {"ingest", "refresh"}:
+        refresh_ids: list[str] = []
+    else:
+        refresh_ids = list(
+            dict.fromkeys(
+                string_list(state.get("narrative_refresh_item_ids"))
+                + newly_answered_item_ids(state, action)
+            )
+        )
     return {
         "schema_version": TOPIC_STATE_SCHEMA_VERSION,
         "topic_path": topic_path_value,
@@ -1521,6 +1693,8 @@ def build_topic_state(
         "open_questions": questions,
         "research_gaps": gaps,
         "research_gap_annotations": annotations,
+        "narrative_refresh_required": bool(refresh_ids),
+        "narrative_refresh_item_ids": refresh_ids,
     }
 
 
@@ -1614,7 +1788,7 @@ def merge_topic_page_v3(
     fields, lists, body = parse_frontmatter(existing_text)
     body = clean_legacy_topic_protocol(body)
 
-    if purpose == "ingest":
+    if purpose in {"ingest", "refresh"}:
         rendered = render_v3_narrative(action, titles, short_names)
         body = replace_section_body(body, "概述", rendered["overview"])
         body = replace_optional_section(
@@ -1647,16 +1821,12 @@ def merge_topic_page_v3(
                     render_grouped_comparisons(comparisons, titles),
                 )
             else:
-                existing_section = section_body(body, "论文与方法对照")
-                new_rows: list[str] = []
-                for item in comparisons:
-                    if not isinstance(item, dict):
-                        continue
-                    name = comparison_paper_name(item, titles)
-                    if name and name in existing_section:
-                        continue
-                    new_rows.append(comparison_row(item, titles))
-                body = merge_table_rows(body, "论文与方法对照", new_rows)
+                body = upsert_flat_comparisons(
+                    body,
+                    "论文与方法对照",
+                    comparisons,
+                    titles,
+                )
 
     state_questions = (
         topic_state.get("open_questions", [])
@@ -1674,7 +1844,12 @@ def merge_topic_page_v3(
         "开放问题",
         q_open or [NO_OPEN_QUESTIONS_TEXT],
     )
-    body = replace_optional_section(body, "已解决的问题", q_archive)
+    body = replace_optional_section(
+        body,
+        "已解决的问题",
+        q_archive,
+        before_section="研究者备注",
+    )
 
     state_gaps = (
         topic_state.get("research_gaps", [])
@@ -1690,7 +1865,8 @@ def merge_topic_page_v3(
     body = replace_section_body(
         body,
         "研究空白与候选方向",
-        render_v3_research_gaps(state_gaps, titles, short_names, annotations),
+        render_v3_research_gaps(state_gaps, titles, short_names, annotations)
+        or [NO_RESEARCH_GAPS_TEXT],
     )
     body = replace_optional_section(
         body,
@@ -1700,6 +1876,18 @@ def merge_topic_page_v3(
             titles,
             short_names,
         ),
+        before_section="研究者备注",
+    )
+    refresh_required = bool(
+        topic_state.get("narrative_refresh_required", False)
+        if topic_state is not None
+        else purpose == "mining" and narrative_refresh_item_ids(action)
+    )
+    body = replace_optional_section(
+        body,
+        NARRATIVE_REFRESH_SECTION,
+        NARRATIVE_REFRESH_NOTICE if refresh_required else [],
+        before_section="研究者备注",
     )
     fields, lists = merge_frontmatter_sets(
         fields,
@@ -2126,6 +2314,14 @@ def preflight_errors(plan: dict[str, Any], wiki_root: Path) -> list[str]:
             replay = bool(
                 state and state.get("last_topic_action_sha256") == fingerprint
             )
+            if (
+                purpose == "refresh"
+                and not replay
+                and not (state and state.get("narrative_refresh_required"))
+            ):
+                errors.append(
+                    f"narrative_refresh_not_required: {label} has no pending narrative refresh"
+                )
             if action.get("action") == "create_topic":
                 if existing_text is not None and not replay:
                     errors.append(
@@ -2791,6 +2987,7 @@ def main() -> int:
     errors: list[str] = []
     source_log_entries: list[dict[str, Any]] = []
     synthesis_log_entries: list[dict[str, Any]] = []
+    narrative_refresh_topics: list[dict[str, Any]] = []
     index_entries: list[tuple[str, str, str]] = []
     replace_index_descriptions: set[str] = set()
     backlinks: dict[str, list[tuple[str, str]]] = {}
@@ -2891,6 +3088,7 @@ def main() -> int:
                         legacy_body,
                         action,
                         topic_path_value,
+                        purpose,
                     )
                     if existing_text is None:
                         content = topic_page_text(
@@ -2967,6 +3165,17 @@ def main() -> int:
                         "action": "create" if previous_state_text is None else "update",
                     }
                 )
+            if purpose == "mining" and next_state.get("narrative_refresh_required"):
+                narrative_refresh_topics.append(
+                    {
+                        "name": str(action.get("name", "")),
+                        "topic_path": str(existing_path.relative_to(wiki_root)),
+                        "state_path": str(state_path.relative_to(wiki_root)),
+                        "item_ids": string_list(
+                            next_state.get("narrative_refresh_item_ids")
+                        ),
+                    }
+                )
         topic_path = str(existing_path.relative_to(wiki_root))
         description = (
             str(action.get("index_summary", ""))
@@ -2986,6 +3195,8 @@ def main() -> int:
     }
     for action in plan.get("topic_actions", []):
         if not isinstance(action, dict):
+            continue
+        if purpose == "refresh":
             continue
         name = action.get("name", "")
         for source_ref in string_list(action.get("papers")):
@@ -3090,17 +3301,10 @@ def main() -> int:
         print(f"ERROR: {error}", file=sys.stderr)
 
     warnings: list[str] = []
-    if purpose == "mining" and any(
-        isinstance(item, dict) and item.get("status") == "answered"
-        for action in plan.get("topic_actions", [])
-        if isinstance(action, dict)
-        for field in ("open_questions", "research_gaps")
-        for item in action.get(field, [])
-        if isinstance(action.get(field, []), list)
-    ):
+    if narrative_refresh_topics:
         warnings.append(
-            "narrative_refresh_recommended: mining archived an answered item; "
-            "refresh the topic narrative in a later ingest or explicit topic rebuild."
+            "narrative_refresh_required: mining archived an answered item; "
+            "run one batched purpose=refresh linker for the reported Topics."
         )
 
     report = {
@@ -3116,6 +3320,10 @@ def main() -> int:
         "writes": writes,
         "errors": errors,
         "warnings": warnings,
+        "narrative_refresh": {
+            "required": bool(narrative_refresh_topics),
+            "topics": narrative_refresh_topics,
+        },
     }
     print(
         f"Publish status: {report['summary']['status']} "

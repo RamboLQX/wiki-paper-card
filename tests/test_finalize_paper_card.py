@@ -115,6 +115,16 @@ class FinalizePaperCardTests(unittest.TestCase):
         self.assertNotIn("Sections 01-10", normalized)
         self.assertIn("## 01. 基本信息", normalized)
 
+    def test_strip_internal_reader_markers(self) -> None:
+        card = (
+            "## 04. 研究背景与发展路径\n\n"
+            "[Paper-framed; external verification not performed] "
+            "The paper presents a field history.\n"
+        )
+        normalized = FINALIZE.strip_internal_reader_markers(card)
+        self.assertNotIn(FINALIZE.PAPER_FRAMED_MARKER, normalized)
+        self.assertIn("\n\nThe paper presents a field history.", normalized)
+
     def test_normalize_frontmatter_adds_missing_fields(self) -> None:
         card = "# Test Paper\n\n> Locator mode: page-grounded\n\n## 01. 基本信息\n"
         bundle = {"source_sha256": "a" * 64}

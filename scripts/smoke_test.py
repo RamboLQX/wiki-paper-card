@@ -67,6 +67,7 @@ def build_digest() -> dict:
             "key_results": [],
             "limitations": [],
             "critical_observations": [],
+            "unexplained_results": [],
             "open_questions": [],
         },
         "topic_seeds": [],

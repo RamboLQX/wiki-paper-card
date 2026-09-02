@@ -89,13 +89,14 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 | 文件 | 类别 | 一句话说明 |
 |---|---|---|
 | `wiki/sources/` 下的 Paper Card | 面向用户 | 可连续阅读的单篇论文完整分析 |
-| `wiki/topics/` 下的 Topic | 面向用户 | 多篇论文的综合认识、分歧、开放问题和段落化研究空白 |
-| `wiki/meta/topic-state/` | 机器 | Topic 的稳定 ID、来源、annotation 与重放状态，不需要手动编辑 |
+| `wiki/topics/` 下的 Topic | 面向用户 | 多篇论文的综合认识、分歧、开放问题和段落化研究空白；新页含自动流程不会改写的「研究者备注」区 |
+| `wiki/meta/topic-state/` | 机器 | Topic 的稳定 ID、来源、annotation、叙述待刷新标记与重放状态，不需要手动编辑 |
 | `wiki/meta/research.md` | 面向用户 | 当前开放问题与空白的仪表盘 |
 | `wiki/meta/knowledge-tree.md` | 面向用户 | 人与 Agent 共用的导航树和渐进检索入口 |
 | `wiki/index.md`、`wiki/log.md` | 面向用户 | 页面索引与处理日志 |
 | `work/gap-mining-report.md` | 面向用户 | 研究空白报告，含待确认清单 |
 | `work/gap-mining-notes.md` | 中间 | 挖掘 Agent 的笔记，不需要读 |
+| `work/topic-refresh-plan.json` 及对应 report | 机器 | mining 归档答案后，批量刷新受影响 Topic 综合叙述的计划、审计与发布结果 |
 | `work/<名称>/paper-card.md` | 中间 | Paper Card 草稿，最终版发布到 wiki/sources |
 | `work/<名称>/link-plan.json` | 机器 | 写回计划，由确定性脚本执行 |
 | `work/` 下的各种 `*-report.json` | 机器 | 审计与发布结果记录，Agent 用它判断流程状态 |

@@ -31,9 +31,15 @@ Do not invent additional promotions, duplicate aliases, or change unrelated pros
 
 Create or update a topic page when:
 
-- at least two source pages share the same problem, mechanism, or evidence space;
+- at least two source pages share a defined problem space or support a coherent comparison question with a meaningful comparison basis;
 - the batch plan marks the topic for synthesis;
 - an existing topic page contains an open question that a new paper answers or challenges.
+
+A paper may appear in multiple Topic actions when it supports independent
+cross-paper judgments from different comparison views. An existing Topic name
+is not match evidence by itself; do not widen a page merely because new papers
+share its umbrella field term, and do not reject a bounded cross-cutting view
+merely because its papers also support more focused Topics.
 
 Include:
 
@@ -53,13 +59,15 @@ Include:
 
 Do not create a topic page merely because a paper discusses a subject.
 
-For schema 3.0, the linker writes complete reader-facing prose in `narrative` and keeps `key_findings` / `contradictions` as the evidence ledger. Fixed second-level headings define publisher-owned narrative sections. The publisher derives standard Markdown evidence footnotes and does not render a duplicate finding list. Grouped or flat comparison records remain deterministic tables. On update, new flat comparison rows are merged into the existing comparison table instead of appending a sub-table.
+For schema 3.0, the linker writes complete reader-facing prose in `narrative` and keeps `key_findings` / `contradictions` as the evidence ledger. Fixed second-level headings define publisher-owned narrative sections. The publisher derives standard Markdown evidence footnotes and does not render a duplicate finding list. Grouped comparison records remain complete deterministic tables. Flat rows require `source_ref` and are upserted by that stable path, preserving order and unrelated rows instead of relying on a display-name match.
 
-The ingest linker is the sole producer for 概述, 综合认识, 争议与不确定, and 论文与方法对照. Mining plans may update only stable-ID open items and their monotonic source/backlink union. The schema 3.0 audit rejects a mining plan that carries narrative, comparison, finding, contradiction, category, or status fields.
+The ingest linker and post-mining refresh linker are the only producers for 概述, 综合认识, 争议与不确定, and 论文与方法对照. Mining plans may update only stable-ID open items and their monotonic source/backlink union. The schema 3.0 audit rejects a mining plan that carries narrative, comparison, finding, contradiction, category, or status fields. Refresh is narrative-only: it cannot create Topics or mutate open-item state or page metadata.
 
 ### Resolved Items
 
-Schema 3.0 `open_questions` and `research_gaps` entries carry stable `id`, immutable `origin`, and `status` (`open` default / `answered`). Research gaps may accumulate stable-ID `progress_updates`; the publisher merges them by progress ID, preserves unmentioned history, and keeps the gap open and aggregated. When an action marks a gap answered, it also supplies `resolution_method`, `resolution_summary`, and `resolution_scope` alongside `answered_by` and `answered_pointer`; the publisher moves that same ID into a detailed archive record. IDs, origins, progress, annotations, and the replay fingerprint live in `wiki/meta/topic-state/*.json`, not in Topic maintenance markup. Archive sections are rendered only when they have content and are not aggregated into `wiki/meta/research.md` or `wiki/meta/knowledge-tree.md`.
+Schema 3.0 `open_questions` and `research_gaps` entries carry stable `id`, immutable `origin`, and `status` (`open` default / `answered`). Research gaps may accumulate stable-ID `progress_updates`; the publisher merges them by progress ID, preserves unmentioned history, and keeps the gap open and aggregated. When an action marks a gap answered, it also supplies `resolution_method`, `resolution_summary`, and `resolution_scope` alongside `answered_by` and `answered_pointer`; the publisher moves that same ID into a detailed archive record. IDs, origins, progress, annotations, narrative-refresh state, and the replay fingerprint live in `wiki/meta/topic-state/*.json`, not in Topic maintenance markup. Archive sections are rendered only when they have content and are not aggregated into `wiki/meta/research.md` or `wiki/meta/knowledge-tree.md`. A mining answer leaves a visible refresh notice and a structured publish-report target; one fresh linker batches all such Topics into a `purpose: "refresh"` plan. Success clears the notice, while failure leaves it intact.
+
+New Topics include `## 研究者备注` as a manual safe zone. Publisher updates preserve its exact body and never aggregate it; existing Topics without the section remain unchanged.
 
 Every schema 3.0 update carries `base_topic_sha256`. All target hashes and source references are checked before any write. A stale target blocks the complete plan. A legacy schema 3.0 Topic with complete managed comments migrates to clean Markdown and a sidecar on its next valid update. A Topic with neither complete legacy comments nor sidecar state rejects the update with `narrative_migration_required`.
 

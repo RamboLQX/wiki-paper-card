@@ -6,7 +6,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.9.1-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.10.0-f59e0b"></a>
     <a href="#31-requirements"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
     <a href="#3-installation"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -202,10 +202,11 @@ One paper does not create a Topic by itself. A Topic is created or updated only 
 
 - Every paper produces an independent Paper Card that passes structural, evidence, and source-locator checks.
 - Batch processing completes all paper analyses before creating cross-paper relationships.
-- The paper-card linker owns the complete Topic narrative and comparison table. After user confirmation, gap mining can maintain only stable-ID open items. Both paths write through the same deterministic publisher, which rejects stale plans using the Topic hash.
+- The ingest linker and bounded post-archive refresh linker own the complete Topic narrative and comparison table. After user confirmation, gap mining itself can maintain only stable-ID open items. All three purposes write through the same deterministic publisher, which rejects stale plans using the Topic hash.
 - Topic Markdown contains no publisher markers, open-item IDs, or replay fingerprints. That machine state lives under `wiki/meta/topic-state/`, while precise evidence uses standard Markdown footnotes.
 - An unchanged PDF is skipped unless the researcher explicitly requests reprocessing.
 - Knowledge-base questions first match Topics, papers, or open items in the knowledge tree, then descend only through selected pages while retaining the relevant source evidence.
+- Ingest does not copy completed research gaps from individual papers. The linker synthesizes only author-stated limitations, Agent critical observations, unexplained results, and cross-paper comparison views, and may return no candidate when the evidence is insufficient. New gaps use one or two natural paragraphs to explain the evidence tension, blocked judgment, and smallest discriminating study.
 - Gap mining first writes a read-only report `work/gap-mining-report.md`. Only after you confirm its candidates item by item does the deterministic publisher write the open questions and research gaps back into topic pages and the dashboard.
 - Final knowledge pages go to `wiki/`. Intermediate files and audit reports remain under `work/`.
 
@@ -235,6 +236,8 @@ At the end of every run the agent explains which files were produced and whether
 - Topics maintain synthesis across papers.
 - One knowledge tree supports both human navigation and progressive agent questions, retrieval, verification, and surveys.
 - Open questions and research gaps evolve as new papers arrive; partial advances retain their method, result, evidence, and remaining boundary, and only fully resolved gaps move to the archive.
+- When gap mining archives an answer, it batches all affected Topics into one dedicated narrative-refresh linker without rerunning paper processors. A failed refresh leaves the notice intact for safe retry.
+- New Topics include a researcher-notes safe zone whose contents are preserved by automated updates.
 
 Researchers select sources, ask questions, and judge research value. Agents organize pages, maintain relationships, and run consistency checks.
 

@@ -220,18 +220,29 @@ The publisher:
 4. Applies only `create_topic` and `update_topic` actions.
 5. Updates `wiki/index.md` and `wiki/log.md`.
 6. Preserves `created` on updates, avoids duplicate index entries, and skips unchanged files.
-7. Merges new comparison rows into the existing topic comparison table (dedup by paper) instead of appending per-batch sub-tables.
+7. Upserts flat comparison rows by stable `source_ref` instead of display name, preserving existing order and unrelated rows; grouped comparison sections remain complete replacements.
 8. Rebuilds `wiki/meta/knowledge-tree.md` (shared human/Agent tree: per domain, topics as signpost nodes with nested papers and open items, plus unassigned papers, then the category-first topic view) and `wiki/meta/research.md` (domain-grouped dashboard: currently open questions and research gaps) from the current wiki state. Both aggregate only open items; answered items are archived on the topic pages and excluded. Legacy `wiki/meta/agent-tree.md` files are left untouched and may be deleted after upgrading.
 
 For schema 3.0, ingest replaces the publisher-owned narrative sections as
 complete units and merges comparison/open-item state deterministically. Stable
-IDs, origins, research-gap progress/resolution records, annotations, and the replay fingerprint live in
+IDs, origins, research-gap progress/resolution records, annotations, narrative-refresh state, and the replay fingerprint live in
 `wiki/meta/topic-state/*.json`; no publisher protocol appears in Topic
 Markdown. Mining preserves narrative and comparison content byte-for-byte,
 changing only stable-ID open items and monotonic source/backlink membership. A stale Topic
 hash blocks the complete plan before any write; an exact action replay is a
-no-op. A mining answer emits `narrative_refresh_recommended` so the next ingest
-can absorb that evidence into the reader-facing synthesis.
+no-op. A mining answer emits structured `narrative_refresh` targets and adds a
+visible, deterministic refresh notice. The gap-mining orchestrator batches
+those targets into one fresh `purpose: "refresh"` linker run without rerunning
+paper processors. A successful refresh absorbs the answer into the complete
+reader-facing synthesis and clears the notice; failure preserves it for retry.
+New schema 3.0 Topics include `## 研究者备注`; ingest, mining, and refresh preserve its
+contents byte-for-byte. Existing Topics are not force-migrated merely to add it.
+
+Refresh plans are schema 3.0 only. They have no batch source pages and may only
+update Topics whose sidecars have a pending narrative refresh. They own the
+same complete narrative/evidence/comparison fields as ingest, but cannot
+create Topics or mutate open items, category, or page status. Exact replays are
+no-ops and stale hashes block the complete refresh before any write.
 
 After publishing, run the deterministic wiki-state audit. The Obsidian render
 smoke check is optional and soft-failing by default:

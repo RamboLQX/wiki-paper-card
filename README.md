@@ -6,7 +6,7 @@
   </p>
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f"></a>
-    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.9.1-f59e0b"></a>
+    <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.10.0-f59e0b"></a>
     <a href="#31-运行前提"><img alt="Runtime" src="https://img.shields.io/badge/runtime-Claude%20Code%20%7C%20DSH-111827"></a>
     <a href="#3-安装"><img alt="Install" src="https://img.shields.io/badge/install-scripts%2Finstall.sh-3776ab"></a>
     <a href="README.en.md"><img alt="Language" src="https://img.shields.io/badge/language-中文%20%7C%20English-1f6feb"></a>
@@ -201,10 +201,11 @@ vault/
 
 - 每篇论文独立生成 Paper Card，并通过结构、证据和来源位置检查。
 - 批量处理先完成全部单篇分析，再建立跨论文关系。
-- paper-card linker 负责 Topic 的完整叙事与对照表；gap-mining 只在用户确认后按稳定 ID 维护开放项。两条链路都由同一确定性发布器写入，并用 Topic 哈希阻断过期计划。
+- ingest linker 和归档后的专用 refresh linker 负责 Topic 的完整叙事与对照表；gap-mining 本身只在用户确认后按稳定 ID 维护开放项。三种 purpose 都由同一确定性发布器写入，并用 Topic 哈希阻断过期计划。
 - Topic 正文不保存发布器 marker、开放项 ID 或重放指纹。这些机器状态进入 `wiki/meta/topic-state/` sidecar，正文证据使用标准 Markdown 脚注。
 - 相同且未发生变化的 PDF 会跳过。明确提出重新处理时才重新生成。
 - 知识库问答先在知识树中匹配 Topic、论文或开放项，再逐层展开选中的页面，回答中保留相关来源依据。
+- ingest 阶段不从单篇论文直接复制完成态研究空白。linker 只综合作者局限、Agent 批判观察、未解释结果和跨论文比较视角，并允许在证据不足时不产生候选。新空白用 1—2 个自然段落说明证据张力、被阻塞的判断与最小判别研究。
 - 研究空白挖掘先产出只读报告 `work/gap-mining-report.md`。你逐项确认报告中的候选后，才通过确定性发布流程把开放问题与研究空白写回 Topic 页和仪表盘。
 - 最终知识页面写入 `wiki/`，中间文件和审计报告保留在 `work/`。
 
@@ -234,6 +235,8 @@ vault/
 - Topic 维护多篇论文形成的综合认识。
 - 同一份知识树同时支持人读导航与 Agent 的渐进式提问、检索、查证和综述。
 - 开放问题和研究空白随新论文持续更新；部分进展保留方法、结果、证据与剩余边界，完全解决后再归档。
+- gap-mining 归档答案后会先保留“综合叙述待更新”状态，再把本轮受影响的 Topic 合并交给一次专用 linker 刷新；不重新处理论文。刷新失败时提示保留，便于安全重试。
+- 新 Topic 的「研究者备注」由研究者独立维护，自动写入流程保持原文不变。
 
 研究者负责选择论文、提出问题和判断研究价值。Agent 负责整理页面、维护关系和执行一致性检查。
 

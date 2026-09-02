@@ -39,3 +39,5 @@ Codex 宿主下的编排映射。主会话使用 shell 运行 prepare、finalize
 - 用户确认候选后，使用当前 Codex 客户端的同 Agent follow-up 能力继续同一 miner，生成 `link-plan.json`。
 - 无法恢复原 miner 时，主会话按报告中同名同构字段机械映射生成计划，不新建一个缺失 Phase A 上下文的 miner。
 - audit 和 publish 仍只由主会话执行。
+- mining publish 的 `narrative_refresh.required` 为 true 时，为报告中的全部 Topic 创建一个 fresh linker；不要按 Topic 分别创建，也不要重跑 processor。
+- linker 生成 `purpose: "refresh"` 的 `work/topic-refresh-plan.json`；主会话再次执行 audit 和 publish。成功后提示清除，失败时保留待刷新状态并停止。

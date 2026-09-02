@@ -27,7 +27,7 @@ Use wiki-gap-mining to mine research gaps and candidate directions across the wh
 
 - `work/gap-mining-notes.md`: the mining agent's working notes. This is an intermediate artifact; you do not need to read it.
 - `work/gap-mining-report.md`: the gap report for you, with source evidence, testable directions, and suggested landing pages. The 待确认清单 at the end lists each candidate for your confirmation.
-- After you confirm, the deterministic publisher writes the results back into the 开放问题 and 研究空白与候选方向 sections of topic pages and refreshes the research dashboard.
+- After you confirm, the deterministic publisher writes the results back into the 开放问题 and 研究空白与候选方向 sections of topic pages and refreshes the research dashboard. If the run archives answered items, one batched linker then refreshes every affected Topic narrative without rerunning paper processors.
 
 Without your confirmation nothing in `wiki/` changes. See [docs/artifacts.md](../../docs/artifacts.md) (written in Chinese) for the complete explanation of every artifact.
 
@@ -38,6 +38,7 @@ Without your confirmation nothing in `wiki/` changes. See [docs/artifacts.md](..
 - Candidate gaps require evidence from existing Paper Cards or Topics.
 - The deterministic publisher updates Topics only after the user confirms each item.
 - Write-back maintains only stable-ID open questions and research gaps; it cannot rewrite Topic narrative or comparisons, and stale plans are rejected before writes.
+- Narrative refresh is a separate post-publish step: all affected Topics share one linker call, and a failure leaves the pending notice intact.
 - Finding no reliable new gap is a valid result; the workflow does not pad the report.
 
 See [`SKILL.md`](SKILL.md) and the [mining brief](references/mining-brief.md) for the full execution rules.

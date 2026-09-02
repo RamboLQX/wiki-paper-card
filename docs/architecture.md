@@ -27,9 +27,9 @@ Claude Code and Codex keep at most three processors active; Codex also obeys the
 ## Knowledge Layer
 
 - The Paper Card is the detailed, reader-facing record. Explanations use coherent prose; formulas, modules, experiments, and limitations retain the structured views needed for evidence lookup.
-- Topic pages use clean overview, synthesis, and optional controversy prose backed by a structured evidence ledger and Markdown footnotes. Method comparisons remain scan-friendly tables, while research gaps render as readable subsections.
+- Topic pages use clean overview, synthesis, and optional controversy prose backed by a structured evidence ledger and Markdown footnotes. Method comparisons remain scan-friendly tables. Ingest research gaps are synthesized across papers from author limitations, Agent critical observations, unexplained results, and comparison-view seeds, then rendered as one or two reader-facing paragraphs; zero valid gaps is allowed.
 - `wiki/meta/topic-state/*.json` stores stable open-item identity, annotations, and replay state so publisher protocol never appears in Topic Markdown.
-- The paper-card linker is the sole writer of Topic narrative and comparisons. Gap mining can only maintain stable-ID open questions and research gaps after user confirmation.
+- The paper-card linker and the bounded post-mining refresh linker are the only producers of Topic narrative and comparisons. Gap mining itself can only maintain stable-ID open questions and research gaps after user confirmation; answered items cause all affected Topics to be batched into one refresh run.
 - Both producers submit plans to the same publisher. `base_topic_sha256` rejects stale concurrent plans before any Wiki write, and schema 2.0 remains readable for historical compatibility.
 - There are no concept pages, no entity pages, and no promotion ladder; cross-paper synthesis happens on topic pages.
 

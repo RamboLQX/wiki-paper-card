@@ -31,6 +31,7 @@ EXPECTED_FIELDS = {
 }
 NARRATIVE_SECTIONS = ("03", "04", "06", "07", "11")
 TABLE_SECTIONS = ("05", "08", "10", "12", "13")
+PAPER_FRAMED_MARKER = "[Paper-framed; external verification not performed]"
 
 
 def finding(level: str, code: str, message: str, **details: Any) -> dict[str, Any]:
@@ -345,6 +346,24 @@ def audit(card_text: str, wiki_root: Path | None) -> dict[str, Any]:
             break
     else:
         findings.append(finding("pass", "template_placeholder", "No template placeholders found."))
+
+    if PAPER_FRAMED_MARKER in body:
+        findings.append(
+            finding(
+                "error",
+                "internal_reader_marker",
+                "An internal provenance protocol label must not appear in reader-facing Markdown.",
+                marker=PAPER_FRAMED_MARKER,
+            )
+        )
+    else:
+        findings.append(
+            finding(
+                "pass",
+                "internal_reader_marker",
+                "No internal provenance protocol label is visible.",
+            )
+        )
 
     findings.extend(audit_readability(section_blocks))
 

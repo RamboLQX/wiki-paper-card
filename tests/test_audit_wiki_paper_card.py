@@ -105,6 +105,19 @@ class WikiAuditTests(unittest.TestCase):
         )
         self.assertEqual(finding["level"], "error")
 
+    def test_internal_reader_marker_fails(self) -> None:
+        card = valid_card().replace(
+            "## 04. Section 4\n\nPlaceholder text.",
+            "## 04. Section 4\n\n"
+            "[Paper-framed; external verification not performed] Placeholder text.",
+        )
+        report = AUDIT.audit(card, None)
+        finding = next(
+            item for item in report["findings"]
+            if item["code"] == "internal_reader_marker"
+        )
+        self.assertEqual(finding["level"], "error")
+
     def test_table_requires_reader_facing_introduction(self) -> None:
         card = valid_card().replace(
             "## 05. Section 5\n\nPlaceholder text.",

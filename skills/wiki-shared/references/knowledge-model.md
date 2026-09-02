@@ -26,9 +26,36 @@ Topic pages are the primary synthesis surface for:
 
 Topics also serve as the shared tree's intermediate signpost nodes: the publisher nests each topic's assigned papers, currently open questions, and research gaps under the topic node in `knowledge-tree.md`. Readers can inspect the full hierarchy, while retrieval prunes by topic or paper leaf before opening only the selected pages.
 
-Create or update a topic page when at least two papers share the same problem, mechanism, or evidence space, or when a single paper directly answers an existing open question.
+Create or update a topic page when at least two papers share a defined problem
+space or can support a coherent comparison question with a meaningful
+comparison basis, or when a single paper directly answers, challenges, or
+materially advances an existing open item. Sharing an umbrella field name,
+mechanism family, or evidence modality is not sufficient when no cross-paper
+judgment can be made.
 
-Research gaps and open questions are snapshots of the current corpus. Record a gap only when it carries a source anchor (which paper's limitation or uncovered setting) and a direction a future paper could advance; if a batch yields no genuine gap, leave the section empty rather than padding it.
+A Topic is one stable comparison view, not a partition of a batch or a
+container for an entire field. The same paper may belong to several Topics
+when it supports independent judgments from different problem, method,
+mechanism, measurement, evaluation, or evidence-setting views. These are
+discovery prompts, not required categories. There is no target Topic count per
+batch.
+
+Prefer a new sibling Topic when adding papers would require broadening an
+existing title or overview beyond a coherent comparison view, when the
+research object or evidence setting changes the comparison question, or when
+metrics and interventions cannot support the same judgment. Repeated caveats
+that results are not directly comparable are a boundary warning. A
+cross-setting Topic remains valid only when it asks an explicit comparative
+question of its own rather than serving as an umbrella index.
+
+Research gaps and open questions are snapshots of the current corpus. The
+ingest linker may synthesize a gap only from four inputs: author-stated
+limitations, Agent critical observations, unexplained results, and Topic seeds
+that support cross-paper comparison. A single-paper proposal or open question
+is not a complete gap. Record a gap only when it blocks a concrete judgment,
+admits a discriminating study, names a meaningful failure or closure result,
+and the current corpus has not already resolved it. If none passes, leave the
+section empty.
 
 When a later paper advances a research gap but leaves a decision-relevant boundary, the gap remains open and receives a stable-ID progress record containing the paper, method, result, evidence pointer, and remaining boundary. It stays in the open sections and aggregations with an 已有进展 marker. Only evidence that closes the original judgment boundary may mark it answered. The linker then preserves the gap ID, origin, and progress history and supplies the answering papers, evidence pointer, resolution method, result summary, and scope. The publisher moves the same ID to the detailed archive; the answer's substance also enters the structured finding ledger and complete reader-facing narrative.
 
@@ -48,9 +75,11 @@ not invent additional sections:
 | 研究设计备忘录（具体数据/识别策略/失败条件） | 只进 source 页 Section 16 或 `work/` 报告，不进 topic 页、不进 research.md |
 
 Maturity of a gap is its field completeness, not a separate status: an entry
-carrying v2 detail fields but lacking both `evidence_boundary` and `experiment`
-is a tentative direction; entries with both are formal research gaps. Entries
-without any v2 field keep the legacy rendering.
+carrying structured detail but lacking both `evidence_boundary` and
+`experiment` is a tentative direction; entries with both are formal research
+gaps. These fields remain machine state. New gaps render their one- or
+two-paragraph `reader_narrative`; older entries without it keep the legacy
+labelled rendering.
 
 A `category` frontmatter value classifies a topic by research question type
 (for example 模型优化 vs 评估框架). It is a single value, optional, orthogonal

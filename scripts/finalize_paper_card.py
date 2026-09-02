@@ -38,6 +38,10 @@ VISIBLE_EVIDENCE_LIST_RE = re.compile(
 RAW_HTML_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9-]*\s*/?>")
 HTML_COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
 CODE_SPAN_RE = re.compile(r"`[^`\n]*`")
+PAPER_FRAMED_MARKER = "[Paper-framed; external verification not performed]"
+PAPER_FRAMED_MARKER_RE = re.compile(
+    rf"{re.escape(PAPER_FRAMED_MARKER)}[ \t]*"
+)
 SECTION_BOUNDARY_TITLES = {
     "acknowledgment",
     "acknowledgments",
@@ -74,6 +78,11 @@ def strip_wrappers(text: str) -> str:
 
 def normalize_blank_lines(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text)
+
+
+def strip_internal_reader_markers(text: str) -> str:
+    """Remove an upstream provenance protocol label from visible card prose."""
+    return PAPER_FRAMED_MARKER_RE.sub("", text)
 
 
 def yaml_field(name: str, value: str) -> str:
@@ -568,7 +577,9 @@ def main() -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
-    card_text = normalize_blank_lines(strip_wrappers(card_text))
+    card_text = normalize_blank_lines(
+        strip_internal_reader_markers(strip_wrappers(card_text))
+    )
     card_text = normalize_frontmatter(card_text, bundle_data)
     card_text = normalize_section_headings(card_text)
     formula_report = audit_formulas(card_text)

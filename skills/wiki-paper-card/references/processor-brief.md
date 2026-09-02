@@ -138,6 +138,12 @@ Apply the shared writing guide before drafting. The visible card must allow a
 reader to understand the paper without reconstructing its argument from field
 labels or one-line bullets.
 
+- Section 02 is exactly one complete sentence. In that sentence, first state
+  the concrete problem or motivation, then name the core approach, and end with
+  the main result or contribution using language no stronger than the evidence.
+  Do not reduce the summary to what the paper did. Section 03 expands the
+  problem context and testable research question instead of repeating the
+  summary.
 - Section 03 contains two prose units labelled `**问题情境。**` and
   `**核心研究问句。**`. The first integrates the concrete problem, its
   importance, and why existing approaches are insufficient. The second states
@@ -154,6 +160,12 @@ labels or one-line bullets.
   source observation plus `核心假设`; relative difference, initial method, and
   `验证方式`; then `可能失败` and `创新状态`. Do not render the idea as seven
   field bullets.
+
+The upstream provenance state `paper-framed` remains part of evidence control,
+but its raw protocol marker `[Paper-framed; external verification not
+performed]` is internal state. Never render that marker in the Paper Card.
+Bound field-history and novelty claims in natural prose without adding a
+replacement disclaimer to the visible section.
 
 Lists and tables are not forbidden. Use them only for material whose primary
 value is scanning, comparison, or lookup. Do not impose a word-count target or
@@ -248,6 +260,48 @@ Follow [paper-digest-schema.md](paper-digest-schema.md).
 Write only paper-local analysis and topic seeds. Do not include `action`, `create_topic`, or `update_topic` fields. `wiki-linker` decides all cross-paper topic actions after the batch.
 
 Do not put full Paper Card content in the digest. Keep definitions, topic seeds, and open questions compact.
+
+### Research-Gap Signal Boundary
+
+The processor does not write complete research gaps. For later gap synthesis,
+the digest exposes exactly four inputs and no others:
+
+1. author-stated limitations in `analysis.limitations`;
+2. Agent critical observations in `analysis.critical_observations`;
+3. unexplained results in `analysis.unexplained_results`;
+4. Topic seeds that support a cross-paper comparison.
+
+Do not promote Section 16 ideas, generic future-work language, or
+`analysis.open_questions` into research gaps. `open_questions` may remain as a
+separate reader aid. Each of the three analysis signal lists uses an evidence
+pointer; an unexplained result must state what remains unexplained rather than
+repeat the result. A paper may yield none in any list.
+
+### Topic Seed Discipline
+
+A topic seed is a paper-supported candidate comparison view, not a request to
+join an existing Topic. Derive the views this paper can support before
+considering the names shown in `kb-context.md`. Existing pages may help with
+terminology and duplicate awareness, but their names and IDs are not targets
+to copy.
+
+- Propose the broadest bounded view that still supports a coherent cross-paper
+  comparison. Check whether the paper can contribute to views centered on a
+  shared problem or outcome, method or intervention, mechanism, measurement
+  or evaluation, or evidence setting. These are discovery prompts, not
+  required categories.
+- Name the comparison question or axis each view can support. Do not use a
+  field label that cannot support a cross-paper judgment or comparison.
+- State the boundary in `summary`: what is being compared, under which
+  evidence setting, and what adjacent question the seed does not cover.
+- One paper may emit several seeds that overlap in paper membership when they
+  support genuinely different cross-paper judgments. Do not require seeds to
+  be mutually exclusive, do not collapse them into one catch-all seed, and do
+  not pad the digest to reach a fixed seed count.
+- Keep `papers` paper-local. Do not decide whether a seed creates or updates a
+  Topic; the batch linker makes that decision after seeing every digest.
+- A Topic seed contains only `id`, `name`, `papers`, and `summary`. Never add
+  `open_questions` or `research_gaps` to it.
 
 ## Return Protocol
 

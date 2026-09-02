@@ -195,6 +195,10 @@ def valid_v3_plan() -> dict:
             "direction": "Run both methods on one benchmark.",
             "continuity": "A later paper can perform the comparison.",
             "significance": "It would change which method is preferred.",
+            "reader_narrative": [
+                "The papers cannot yet support a method choice because their results come from different benchmarks.",
+                "A matched comparison would show whether the reported ranking reflects the methods or the evaluation setting.",
+            ],
             "status": "open",
         }
     ]
@@ -280,6 +284,52 @@ class PublishWikiTests(unittest.TestCase):
         self.assertNotIn("共识：Both papers support", text)
         self.assertLess(text.index("## 综合认识"), text.index("## 论文与方法对照"))
 
+    def test_schema_v3_research_gap_prefers_reader_narrative(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        action["research_gaps"][0].update(
+            {
+                "evidence_boundary": "Existing studies use different benchmarks.",
+                "experiment": "Run both methods on one benchmark.",
+                "success_criterion": "The ranking remains stable.",
+                "risk": "The benchmark may hide domain shifts.",
+                "priority": "高",
+            }
+        )
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-01",
+            "2026-09-01",
+            {"wiki/sources/a.md": "A", "wiki/sources/b.md": "B"},
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        gap = PUBLISH.section_body(text, "研究空白与候选方向")
+        self.assertIn(
+            "The papers cannot yet support a method choice because their results come from different benchmarks. "
+            "这一判断基于 [[a|A]]、[[b|B]]。\n\n"
+            "A matched comparison would show whether the reported ranking reflects the methods or the evaluation setting.",
+            gap,
+        )
+        self.assertNotIn("**为什么值得做。**", gap)
+        self.assertNotIn("**优先级。**", gap)
+
+    def test_schema_v3_research_gap_without_narrative_uses_legacy_fallback(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        action["research_gaps"][0].pop("reader_narrative")
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-01",
+            "2026-09-01",
+            {"wiki/sources/a.md": "A", "wiki/sources/b.md": "B"},
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        gap = PUBLISH.section_body(text, "研究空白与候选方向")
+        self.assertIn("**为什么值得做。** It would change which method is preferred.", gap)
+        self.assertIn("**推进方向。** Run both methods on one benchmark.", gap)
+
     def test_schema_v3_empty_open_questions_render_explanatory_placeholder(self) -> None:
         action = valid_v3_plan()["topic_actions"][0]
         action["open_questions"] = []
@@ -350,6 +400,113 @@ class PublishWikiTests(unittest.TestCase):
         )
         self.assertEqual(idempotent, empty_again)
 
+    def test_schema_v3_empty_research_gaps_render_explanatory_placeholder(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        action["research_gaps"] = []
+        text = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-08-31",
+            "2026-08-31",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        gap_section = PUBLISH.section_body(text, "研究空白与候选方向")
+        self.assertIn(PUBLISH.NO_RESEARCH_GAPS_TEXT, gap_section)
+        self.assertNotIn("### ", gap_section)
+
+    def test_schema_v3_research_gap_placeholder_tracks_empty_transitions(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        action["research_gaps"] = []
+        empty = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-08-31",
+            "2026-08-31",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+
+        action["research_gaps"] = [valid_v3_plan()["topic_actions"][0]["research_gaps"][0]]
+        nonempty = PUBLISH.merge_topic_page(
+            empty,
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-01",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertIn("### A unified benchmark is missing.", nonempty)
+        self.assertNotIn(PUBLISH.NO_RESEARCH_GAPS_TEXT, nonempty)
+
+        action["research_gaps"] = []
+        empty_again = PUBLISH.merge_topic_page(
+            nonempty,
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-02",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertNotIn("A unified benchmark is missing.", empty_again)
+        self.assertIn(PUBLISH.NO_RESEARCH_GAPS_TEXT, empty_again)
+        idempotent = PUBLISH.merge_topic_page(
+            empty_again,
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-02",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertEqual(idempotent, empty_again)
+
+    def test_schema_v3_research_gap_placeholder_is_not_aggregated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            plan = valid_v3_plan()
+            plan["topic_actions"][0]["research_gaps"] = []
+            result = publish_plan(root, plan, "empty-research-gaps.json")
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            topic = (root / "wiki" / "topics" / "Shared Topic.md").read_text(
+                encoding="utf-8"
+            )
+            dashboard = (root / "wiki" / "meta" / "research.md").read_text(
+                encoding="utf-8"
+            )
+            tree = (root / "wiki" / "meta" / "knowledge-tree.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(PUBLISH.NO_RESEARCH_GAPS_TEXT, topic)
+            self.assertNotIn(PUBLISH.NO_RESEARCH_GAPS_TEXT, dashboard)
+            self.assertNotIn(PUBLISH.NO_RESEARCH_GAPS_TEXT, tree)
+
+    def test_schema_v3_researcher_notes_are_created_but_not_force_migrated(self) -> None:
+        action = valid_v3_plan()["topic_actions"][0]
+        created = PUBLISH.topic_page_text(
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-01",
+            "2026-09-01",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertEqual(
+            PUBLISH.section_body(created, "研究者备注").strip(),
+            PUBLISH.RESEARCHER_NOTES_PLACEHOLDER,
+        )
+        without_notes = PUBLISH.replace_optional_section(created, "研究者备注", [])
+        updated = PUBLISH.merge_topic_page(
+            without_notes,
+            action,
+            {"wiki/sources/a.md": "Paper A", "wiki/sources/b.md": "Paper B"},
+            "2026-09-02",
+            schema_version="3.0",
+            purpose="ingest",
+        )
+        self.assertNotIn("## 研究者备注", updated)
+
     def test_schema_v3_mining_update_preserves_narrative_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -409,6 +566,187 @@ class PublishWikiTests(unittest.TestCase):
             dashboard = (root / "wiki" / "meta" / "research.md").read_text(encoding="utf-8")
             self.assertIn("A cross-group control is missing.", dashboard)
             self.assertNotIn("wiki-paper-card:item", dashboard)
+            mining_report = json.loads(
+                (root / "mining-v3-report.json").read_text(encoding="utf-8")
+            )
+            self.assertFalse(mining_report["narrative_refresh"]["required"])
+            self.assertEqual(mining_report["narrative_refresh"]["topics"], [])
+
+    def test_schema_v3_mining_answer_is_followed_by_explicit_refresh(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "stale-initial.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            before = topic_path.read_text(encoding="utf-8")
+            researcher_notes = "研究者判断。\n\n### 复核事项\n\n检查统一基准的适用范围。"
+            before = before.replace(
+                PUBLISH.RESEARCHER_NOTES_PLACEHOLDER,
+                researcher_notes,
+            )
+            topic_path.write_text(before, encoding="utf-8")
+            notes_before = PUBLISH.section_body(before, "研究者备注")
+            _, _, before_body = PUBLISH.parse_frontmatter(before)
+            narrative_before = {
+                section: PUBLISH.section_body(before_body, section)
+                for section in ("概述", "综合认识", "争议与不确定", "证据注释")
+            }
+            answered_gap = {
+                "id": "rg-unified-benchmark",
+                "origin": "ingest",
+                "gap": "A unified benchmark is missing.",
+                "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                "direction": "Run both methods on one benchmark.",
+                "continuity": "The recorded gap is now closed.",
+                "status": "answered",
+                "answered_by": ["wiki/sources/b.md"],
+                "answered_pointer": "[Paper: PDF p. 6]",
+                "resolution_method": "Run both methods on one controlled benchmark.",
+                "resolution_summary": "The controlled comparison resolves the mismatch.",
+                "resolution_scope": "The result covers the matched benchmark.",
+            }
+            mining = {
+                "schema_version": "3.0",
+                "purpose": "mining",
+                "batch": {"source_pages": [], "label": "resolved gap"},
+                "topic_actions": [
+                    {
+                        "action": "update_topic",
+                        "id": "topic-1-mining-answer",
+                        "name": "Shared Topic",
+                        "papers": ["wiki/sources/a.md", "wiki/sources/b.md"],
+                        "existing_page": "wiki/topics/Shared Topic.md",
+                        "base_topic_sha256": hashlib.sha256(before.encode("utf-8")).hexdigest(),
+                        "open_questions": [],
+                        "research_gaps": [answered_gap],
+                    }
+                ],
+            }
+            second = publish_plan(root, mining, "stale-mining.json")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            stale_topic = topic_path.read_text(encoding="utf-8")
+            _, _, stale_body = PUBLISH.parse_frontmatter(stale_topic)
+            for section, expected in narrative_before.items():
+                self.assertEqual(PUBLISH.section_body(stale_body, section), expected)
+            self.assertIn(PUBLISH.NARRATIVE_REFRESH_SECTION, stale_topic)
+            self.assertIn(PUBLISH.NARRATIVE_REFRESH_NOTICE[0], stale_topic)
+            state_path = root / "wiki" / "meta" / "topic-state" / "Shared Topic.json"
+            stale_state = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertTrue(stale_state["narrative_refresh_required"])
+            self.assertEqual(
+                stale_state["narrative_refresh_item_ids"],
+                ["rg-unified-benchmark"],
+            )
+            mining_report = json.loads(
+                (root / "stale-mining-report.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(mining_report["narrative_refresh"]["required"])
+            self.assertEqual(
+                mining_report["narrative_refresh"]["topics"],
+                [
+                    {
+                        "name": "Shared Topic",
+                        "topic_path": "wiki/topics/Shared Topic.md",
+                        "state_path": "wiki/meta/topic-state/Shared Topic.json",
+                        "item_ids": ["rg-unified-benchmark"],
+                    }
+                ],
+            )
+
+            refresh = valid_v3_plan()
+            refresh["purpose"] = "refresh"
+            refresh["batch"] = {
+                "source_pages": [],
+                "label": "topic refresh after gap mining",
+            }
+            action = refresh["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(stale_topic.encode("utf-8")).hexdigest()
+            for field in ("open_questions", "research_gaps", "page_status", "category"):
+                action.pop(field, None)
+            action["narrative"]["overview"]["paragraphs"][0]["text"] = (
+                "The new paper closes the recorded benchmark gap."
+            )
+            stale_refresh = json.loads(json.dumps(refresh))
+            stale_refresh["topic_actions"][0]["base_topic_sha256"] = "0" * 64
+            failed = publish_plan(root, stale_refresh, "stale-refresh-failed.json")
+            self.assertEqual(failed.returncode, 1)
+            self.assertIn("stale_topic_plan", failed.stderr)
+            self.assertEqual(topic_path.read_text(encoding="utf-8"), stale_topic)
+            self.assertTrue(
+                json.loads(state_path.read_text(encoding="utf-8"))[
+                    "narrative_refresh_required"
+                ]
+            )
+
+            third = publish_plan(root, refresh, "stale-refresh.json")
+            self.assertEqual(third.returncode, 0, third.stderr)
+            refreshed = topic_path.read_text(encoding="utf-8")
+            self.assertNotIn(PUBLISH.NARRATIVE_REFRESH_SECTION, refreshed)
+            self.assertIn("closes the recorded benchmark gap", refreshed)
+            self.assertEqual(
+                PUBLISH.section_body(refreshed, "研究者备注"),
+                notes_before,
+            )
+            refreshed_state = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertFalse(refreshed_state["narrative_refresh_required"])
+            self.assertEqual(refreshed_state["narrative_refresh_item_ids"], [])
+            first_refresh_report = json.loads(
+                (root / "stale-refresh-report.json").read_text(encoding="utf-8")
+            )
+            self.assertFalse(
+                any(item["kind"].startswith("source") for item in first_refresh_report["writes"])
+            )
+            replay = publish_plan(root, refresh, "stale-refresh.json")
+            self.assertEqual(replay.returncode, 0, replay.stderr)
+            replay_report = json.loads(
+                (root / "stale-refresh-report.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(replay_report["writes"], [])
+
+    def test_schema_v3_refresh_without_pending_state_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prepare_vault(root)
+            first = publish_plan(root, valid_v3_plan(), "refresh-none-initial.json")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            topic_path = root / "wiki" / "topics" / "Shared Topic.md"
+            before = topic_path.read_text(encoding="utf-8")
+            refresh = valid_v3_plan()
+            refresh["purpose"] = "refresh"
+            refresh["batch"] = {"source_pages": [], "label": "unneeded refresh"}
+            action = refresh["topic_actions"][0]
+            action["action"] = "update_topic"
+            action["existing_page"] = "wiki/topics/Shared Topic.md"
+            action["base_topic_sha256"] = hashlib.sha256(before.encode("utf-8")).hexdigest()
+            for field in ("open_questions", "research_gaps", "page_status", "category"):
+                action.pop(field, None)
+            result = publish_plan(root, refresh, "refresh-none.json")
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("narrative_refresh_not_required", result.stderr)
+            self.assertEqual(topic_path.read_text(encoding="utf-8"), before)
+
+    def test_narrative_refresh_marks_only_new_answer_transitions(self) -> None:
+        state = {
+            "open_questions": [
+                {"id": "oq-already", "status": "answered"},
+                {"id": "oq-new", "status": "open"},
+            ],
+            "research_gaps": [],
+        }
+        action = {
+            "open_questions": [
+                {"id": "oq-already", "status": "answered"},
+                {"id": "oq-new", "status": "answered"},
+            ],
+            "research_gaps": [],
+        }
+        self.assertEqual(
+            PUBLISH.newly_answered_item_ids(state, action),
+            ["oq-new"],
+        )
 
     def test_schema_v3_gap_progress_merges_and_remains_open(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -425,6 +763,7 @@ class PublishWikiTests(unittest.TestCase):
             action["base_topic_sha256"] = hashlib.sha256(
                 topic_path.read_bytes()
             ).hexdigest()
+            action["research_gaps"][0].pop("reader_narrative")
             action["research_gaps"][0]["progress_updates"] = [
                 {
                     "id": "progress-shared-benchmark",
@@ -441,6 +780,11 @@ class PublishWikiTests(unittest.TestCase):
             self.assertIn("**已有进展 1。**", topic)
             self.assertIn("The shared benchmark removes one comparison confound.", topic)
             self.assertIn("**仍未解决。** Cross-domain transfer remains untested.", topic)
+            self.assertIn(
+                "The papers cannot yet support a method choice because their results come from different benchmarks.",
+                topic,
+            )
+            self.assertNotIn("**为什么值得做。**", PUBLISH.section_body(topic, "研究空白与候选方向"))
             self.assertIn("A unified benchmark is missing.", PUBLISH.section_body(topic, "研究空白与候选方向"))
             self.assertNotIn("A unified benchmark is missing.", PUBLISH.section_body(topic, "已解决的研究空白"))
             dashboard = (root / "wiki" / "meta" / "research.md").read_text(
@@ -714,8 +1058,17 @@ class PublishWikiTests(unittest.TestCase):
             self.assertEqual(first.returncode, 0, first.stderr)
             topic_path = root / "wiki" / "topics" / "Shared Topic.md"
             first_text = topic_path.read_text(encoding="utf-8")
-            custom_section = "\n## 人工维护笔记\n\n这一节不属于 publisher 的受控区域。\n"
-            topic_path.write_text(first_text + custom_section, encoding="utf-8")
+            researcher_notes = (
+                "研究者自己的判断。\n\n"
+                "### 下一步实验\n\n"
+                "先检查跨场景迁移。"
+            )
+            first_text = first_text.replace(
+                PUBLISH.RESEARCHER_NOTES_PLACEHOLDER,
+                researcher_notes,
+            )
+            researcher_notes_before = PUBLISH.section_body(first_text, "研究者备注")
+            topic_path.write_text(first_text, encoding="utf-8")
 
             for name, title in (("c", "Paper C"), ("d", "Paper D"), ("e", "Paper E")):
                 (root / "work" / name).mkdir(parents=True)
@@ -881,7 +1234,10 @@ class PublishWikiTests(unittest.TestCase):
                 updated.index("## 论文与方法对照"),
             )
             self.assertRegex(updated, r"\[\^topic-evidence-\d+\]:")
-            self.assertIn(custom_section.strip(), updated)
+            self.assertEqual(
+                PUBLISH.section_body(updated, "研究者备注"),
+                researcher_notes_before,
+            )
             comparison = PUBLISH.section_body(updated, "论文与方法对照")
             for title in ("Paper A", "Paper C", "Paper D", "Paper E"):
                 self.assertIn(title, comparison)
@@ -999,6 +1355,10 @@ class PublishWikiTests(unittest.TestCase):
             )
             self.assertEqual(state["open_questions"][0]["id"], "oq-transfer")
             self.assertEqual(state["research_gaps"][0]["origin"], "ingest")
+            self.assertEqual(
+                state["research_gaps"][0]["reader_narrative"],
+                action["research_gaps"][0]["reader_narrative"],
+            )
 
     def test_schema2_cannot_update_clean_schema3_topic(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1018,7 +1378,7 @@ class PublishWikiTests(unittest.TestCase):
             self.assertIn("schema2_cannot_update_schema3_topic", second.stderr)
             self.assertEqual(topic_path.read_text(encoding="utf-8"), before)
 
-    def test_schema_v3_mining_answer_emits_narrative_refresh_warning(self) -> None:
+    def test_schema_v3_mining_answer_reports_narrative_refresh_topics(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             prepare_vault(root)
@@ -1061,7 +1421,12 @@ class PublishWikiTests(unittest.TestCase):
                 (root / "mining-answer-report.json").read_text(encoding="utf-8")
             )
             self.assertTrue(
-                any("narrative_refresh_recommended" in item for item in report["warnings"])
+                any("narrative_refresh_required" in item for item in report["warnings"])
+            )
+            self.assertTrue(report["narrative_refresh"]["required"])
+            self.assertEqual(
+                report["narrative_refresh"]["topics"][0]["topic_path"],
+                "wiki/topics/Shared Topic.md",
             )
 
     def test_source_page_removes_protocol_header(self) -> None:
@@ -1115,8 +1480,58 @@ class PublishWikiTests(unittest.TestCase):
             ],
             {"wiki/sources/a.md": "Paper A"},
         )
-        self.assertIn("[[a\\|Paper A]]", lines[2])
-        self.assertNotIn("[[a|Paper A]]", lines[2])
+        self.assertIn("[[wiki/sources/a\\|Paper A]]", lines[2])
+        self.assertNotIn("[[wiki/sources/a|Paper A]]", lines[2])
+
+    def test_flat_comparison_upsert_uses_source_ref_and_supports_legacy_rows(self) -> None:
+        body = (
+            "# Topic\n\n"
+            "## 论文与方法对照\n\n"
+            "| 论文 | 方法 | 干预粒度 | 主要结果 | 边界 | 证据 |\n"
+            "|---|---|---|---|---|---|\n"
+            "| [[a\\|Old A]] | Old method | sample | old | old | old pointer |\n"
+            "| [[wiki/sources/b\\|Paper B]] | Method B | sample | keep | keep | keep |\n\n"
+            "## 开放问题\n\nNone\n"
+        )
+        updated = PUBLISH.upsert_flat_comparisons(
+            body,
+            "论文与方法对照",
+            [
+                {
+                    "source_ref": "wiki/sources/a.md",
+                    "paper": "Paper A",
+                    "method": "New method",
+                    "intervention_granularity": "token",
+                    "main_result": "new",
+                    "boundary": "new boundary",
+                    "pointer": "new pointer",
+                }
+            ],
+            {"wiki/sources/a.md": "Paper A"},
+        )
+        section = PUBLISH.section_body(updated, "论文与方法对照")
+        self.assertEqual(section.count("Paper A"), 1)
+        self.assertIn("[[wiki/sources/a\\|Paper A]]", section)
+        self.assertIn("New method", section)
+        self.assertNotIn("Old method", section)
+        self.assertIn("[[wiki/sources/b\\|Paper B]]", section)
+        self.assertEqual(
+            PUBLISH.upsert_flat_comparisons(
+                updated,
+                "论文与方法对照",
+                [{
+                    "source_ref": "wiki/sources/a.md",
+                    "paper": "Paper A",
+                    "method": "New method",
+                    "intervention_granularity": "token",
+                    "main_result": "new",
+                    "boundary": "new boundary",
+                    "pointer": "new pointer",
+                }],
+                {"wiki/sources/a.md": "Paper A"},
+            ),
+            updated,
+        )
 
     def test_grouped_comparisons_escape_wikilink_pipe(self) -> None:
         lines = PUBLISH.render_grouped_comparisons(

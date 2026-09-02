@@ -86,6 +86,8 @@ state this in the report's 范围与日期 section and suggest organizing
    - `batch.source_pages` is empty;
    - `batch.label` names the mining run;
    - topic actions reference *existing* source pages in `papers`;
+   - all confirmed candidates targeting the same Topic are aggregated into
+     one `update_topic` action; never emit duplicate target actions;
    - every update carries the exact target page's `base_topic_sha256`;
    - mined gaps and questions become stable-ID `open_questions` /
      `research_gaps` entries on the confirmed target topics (`origin:
@@ -99,6 +101,9 @@ state this in the report's 范围与日期 section and suggest organizing
    The candidate fields keep the exact names of the report entries so the
    translation is mechanical; the miner never rewrites candidate text and
    never edits wiki pages directly.
+   When an answered item is archived, the publisher persists a narrative
+   refresh notice and returns the affected Topics in
+   `publish-report.json.narrative_refresh`.
 4. Run the deterministic audit and publisher from the main agent:
 
 ```bash
@@ -112,6 +117,30 @@ python "<REPO_ROOT>/scripts/publish_wiki.py" \
 ```
 
 The miner never edits wiki pages directly.
+
+### Phase C: Refresh Answered-Topic Narratives
+
+After the mining publish succeeds, read its `narrative_refresh` object:
+
+1. If `required` is false, stop. Adding gaps or partial progress does not run
+   a refresh linker.
+2. If `required` is true, create one fresh `wiki-linker` for all reported
+   Topics. Do not create one linker per Topic and do not rerun paper
+   processors.
+3. Give the linker the reported Topic paths, their sidecars, all source pages
+   listed by those Topics, the linker brief, and the output path
+   `work/topic-refresh-plan.json`. It emits one schema 3.0 plan with
+   `purpose: "refresh"` and one action per affected Topic.
+4. Run `audit_link_plan.py` and `publish_wiki.py` on that plan, writing
+   `work/topic-refresh-link-plan-report.json` and
+   `work/topic-refresh-publish-report.json`.
+5. A successful refresh rewrites the complete Topic narrative and clears the
+   notice. If linker generation, audit, hash checking, or publishing fails,
+   stop and report it; the mining archive and refresh notice remain valid.
+
+The user's Phase B confirmation also authorizes this bounded follow-up for the
+same answered items. Do not ask for a second confirmation unless the refresh
+would expand to unrelated Topics or sources.
 
 ## Budget Discipline
 
@@ -138,7 +167,10 @@ language:
   is what triggers the write-back into topic pages and the dashboard
   (nothing in `wiki/` changes without confirmation);
 - when a write-back ran: the produced link plan and publish report, and the
-  topic pages that changed.
+  topic pages that changed;
+- when answered items required refresh: the single batched refresh plan and
+  publish report, which Topics refreshed successfully, and which Topics still
+  retain the pending notice after any failure.
 
 When the user asks what a file means, point them to `docs/artifacts.md`.
 

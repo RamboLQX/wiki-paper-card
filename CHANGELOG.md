@@ -2,18 +2,22 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
-## [Unreleased]
+## [0.10.0] - 2026-09-02
 
 ### 新增与改进
 
+- **研究空白生成与表达收紧**：单篇 processor 不再预先生成完成态空白，只向 linker 提供作者局限、Agent 批判观察、未解释结果和跨论文 Topic seed。linker 先跨论文聚类，再检查具体知识缺口、被阻塞的研究判断、最小判别研究和失效/关闭结果；不设数量目标。新空白以 1—2 个自然段落呈现，旧 schema 3.0 条目保留兼容回退。
+- **研究空白标题可读性**：`gap` 改为以明确研究对象为主语、只表达一个被阻塞判断的读者标题；变量、控制条件、指标和实验设计下沉至正文。审计对明显的弱开头、过度枚举和过长中文标题发出非阻断警告。没有独立候选时，Topic 保留栏目并显示语料边界说明，不会进入研究仪表盘或知识树。
 - **Knowledge Tree 单树检索**：`wiki/meta/knowledge-tree.md` 统一为人与 Agent 共用的树入口。检索先匹配领域、Topic、论文叶子或开放项，再只展开候选分支；具体论文未命中时回退 `wiki/index.md` 与 `wiki/sources/`。publisher 不再创建或更新 `agent-tree.md`；升级前遗留的该文件保持不变，可由用户安全删除。
 - **Topic 空开放问题可读性**：没有独立开放问题时保留 `## 开放问题` 标题并显示说明性占位；具有明确推进方向的条目仍只进入研究空白区，不为填满栏目重复写入。新增真实问题时占位自动消失，问题全部归档或移除后自动恢复。
 - **研究空白生命周期记录**：研究空白继续用 open/answered 表达是否关闭，部分推进通过稳定 ID 的 `progress_updates` 保存论文、方法、结果、证据和剩余边界，并在 Topic 及聚合视图标记“已有进展”。完全解决时归档页就地展示解决论文、方法、结果、范围和证据；旧 sidecar 可按已有字段继续读取，无需全库迁移。
+- **Topic 增量维护收紧**：同一轮 gap-mining 对同一 Topic 的全部确认候选合并为一个 action，减少重复哈希校验与页面写入。平面对照表改为按完整 `source_ref` 原位更新，兼容无歧义的旧短链接，不再依赖显示名去重。
+- **叙述刷新闭环与人工安全区**：mining 归档答案时在 sidecar、Topic 和发布报告中标记待刷新目标；框架把本轮全部受影响 Topic 合并为一次 `purpose: refresh` linker 调用，不重跑 processor。刷新成功清除提示，失败保留以便重试。新 Topic 增加 `## 研究者备注`，自动流程保持其正文不变，旧 Topic 不强制补节。
 - **Codex 正式适配**：新增 `.agents/skills/` 安装布局、Vault 级 `AGENTS.md`、`.agents/WIKI_PAPER_CARD_ROOT` 指针与 Codex 编排映射。`install.sh` 新增 `--host codex` 和 `--host all`，并保持默认值及 `both=claude+dsh` 的旧语义。Codex 每篇论文使用一个 fresh processor，同时最多三个且受当前会话可用子 Agent 槽位限制；全批次审计通过后只创建一个 linker。
 - **多宿主入口一致性**：`template/CLAUDE.md` 与新增的 `template/AGENTS.md` 使用字节一致的宿主无关 Vault 规则；安装器对已有入口文件继续 no-clobber，`all` 模式下两份最终内容不一致时明确警告。
 - **Paper Card 与 Topic 统一可读性契约**：共享 writing guide 改为“先完整、后精练”。Paper Card 的研究问题、背景、核心思想、方法、结论、公式解释和研究想法采用可连续阅读的段落；必要的模块、实验、局限和批判分析表格继续保留，并由本地审计阻断明显碎片化输出。
 - **Topic schema 3.0 与无标记正文**：Topic 从追加式关键发现条目升级为受控的概述、综合认识和真实争议段落。link plan 保留 finding/contradiction 证据台账，publisher 使用标准 Markdown 脚注，不再重复输出 finding bullets。稳定开放项与重放状态进入 `wiki/meta/topic-state/` sidecar，正文不再出现 `wiki-paper-card:*` 协议。
-- **paper-card / gap-mining 双入口协调**：ingest 独占 Topic 叙事、证据台账与论文对照；mining 经用户确认后只按稳定 ID/origin 维护开放项。两者共用 `publish_wiki.py`，通过 `base_topic_sha256` 乐观锁阻断过期计划；mining 归档答案时返回 `narrative_refresh_recommended`。
+- **paper-card / gap-mining 双入口协调**：ingest 与 refresh 独占 Topic 叙事、证据台账与论文对照；mining 经用户确认后只按稳定 ID/origin 维护开放项。三种 purpose 共用 `publish_wiki.py`，通过 `base_topic_sha256` 乐观锁阻断过期计划；mining 归档答案时返回结构化 `narrative_refresh` 目标。
 - **兼容与迁移边界**：schema 2.0 继续兼容旧计划和页面。已有 schema 3.0 marker 页面在下一次有效更新时单页迁移为 clean Markdown + sidecar；无 marker 且无 sidecar 的历史页面返回 `narrative_migration_required` 并保持零写入，不提供隐式全库迁移。
 
 ### 修复方法
@@ -28,7 +32,7 @@
 - `docs/agent-quick-setup.md` / `docs/installation.md` / `adapters/{dsh,claude-code}/README.md` / `README.md` / `README.en.md`：指针文件机制与验证命令同步。
 - `scripts/audit_wiki_paper_card.py` / `scripts/publish_wiki.py`：新增 Paper Card 结构化可读性门禁、Topic sidecar、无标记叙事、标准脚注、段落化研究空白、过期计划预检、mining stub 和叙事刷新警告。
 - `skills/wiki-paper-card/references/`、`skills/wiki-gap-mining/`、`skills/wiki-shared/`：同步 Topic 叙事、证据台账、双入口权限与迁移边界。
-- 测试：`tests/test_install.py` 新增 Codex 安装与指针用例；`tests/test_audit_link_plan.py`、`tests/test_audit_wiki_paper_card.py` 与 `tests/test_publish_wiki.py` 覆盖 schema 3.0、可读性合同、二篇到五篇多批次、双入口冲突、迁移阻断、研究空白生命周期和幂等回归；全量 166 个测试通过。
+- 测试：`tests/test_install.py` 新增 Codex 安装与指针用例；`tests/test_audit_link_plan.py`、`tests/test_audit_wiki_paper_card.py` 与 `tests/test_publish_wiki.py` 覆盖 schema 3.0、可读性合同、二篇到五篇多批次、双入口冲突、迁移阻断、研究空白生命周期、refresh 成功/失败/批量/幂等和人工备注保护；全量 197 个测试通过。
 
 ## [0.9.1] - 2026-08-30
 

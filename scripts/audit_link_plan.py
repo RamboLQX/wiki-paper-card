@@ -655,6 +655,15 @@ def audit_topic_action_v3(
         )
     elif name:
         target_names.add(name)
+    if purpose == "refresh" and action_type != "update_topic":
+        findings.append(
+            finding(
+                "error",
+                "refresh_action",
+                f"{label} refresh plans may only update an existing Topic.",
+                action=action_type,
+            )
+        )
 
     papers = set(
         require_nonempty_string_list(
@@ -748,6 +757,26 @@ def audit_topic_action_v3(
     else:
         require_string(action, "index_summary", findings, label)
 
+    if purpose == "refresh":
+        for field in (
+            "open_questions",
+            "research_gaps",
+            "remove_open_question_ids",
+            "remove_research_gap_ids",
+            "annotate_research_gaps",
+            "category",
+            "page_status",
+        ):
+            if field in action:
+                findings.append(
+                    finding(
+                        "error",
+                        "refresh_field_forbidden",
+                        f"{label} refresh action must not define {field}.",
+                        field=field,
+                    )
+                )
+
     page_status = action.get("page_status")
     if page_status is not None and page_status not in {"stub", "draft", "evergreen"}:
         findings.append(
@@ -761,7 +790,39 @@ def audit_topic_action_v3(
 
     finding_ids: set[str] = set()
     contradiction_ids: set[str] = set()
-    if purpose == "ingest":
+    if purpose in {"ingest", "refresh"}:
+        comparisons = require_list(action, "comparisons", findings, label)
+        comparison_refs: set[str] = set()
+        for index, item in enumerate(comparisons, start=1):
+            item_label = f"{label} comparison {index}"
+            if not isinstance(item, dict):
+                findings.append(
+                    finding("error", "comparison_shape", f"{item_label} must be an object.")
+                )
+                continue
+            if "dimension" in item:
+                continue
+            source_ref = require_string(item, "source_ref", findings, item_label)
+            if source_ref in comparison_refs:
+                findings.append(
+                    finding(
+                        "error",
+                        "duplicate_comparison_source",
+                        f"{item_label} duplicates flat comparison source_ref {source_ref}.",
+                        source_ref=source_ref,
+                    )
+                )
+            elif source_ref:
+                comparison_refs.add(source_ref)
+            if source_ref and source_ref not in papers:
+                findings.append(
+                    finding(
+                        "error",
+                        "item_source_outside_topic",
+                        f"{item_label} references a source not listed in topic papers.",
+                        source_refs=[source_ref],
+                    )
+                )
         key_findings = require_list(action, "key_findings", findings, label)
         for index, item in enumerate(key_findings, start=1):
             item_label = f"{label} key_finding {index}"
@@ -867,7 +928,11 @@ def audit_topic_action_v3(
         )
 
     seen_item_ids: set[str] = set()
-    open_questions = require_list(action, "open_questions", findings, label)
+    open_questions = (
+        []
+        if purpose == "refresh"
+        else require_list(action, "open_questions", findings, label)
+    )
     for index, item in enumerate(open_questions, start=1):
         item_label = f"{label} open_question {index}"
         if not isinstance(item, dict):
@@ -920,7 +985,11 @@ def audit_topic_action_v3(
                 )
             require_string(item, "answered_pointer", findings, item_label)
 
-    research_gaps = require_list(action, "research_gaps", findings, label)
+    research_gaps = (
+        []
+        if purpose == "refresh"
+        else require_list(action, "research_gaps", findings, label)
+    )
     for index, item in enumerate(research_gaps, start=1):
         item_label = f"{label} research_gap {index}"
         if not isinstance(item, dict):
@@ -933,7 +1002,7 @@ def audit_topic_action_v3(
             )
             continue
         audit_v3_item_id(item, item_label, seen_item_ids, findings)
-        require_string(item, "gap", findings, item_label)
+        gap_heading = require_string(item, "gap", findings, item_label)
         origin = require_string(item, "origin", findings, item_label)
         if origin and origin not in {"ingest", "mining"}:
             findings.append(
@@ -955,6 +1024,78 @@ def audit_topic_action_v3(
         require_string(item, "direction", findings, item_label)
         require_string(item, "continuity", findings, item_label)
         status = item.get("status", "open")
+        if status == "open" and re.search(r"[\u3400-\u9fff]", gap_heading):
+            readability_issues: list[str] = []
+            if gap_heading.startswith(("缺少", "需要", "尚缺", "亟需")):
+                readability_issues.append("weak_opening")
+            if gap_heading.count("、") >= 2:
+                readability_issues.append("dense_enumeration")
+            if len(re.sub(r"\s+", "", gap_heading)) > 42:
+                readability_issues.append("long_heading")
+            if readability_issues:
+                findings.append(
+                    finding(
+                        "warning",
+                        "research_gap_heading_readability",
+                        f"{item_label} gap should name a research object and one blocked judgment; move variables and study-design details to reader_narrative.",
+                        issues=readability_issues,
+                    )
+                )
+        reader_narrative = item.get("reader_narrative")
+        if reader_narrative is None:
+            if status == "open":
+                findings.append(
+                    finding(
+                        "warning",
+                        "research_gap_reader_narrative",
+                        f"{item_label} omits reader_narrative; the publisher will use the legacy labelled fallback.",
+                    )
+                )
+        elif not isinstance(reader_narrative, list):
+            findings.append(
+                finding(
+                    "error",
+                    "research_gap_reader_narrative",
+                    f"{item_label} reader_narrative must be a list of one or two non-empty paragraphs.",
+                )
+            )
+        else:
+            if not 1 <= len(reader_narrative) <= 2:
+                findings.append(
+                    finding(
+                        "error",
+                        "research_gap_reader_narrative",
+                        f"{item_label} reader_narrative must contain one or two paragraphs.",
+                    )
+                )
+            for paragraph in reader_narrative:
+                if not isinstance(paragraph, str) or not paragraph.strip():
+                    findings.append(
+                        finding(
+                            "error",
+                            "research_gap_reader_narrative",
+                            f"{item_label} reader_narrative paragraphs must be non-empty strings.",
+                        )
+                    )
+                    continue
+                if re.search(r"(?m)^\s*[-*+]\s+", paragraph):
+                    findings.append(
+                        finding(
+                            "error",
+                            "research_gap_reader_narrative",
+                            f"{item_label} reader_narrative must be prose, not a Markdown bullet list.",
+                        )
+                    )
+                for term in HISTORY_TERMS:
+                    if term in paragraph:
+                        findings.append(
+                            finding(
+                                "error",
+                                "research_gap_reader_narrative",
+                                f"{item_label} reader_narrative contains processing-history language.",
+                                term=term,
+                            )
+                        )
         progress_updates = item.get("progress_updates", [])
         if not isinstance(progress_updates, list):
             findings.append(
@@ -1066,6 +1207,14 @@ def audit_topic_action_v3(
                     )
                 )
         priority = item.get("priority", "")
+        if purpose == "ingest" and priority:
+            findings.append(
+                finding(
+                    "warning",
+                    "ingest_research_gap_priority",
+                    f"{item_label} should omit priority during ingest because user and resource context is unavailable.",
+                )
+            )
         if priority and priority not in {"高", "中", "低"}:
             findings.append(
                 finding(
@@ -1164,12 +1313,12 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
         schema_version = "2.0"
 
     purpose = plan.get("purpose", "ingest")
-    if purpose not in {"ingest", "mining"}:
+    if purpose not in {"ingest", "mining", "refresh"}:
         findings.append(
             finding(
                 "error",
                 "purpose",
-                "Link plan purpose must be 'ingest' or 'mining'.",
+                "Link plan purpose must be 'ingest', 'mining', or 'refresh'.",
                 purpose=purpose,
             )
         )
@@ -1189,13 +1338,21 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
         require_string(page, "title", findings, f"batch source page {index}")
     if purpose == "ingest" and not batch_refs:
         findings.append(finding("error", "batch", "Link plan must define at least one batch source page."))
-    if schema_version == "3.0" and purpose == "mining":
+    if purpose == "refresh" and schema_version != "3.0":
+        findings.append(
+            finding(
+                "error",
+                "refresh_schema",
+                "Refresh plans require schema_version 3.0.",
+            )
+        )
+    if schema_version == "3.0" and purpose in {"mining", "refresh"}:
         if batch_refs:
             findings.append(
                 finding(
                     "error",
-                    "mining_batch",
-                    "Schema 3.0 mining plans must keep batch.source_pages empty.",
+                    f"{purpose}_batch",
+                    f"Schema 3.0 {purpose} plans must keep batch.source_pages empty.",
                 )
             )
         label = batch.get("label", "") if isinstance(batch, dict) else ""
@@ -1203,8 +1360,8 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
             findings.append(
                 finding(
                     "error",
-                    "mining_batch_label",
-                    "Schema 3.0 mining plans must define a non-empty batch.label.",
+                    f"{purpose}_batch_label",
+                    f"Schema 3.0 {purpose} plans must define a non-empty batch.label.",
                 )
             )
 

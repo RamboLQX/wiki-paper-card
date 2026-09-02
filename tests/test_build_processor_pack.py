@@ -94,6 +94,85 @@ class ManifestParsingTests(unittest.TestCase):
         self.assertEqual(yaml_paths, from_fallback["references"]["on_demand"])
 
 
+class TopicDiscoveryContractTests(unittest.TestCase):
+    def test_paper_card_reader_contract_covers_summary_and_internal_marker(self) -> None:
+        processor = (
+            ROOT / "skills/wiki-paper-card/references/processor-brief.md"
+        ).read_text(encoding="utf-8")
+        writing_guide = (
+            ROOT / "skills/wiki-shared/references/writing-guide.md"
+        ).read_text(encoding="utf-8")
+        digest = (
+            ROOT / "skills/wiki-paper-card/references/paper-digest-schema.md"
+        ).read_text(encoding="utf-8")
+        combined = " ".join((processor + writing_guide + digest).split())
+        self.assertIn("problem or motivation", combined)
+        self.assertIn("core approach", combined)
+        self.assertIn("evidence-bounded result or contribution", combined)
+        self.assertIn("Never render that marker in the Paper Card", combined)
+
+    def test_gap_contract_uses_only_four_inputs_and_no_count_target(self) -> None:
+        processor = (
+            ROOT / "skills/wiki-paper-card/references/processor-brief.md"
+        ).read_text(encoding="utf-8")
+        digest = (
+            ROOT / "skills/wiki-paper-card/references/paper-digest-schema.md"
+        ).read_text(encoding="utf-8")
+        linker = (
+            ROOT / "skills/wiki-paper-card/references/linker-brief.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("exactly four inputs and no others", processor)
+        for signal in (
+            "analysis.limitations",
+            "analysis.critical_observations",
+            "analysis.unexplained_results",
+            "Topic seeds",
+        ):
+            self.assertIn(signal, processor)
+        self.assertIn("must not be copied into a Topic seed", digest)
+        self.assertIn("There is no target gap count", linker)
+        self.assertNotIn("Record only the 2-3 gaps", linker)
+
+    def test_processor_contract_supports_overlapping_comparison_views(self) -> None:
+        processor = (
+            ROOT / "skills/wiki-paper-card/references/processor-brief.md"
+        ).read_text(encoding="utf-8")
+        digest = (
+            ROOT / "skills/wiki-paper-card/references/paper-digest-schema.md"
+        ).read_text(encoding="utf-8")
+        combined = processor + "\n" + digest
+        normalized = " ".join(combined.split())
+        self.assertIn("paper-supported candidate comparison view", normalized)
+        self.assertIn("overlap in paper membership", normalized)
+        self.assertIn("discovery prompts, not required categories", normalized)
+        self.assertNotIn("non-overlapping seeds", normalized)
+
+    def test_linker_contract_reviews_disjoint_partitions_without_forcing_overlap(
+        self,
+    ) -> None:
+        linker = (
+            ROOT / "skills/wiki-paper-card/references/linker-brief.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Build candidate comparison views across the batch", linker)
+        self.assertIn("paper-to-action membership map", linker)
+        self.assertIn("disjoint partition of the batch", linker)
+        self.assertIn("Do not manufacture overlap", linker)
+        self.assertIn("do not create a whole-batch Topic unless", linker)
+
+    def test_topic_discovery_rules_remain_domain_neutral(self) -> None:
+        contract_paths = (
+            "skills/wiki-paper-card/references/processor-brief.md",
+            "skills/wiki-paper-card/references/paper-digest-schema.md",
+            "skills/wiki-paper-card/references/linker-brief.md",
+            "skills/wiki-shared/references/knowledge-model.md",
+        )
+        combined = "\n".join(
+            (ROOT / path).read_text(encoding="utf-8") for path in contract_paths
+        )
+        self.assertNotIn("knowledge conflict", combined.lower())
+        self.assertNotIn("知识冲突", combined)
+
+
 class BuildPackTests(unittest.TestCase):
     def test_build_pack_merges_all_expected_sources(self) -> None:
         pack, records = PACK_MODULE.build_pack(ROOT)

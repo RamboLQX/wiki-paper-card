@@ -56,7 +56,8 @@ The value discipline from the linker brief applies with a wider lens:
   tells a researcher something they need to know and lands in the one
   section that owns that content type (see the Content Placement Map in
   `knowledge-model.md`). Report "no genuine new gap" instead of padding.
-- **Every candidate gap carries**: `gap` (the gap and its origin),
+- **Every candidate gap carries**: `gap` (a reader-facing heading with an
+  explicit research object and one blocked judgment),
   `source_refs` (the existing papers it traces to), `direction` (what
   observation would move it forward), a suggested landing page (an
   existing topic, or a new cross-group topic), and the v2 detail fields —
@@ -65,7 +66,13 @@ The value discipline from the linker brief applies with a wider lens:
   wiki. The `significance` must name the judgment or choice the gap would
   change (see the writing guide); empty praise is not a motivation. A
   candidate missing both `evidence_boundary` and `experiment` is a
-  tentative direction and is reported as such.
+  tentative direction and is reported as such. It also carries
+  `reader_narrative`: one or two final Topic-page paragraphs that connect the
+  evidence tension, blocked judgment, discriminating study, expected
+  contribution, and meaningful failure result without fixed visible labels.
+  Keep variables, controls, metrics, budgets, and study procedures out of the
+  heading. Put them in the prose, splitting dense enumerations into short
+  sentences.
 - **Three patterns to look for**, in order of value:
   1. cross-group common gaps: the same missing setting or benchmark shows
      up across several domains;
@@ -83,8 +90,8 @@ The value discipline from the linker brief applies with a wider lens:
   the gap remains `status: "open"`. Use `status: "answered"` only when the
   original gap is directly covered, its proposed or equivalent test has been
   completed, and no remaining boundary could change the original judgment.
-- **Record only the 2-3 candidates that most affect decisions.** More may
-  be recorded only when the user asks for an exhaustive list.
+- **Use a validity threshold, not a count target.** Keep every candidate that
+  passes the evidence and decision checks; return none when none passes.
 - **Grade every candidate** into one of: (a) 已有 topic 的补充空白, (b)
   待验证方向 (tentative, stays tagged), (c) 候选新 topic, (d) 仅保留在报告.
   Formal topic creation is the exception, not the default: a candidate may
@@ -123,13 +130,14 @@ The archive sections are first-class mining input, not dead storage:
 
 ## Top 空白速览
 
-1. <gap 一句话> — 为什么值钱：<significance 一句话> — 怎么做：<direction>
+1. <gap：明确研究对象与一个被阻塞的判断> — 为什么值钱：<significance 一句话> — 怎么做：<direction>
 
 ## 当前开放清单（来自 research.md，范围内）
 
 ## 候选研究空白
 
 - 候选：<gap>
+  - Topic 页正文：<reader_narrative，1-2 段>
   - 来源：<wikilinks + evidence pointers>
   - 为什么值得做：<significance>
   - 现有方法卡在哪：<evidence_boundary>
@@ -184,14 +192,17 @@ After the user confirms candidates via the 待确认清单, write one
   `key_findings`, `contradictions`, `category`, or `page_status`, and an update
   never emits `index_summary`. The audit treats these as forbidden fields,
   rather than relying on prompt compliance. 概述, 综合认识, 争议与不确定,
-  and 论文与方法对照 belong to the ingest linker only.
-- One `update_topic` action per confirmed candidate on an existing topic:
-  `papers` lists the existing supporting source pages; `base_topic_sha256`
-  is the SHA-256 of the exact target-page bytes read by the miner. The
-  candidate goes into `open_questions` or `research_gaps` as an object with
-  a stable lowercase kebab-case `id`, `origin: "mining"`, `source_refs`,
-  `status: "open"`, and the corresponding question/gap fields. Preserve an
-  existing item's ID and origin when merging or answering it.
+  and 论文与方法对照 belong to ingest or the bounded post-mining refresh
+  linker, never to the miner.
+- One `update_topic` action per target Topic, not per candidate. Aggregate all
+  confirmed candidates for that Topic into the action's `open_questions` and
+  `research_gaps`; the audit rejects duplicate target actions. `papers` lists
+  the union of existing supporting source pages, and `base_topic_sha256` is
+  the SHA-256 of the exact target-page bytes read by the miner. Each candidate
+  keeps its own stable lowercase kebab-case `id`, `origin: "mining"`,
+  `source_refs`, `status: "open"`, and corresponding question/gap fields,
+  including the confirmed `reader_narrative` unchanged.
+  Preserve an existing item's ID and origin when merging or answering it.
 - Partial advances keep the existing gap `status: "open"` and upsert
   `progress_updates` by stable progress ID. Unmentioned prior progress records
   remain in the sidecar.
@@ -223,8 +234,12 @@ After the user confirms candidates via the 待确认清单, write one
 - The miner writes the plan file only; `audit_link_plan.py` and
   `publish_wiki.py` perform the writes.
 - When a mining plan archives an answered item, report the publisher's
-  `narrative_refresh_recommended` warning. Mining still does not rewrite the
-  field-state narrative.
+  `narrative_refresh_required` warning and structured
+  `narrative_refresh.topics`. Mining still does not rewrite the field-state
+  narrative. The parent agent batches every reported Topic into one
+  `purpose: "refresh"` linker run; no paper processor is rerun. Successful
+  refresh clears the notice, while any failure leaves the archive and notice
+  intact for retry.
 
 ## Return Protocol
 

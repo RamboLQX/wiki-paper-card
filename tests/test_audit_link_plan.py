@@ -134,14 +134,31 @@ def valid_v3_link_plan() -> dict:
         {
             "id": "rg-unified-test",
             "origin": "ingest",
-            "gap": "A unified test is missing.",
+            "gap": "Current evidence cannot support a fair method comparison.",
             "source_refs": ["wiki/sources/a.md", "wiki/sources/b.md"],
             "direction": "Run both methods on one benchmark.",
             "continuity": "A later paper can perform the comparison.",
             "significance": "It would change which method is preferred.",
+            "reader_narrative": [
+                "The papers cannot yet support a method choice because their results come from different benchmarks.",
+                "A matched comparison would show whether the reported ranking reflects the methods or the evaluation setting.",
+            ],
             "status": "open",
         }
     ]
+    return plan
+
+
+def valid_v3_refresh_plan() -> dict:
+    plan = valid_v3_link_plan()
+    plan["purpose"] = "refresh"
+    plan["batch"] = {"source_pages": [], "label": "topic refresh 2026-09"}
+    action = plan["topic_actions"][0]
+    action["action"] = "update_topic"
+    action["existing_page"] = "wiki/topics/Shared Topic.md"
+    action["base_topic_sha256"] = "a" * 64
+    for field in ("open_questions", "research_gaps", "page_status", "category"):
+        action.pop(field, None)
     return plan
 
 
@@ -150,6 +167,34 @@ class LinkPlanAuditTests(unittest.TestCase):
         report = LINK_AUDIT.audit(valid_v3_link_plan())
         self.assertEqual(report["summary"]["errors"], 0, report["findings"])
         self.assertEqual(report["schema_version"], "3.0")
+
+    def test_schema_v3_refresh_plan_passes_without_batch_sources(self) -> None:
+        report = LINK_AUDIT.audit(valid_v3_refresh_plan())
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+
+    def test_schema_v3_refresh_rejects_open_item_mutation_and_create(self) -> None:
+        plan = valid_v3_refresh_plan()
+        action = plan["topic_actions"][0]
+        action["action"] = "create_topic"
+        action["open_questions"] = []
+        report = LINK_AUDIT.audit(plan)
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("refresh_action", codes)
+        self.assertIn("refresh_field_forbidden", codes)
+
+    def test_schema_v3_refresh_batches_multiple_distinct_topics(self) -> None:
+        plan = valid_v3_refresh_plan()
+        second = json.loads(json.dumps(plan["topic_actions"][0]))
+        second.update(
+            {
+                "id": "topic-2-refresh",
+                "name": "Second Topic",
+                "existing_page": "wiki/topics/Second Topic.md",
+            }
+        )
+        plan["topic_actions"].append(second)
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
 
     def test_schema_v3_update_requires_base_topic_hash(self) -> None:
         plan = valid_v3_link_plan()
@@ -189,6 +234,66 @@ class LinkPlanAuditTests(unittest.TestCase):
             {"narrative", "comparisons", "key_findings", "contradictions"},
         )
 
+    def test_schema_v3_mining_groups_multiple_candidates_in_one_topic_action(self) -> None:
+        plan = valid_v3_link_plan()
+        plan["purpose"] = "mining"
+        plan["batch"] = {"source_pages": [], "label": "gap mining 2026-09"}
+        action = plan["topic_actions"][0]
+        action.update(
+            {
+                "action": "update_topic",
+                "existing_page": "wiki/topics/Shared Topic.md",
+                "base_topic_sha256": "a" * 64,
+                "research_gaps": [
+                    action["research_gaps"][0],
+                    {
+                        "id": "rg-transfer-test",
+                        "origin": "mining",
+                        "gap": "A transfer test is missing.",
+                        "source_refs": ["wiki/sources/a.md"],
+                        "direction": "Test one shifted setting.",
+                        "continuity": "A later paper can run the shifted test.",
+                        "significance": "It would delimit the result's scope.",
+                        "status": "open",
+                    },
+                ],
+            }
+        )
+        for field in ("index_summary", "page_status", "narrative", "comparisons", "key_findings", "contradictions"):
+            action.pop(field, None)
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+
+    def test_schema_v3_flat_comparison_requires_source_ref(self) -> None:
+        plan = valid_v3_link_plan()
+        plan["topic_actions"][0]["comparisons"] = [
+            {"paper": "Paper A", "method": "Method A"}
+        ]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(
+                item["code"] == "missing_string"
+                and item.get("details", {}).get("field") == "source_ref"
+                for item in report["findings"]
+            )
+        )
+
+    def test_schema_v3_flat_comparison_rejects_duplicate_source_ref(self) -> None:
+        plan = valid_v3_link_plan()
+        row = {
+            "source_ref": "wiki/sources/a.md",
+            "paper": "Paper A",
+            "method": "Method A",
+        }
+        plan["topic_actions"][0]["comparisons"] = [row, dict(row)]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(
+                item["code"] == "duplicate_comparison_source"
+                for item in report["findings"]
+            )
+        )
+
     def test_schema_v3_open_items_require_unique_ids_and_origin(self) -> None:
         plan = valid_v3_link_plan()
         action = plan["topic_actions"][0]
@@ -223,6 +328,73 @@ class LinkPlanAuditTests(unittest.TestCase):
                 and item.get("details", {}).get("field") == "method"
                 for item in report["findings"]
             )
+        )
+
+    def test_schema_v3_research_gap_reader_narrative_is_bounded(self) -> None:
+        plan = valid_v3_link_plan()
+        gap = plan["topic_actions"][0]["research_gaps"][0]
+        gap["reader_narrative"] = ["one", "two", "three"]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_reader_narrative" and item["level"] == "error" for item in report["findings"])
+        )
+
+        gap.pop("reader_narrative")
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_reader_narrative" and item["level"] == "warning" for item in report["findings"])
+        )
+
+    def test_schema_v3_research_gap_reader_narrative_must_be_prose(self) -> None:
+        plan = valid_v3_link_plan()
+        gap = plan["topic_actions"][0]["research_gaps"][0]
+        gap["reader_narrative"] = ["- Evidence is missing."]
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "research_gap_reader_narrative" and item["level"] == "error" for item in report["findings"])
+        )
+
+    def test_schema_v3_research_gap_heading_readability_warns_without_blocking(self) -> None:
+        cases = {
+            "缺少能够比较不同方法效果的共同评估框架": "weak_opening",
+            "现有研究分别考察材料类型、采样频率、测量环境，尚不能确定这些因素的独立作用": "dense_enumeration",
+            "现有证据尚不能确定不同数据来源下模型性能差异是否来自训练策略本身而不是样本组成和评价流程的系统变化": "long_heading",
+        }
+        for heading, expected_issue in cases.items():
+            with self.subTest(heading=heading):
+                plan = valid_v3_link_plan()
+                plan["topic_actions"][0]["research_gaps"][0]["gap"] = heading
+                report = LINK_AUDIT.audit(plan)
+                warnings = [
+                    item
+                    for item in report["findings"]
+                    if item["code"] == "research_gap_heading_readability"
+                ]
+                self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+                self.assertEqual(len(warnings), 1, report["findings"])
+                self.assertIn(expected_issue, warnings[0]["details"]["issues"])
+
+    def test_schema_v3_subject_predicate_gap_heading_passes_readability_check(self) -> None:
+        plan = valid_v3_link_plan()
+        plan["topic_actions"][0]["research_gaps"][0]["gap"] = (
+            "现有证据无法判断不同方法的效果差异"
+        )
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+        self.assertFalse(
+            any(
+                item["code"] == "research_gap_heading_readability"
+                for item in report["findings"]
+            )
+        )
+
+    def test_schema_v3_ingest_priority_is_only_a_warning_for_compatibility(self) -> None:
+        plan = valid_v3_link_plan()
+        plan["topic_actions"][0]["research_gaps"][0]["priority"] = "高"
+        report = LINK_AUDIT.audit(plan)
+        self.assertEqual(report["summary"]["errors"], 0, report["findings"])
+        self.assertTrue(
+            any(item["code"] == "ingest_research_gap_priority" for item in report["findings"])
         )
 
     def test_schema_v3_research_gap_progress_ids_and_sources_are_checked(self) -> None:
@@ -747,3 +919,11 @@ class LinkPlanAuditTests(unittest.TestCase):
         plan["purpose"] = "scan"
         report = LINK_AUDIT.audit(plan)
         self.assertTrue(any(item["code"] == "purpose" for item in report["findings"]))
+
+    def test_schema_v2_refresh_is_rejected(self) -> None:
+        plan = self.mining_plan()
+        plan["purpose"] = "refresh"
+        report = LINK_AUDIT.audit(plan)
+        self.assertTrue(
+            any(item["code"] == "refresh_schema" for item in report["findings"])
+        )

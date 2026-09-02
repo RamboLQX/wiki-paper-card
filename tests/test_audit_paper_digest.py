@@ -53,6 +53,12 @@ def valid_digest() -> dict:
                     "pointer": "[Paper: PDF p. 7]",
                 }
             ],
+            "unexplained_results": [
+                {
+                    "statement": "Performance improves, but the mechanism is not tested.",
+                    "pointer": "[Paper: PDF p. 8]",
+                }
+            ],
             "open_questions": ["Would the method transfer?"],
         },
         "topic_seeds": [
@@ -61,8 +67,6 @@ def valid_digest() -> dict:
                 "name": "Test Topic",
                 "papers": ["wiki/sources/current.md"],
                 "summary": "A possible comparison topic.",
-                "open_questions": [],
-                "research_gaps": [],
             }
         ],
     }
@@ -92,6 +96,33 @@ class PaperDigestAuditTests(unittest.TestCase):
         digest["topic_seeds"][0]["papers"] = ["wiki/sources/other.md"]
         report = DIGEST_AUDIT.audit(digest)
         self.assertTrue(any(item["code"] == "current_source_missing" for item in report["findings"]))
+
+    def test_unexplained_results_are_required_and_traceable(self) -> None:
+        digest = valid_digest()
+        digest["analysis"].pop("unexplained_results")
+        report = DIGEST_AUDIT.audit(digest)
+        self.assertTrue(
+            any(
+                item["code"] == "missing_list"
+                and item.get("details", {}).get("field") == "unexplained_results"
+                for item in report["findings"]
+            )
+        )
+
+        digest = valid_digest()
+        digest["analysis"]["unexplained_results"][0]["pointer"] = "p. 8"
+        report = DIGEST_AUDIT.audit(digest)
+        self.assertTrue(
+            any(item["code"] == "unexplained_results_pointer" for item in report["findings"])
+        )
+
+    def test_topic_seed_rejects_embedded_gap_candidates(self) -> None:
+        digest = valid_digest()
+        digest["topic_seeds"][0]["research_gaps"] = ["A generic gap."]
+        report = DIGEST_AUDIT.audit(digest)
+        self.assertTrue(
+            any(item["code"] == "topic_seed_candidate_content" for item in report["findings"])
+        )
 
     def test_cli_writes_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

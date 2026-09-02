@@ -72,6 +72,10 @@ DeepSeek Harness (DSH) 宿主下的编排映射。DSH 会话在 Vault 目录中�
   按同名同构规则生成 link-plan。
 - 主会话运行 audit_link_plan.py 与 publish_wiki.py 两个确定性脚本；miner
   只写 link-plan 与 work/ 文件，禁止子代理执行 wiki 写入。
+- mining publish 的 `narrative_refresh.required` 为 true 时，主会话启动一个
+  fresh linker subagent，批量处理报告列出的全部 Topic 并生成
+  `purpose: "refresh"` 的 `work/topic-refresh-plan.json`。不要按 Topic 分别
+  启动 linker，也不要重跑 processor；refresh 的 audit/publish 仍由主会话执行。
 
 ## 与 Claude Code 宿主的差异
 

@@ -160,6 +160,8 @@ origins, and gap annotations. It is application state, not research content.
 ## 已解决的问题
 
 ## 已解决的研究空白
+
+## 研究者备注
 ```
 
 The `## 概述` opens the page with two or three complete paragraphs written per the
@@ -182,22 +184,34 @@ Markdown and a sidecar on their next valid update. A page with neither legacy
 markers nor a valid sidecar fails with `narrative_migration_required`; no
 implicit whole-vault migration exists.
 
+New schema 3.0 Topics end with `## 研究者备注`. This is a manual safe zone:
+publisher updates preserve its body, including nested headings, byte-for-byte;
+it is excluded from sidecar state, dashboards, trees, and research mining.
+Existing Topics without the section are not force-migrated.
+
 The open `## 开放问题` and `## 研究空白与候选方向` sections hold only items still open. Schema 3.0 stores each item's stable ID and immutable origin in the Topic sidecar. Research-gap `status` expresses closure only: partial advances remain open and are stored as stable-ID `progress_updates` with their sources, method, result, pointer, and remaining boundary. Topic prose renders the full history; dashboard and tree aggregation keep the gap visible with an `[已有进展]` marker. When an item is answered, the publisher moves the same ID into the archive and excludes it from both aggregations.
 
-When no independent open question remains, the publisher keeps the `## 开放问题` heading and renders a plain explanatory placeholder. The placeholder is not a list item, is never aggregated into the dashboard or knowledge tree, and is replaced automatically when a real open question is added. Questions with a concrete direction remain research gaps only; the placeholder does not relax that deduplication rule.
+If mining performs that archive, the sidecar also records a persistent
+`narrative_refresh_required` flag and affected item IDs. The Topic displays a
+short `## 内容更新状态` notice without changing narrative bytes. The mining
+publish report lists all affected Topics, and the parent sends them together
+to one narrative-only refresh linker. A successful schema 3.0 refresh rewrites
+the complete narrative and removes the flag and notice; failure preserves both
+for retry. No paper processor is rerun.
+
+When no independent open question remains, the publisher keeps the `## 开放问题` heading and renders a plain explanatory placeholder. The placeholder is not a list item, is never aggregated into the dashboard or knowledge tree, and is replaced automatically when a real open question is added. Questions with a concrete direction remain research gaps only; the placeholder does not relax that deduplication rule. The `## 研究空白与候选方向` section follows the same empty-state behavior. Its placeholder states only that the currently included literature did not form an independent candidate; it does not claim that the wider field has no research gap.
 
 ### Research Gap Rendering
 
-A schema 3.0 gap renders as a heading plus reader-facing prose. Only supported
-fields appear:
+A newly generated schema 3.0 gap renders as a heading plus its one- or
+two-paragraph `reader_narrative`:
 
 ```markdown
-### <gap 描述>
+### Current evidence cannot determine which method is more reliable
 
-**为什么值得做。** ... **现有证据边界。** ... 这一判断来自 [[论文A]]。
+<现有证据之间的张力，以及它使哪个研究判断无法成立。> 这一判断基于 [[论文A]]、[[论文B]]。
 
-**推进方向。** ... **验证方式。** ... **成功条件。** ...
-**可能失败。** ... **后续承接。** ... **优先级。** 高/中/低。
+<最小判别性研究，其预期贡献，以及什么结果会削弱或否定该候选。>
 
 **已有进展 1。** [[论文B]] 提供了新的推进证据。 **采用方法。** ...
 **取得结果。** ... **证据位置。** [Paper: PDF p. X]
@@ -206,10 +220,19 @@ fields appear:
 ```
 
 Every open gap carries `significance`; the link-plan audit rejects an open gap
-without it. An entry with detail fields but without both `evidence_boundary`
-and `experiment` is a tentative direction and its heading gains `[待验证]`.
-Dashboards use the sidecar's compact `gap` and `priority` fields rather than
-parsing or duplicating the visible prose.
+without it. New producers supply `reader_narrative`; the audit warns when it is
+missing so stored schema 3.0 plans remain compatible, and the publisher then
+uses the previous labelled-field fallback. An entry with detail fields but
+without both `evidence_boundary` and `experiment` is a tentative direction and
+its heading gains `[待验证]`. Dashboards use the sidecar's compact fields
+rather than parsing or duplicating the visible prose.
+
+The heading is a subject-predicate statement of one blocked judgment. It does
+not list the full factor set, control conditions, metrics, compute budget, or
+study procedure. Those details belong in the prose below. The audit emits a
+non-blocking readability warning for obvious Chinese regressions such as weak
+existential openings, dense enumeration, or an unusually long heading; stored
+plans remain publishable.
 
 An answered schema 3.0 gap renders under `## 已解决的研究空白` with its
 answering paper, `resolution_method`, `resolution_summary`, `resolution_scope`,

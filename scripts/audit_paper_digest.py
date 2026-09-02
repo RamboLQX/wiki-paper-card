@@ -86,6 +86,16 @@ def audit_topic_seed(topic: dict[str, Any], current_source_ref: str) -> list[dic
                 papers=papers,
             )
         )
+    for field in ("open_questions", "research_gaps"):
+        if topic.get(field):
+            findings.append(
+                finding(
+                    "error",
+                    "topic_seed_candidate_content",
+                    f"{label} must remain a comparison view and must not carry {field}.",
+                    field=field,
+                )
+            )
     return findings
 
 
@@ -147,7 +157,11 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
                     )
                 )
 
-        for key, text_field in (("limitations", "statement"), ("critical_observations", "observation")):
+        for key, text_field in (
+            ("limitations", "statement"),
+            ("critical_observations", "observation"),
+            ("unexplained_results", "statement"),
+        ):
             rows = require_list(analysis, key, findings, "analysis")
             for index, row in enumerate(rows, start=1):
                 if not isinstance(row, dict):

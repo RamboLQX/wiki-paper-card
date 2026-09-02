@@ -1,6 +1,6 @@
 # Link Plan Schema
 
-`wiki-linker` writes one `link-plan.json` after every paper card and digest in the batch has passed its audits. The `wiki-gap-mining` miner writes mining-mode plans (`purpose: "mining"`) when a write-back is confirmed. New Topic work uses schema 3.0. Schema 2.0 remains accepted only for compatibility with existing plans and pages.
+`wiki-linker` writes one `link-plan.json` after every paper card and digest in the batch has passed its audits. The `wiki-gap-mining` miner writes mining-mode plans (`purpose: "mining"`) when a write-back is confirmed. When mining archives an answer, one fresh linker may write a batched narrative-only plan (`purpose: "refresh"`) for the affected Topics. New Topic work uses schema 3.0. Schema 2.0 remains accepted only for compatibility with existing plans and pages.
 
 ## Schema 3.0
 
@@ -74,11 +74,15 @@ Schema 3.0 separates the reader-facing narrative from its structured evidence le
         {
           "id": "rg-unified-benchmark",
           "origin": "ingest",
-          "gap": "A unified benchmark is missing.",
+          "gap": "Current evidence cannot support a fair method comparison.",
           "source_refs": ["wiki/sources/new.md", "wiki/sources/existing.md"],
           "direction": "Run both methods on one benchmark.",
           "continuity": "A later paper can close the gap.",
           "significance": "It would change which method is preferred.",
+          "reader_narrative": [
+            "The studies cannot yet support a method choice because their results come from different benchmarks.",
+            "A matched comparison would show whether the reported ranking reflects the methods or the evaluation setting."
+          ],
           "status": "open"
         }
       ]
@@ -108,7 +112,7 @@ In schema 3.0, every `open_questions` and `research_gaps` entry is an object wit
 - non-empty `source_refs` contained in the action's `papers`;
 - `status: "open"|"answered"`; this field expresses closure only, not partial progress.
 
-Research gaps retain `direction`, `continuity`, `significance`, and the optional v2 detail fields. An open gap may carry `progress_updates`, each with a stable lowercase kebab-case `id`, non-empty `source_refs`, `method`, `result`, `pointer`, and `remaining_boundary`. Progress records are upserted by ID; unmentioned prior records remain. An answered research gap carries `answered_by`, `answered_pointer`, `resolution_method`, `resolution_summary`, and `resolution_scope`. Open questions retain the existing `answered_by` / `answered_pointer` contract. The publisher stores this lifecycle state and the replay fingerprint in `wiki/meta/topic-state/*.json`. Dashboards read compact open-item fields from that sidecar while the Topic page renders reader-facing prose.
+Research gaps retain `direction`, `continuity`, `significance`, and the optional structured detail fields. A newly generated open gap carries `reader_narrative`: one or two final prose paragraphs for the Topic page. The publisher prefers this prose; older gaps without it use the previous labelled-field rendering, so no bulk migration is required. An open gap may carry `progress_updates`, each with a stable lowercase kebab-case `id`, non-empty `source_refs`, `method`, `result`, `pointer`, and `remaining_boundary`. Progress records are upserted by ID; unmentioned prior records remain. An answered research gap carries `answered_by`, `answered_pointer`, `resolution_method`, `resolution_summary`, and `resolution_scope`. Open questions retain the existing `answered_by` / `answered_pointer` contract. The publisher stores this lifecycle state and the replay fingerprint in `wiki/meta/topic-state/*.json`. Dashboards read compact open-item fields from that sidecar while the Topic page renders reader-facing prose.
 
 Schema 3.0 mutations address items by ID:
 
@@ -124,7 +128,21 @@ A schema 3.0 mining update may change only `open_questions`, `research_gaps`, th
 
 A confirmed mining `create_topic` may provide `index_summary`, existing source `papers`, and open items only. It requires at least two existing sources and always renders `status: stub` with a fixed overview stating that the page is a candidate without a completed cross-paper synthesis. A later ingest action supplies the narrative and may explicitly promote `page_status` to `draft` or `evergreen`.
 
-When mining archives an answered item, the publish report emits `narrative_refresh_recommended`; mining still does not rewrite the narrative.
+When mining archives an answered item, the publish report emits `narrative_refresh_required` and a structured list of affected Topics. The Topic sidecar records the pending state and archived item IDs, while the page displays a deterministic update notice. The parent batches those Topics into one `purpose: "refresh"` linker run. A successful refresh rewrites the complete narrative and clears both state and notice; failure preserves them for retry.
+
+### Refresh Permission Boundary
+
+A schema 3.0 refresh plan has an empty `batch.source_pages`, a non-empty
+`batch.label`, and one `update_topic` action per affected Topic. Each action
+requires `existing_page`, the exact post-mining `base_topic_sha256`, complete
+existing `papers`, `index_summary`, `narrative`, `comparisons`, `key_findings`,
+and `contradictions`. It must omit `open_questions`, `research_gaps`, their
+mutation fields, `category`, and `page_status`. It cannot create a Topic.
+
+The publisher accepts a refresh only when the sidecar has
+`narrative_refresh_required: true`, except that an exact successful-plan replay
+remains a no-op. Refresh reads existing source pages and never writes batch
+source pages or invokes paper processors.
 
 ## Schema 2.0 Compatibility
 
@@ -149,7 +167,7 @@ When mining archives an answered item, the publish report emits `narrative_refre
 }
 ```
 
-`purpose` is optional and defaults to `ingest`. The two modes:
+`purpose` is optional and defaults to `ingest`. The three modes are:
 
 - `ingest` (paper-processing batches): `source_pages` contains the current
   batch (at least one), and topic actions may only reference batch pages.
@@ -158,8 +176,13 @@ When mining archives an answered item, the publish report emits `narrative_refre
   reference *existing* wiki source pages. `create_topic` requires at least
   two referenced source pages (they must already exist in the wiki). The
   publisher appends the topic backlinks to those existing source pages.
+- `refresh` (schema 3.0 post-mining narrative synchronization):
+  `source_pages` is empty, `batch.label` names the refresh, and one fresh
+  linker updates all reported Topics without changing their open items or
+  page metadata. Schema 2.0 refresh plans are rejected.
 
-`source_pages` contains the current batch only; in mining mode it is empty.
+`source_pages` contains the current batch only; in mining and refresh modes it
+is empty.
 
 There are no hub actions: the linker writes topic actions only.
 
@@ -202,7 +225,7 @@ There are no hub actions: the linker writes topic actions only.
   ],
   "research_gaps": [
     {
-      "gap": "The gap and its origin.",
+      "gap": "Current evidence cannot determine which method is more reliable.",
       "source_refs": ["wiki/sources/paper-a.md"],
       "direction": "What observation would move it forward.",
       "continuity": "A future paper may answer it.",
@@ -245,15 +268,18 @@ Rules:
 
 - `create_topic` requires at least two distinct batch source pages.
 - `update_topic` requires a non-empty `existing_page`; it may include one new paper that answers, challenges, or partially advances an existing open item. Partial gap advances keep `status: "open"` and add `progress_updates`. A fully answered gap uses the complete resolution record defined above; an answered open question keeps the existing `answered_by` / `answered_pointer` pair. Only answered items move into the archive and disappear from the research dashboard and knowledge tree.
-- Comparison rows use canonical keys `paper`, `source_ref` (optional, for a wikilink), `method`, `intervention_granularity`, `main_result`, `boundary`, `pointer`. The legacy key `granularity` is still rendered but deprecated.
+- Topic membership is not a partition: the same source page may appear in several actions when it supports independent cross-paper judgments and comparison views. Candidate views may center on a shared problem, method or intervention, mechanism, measurement or evaluation, or evidence setting; these are discovery prompts rather than required categories. Do not merge meaningful views merely to reduce the number of actions.
+- A disjoint partition of the batch is valid only after checking whether a meaningful cross-cutting comparison view was missed. Do not manufacture overlap when no such comparison exists, and do not create a whole-batch Topic without a coherent cross-paper judgment and comparison dimension.
+- Choose `update_topic` only after confirming that the candidate preserves the existing page's coherent comparison view. A shared umbrella field name is insufficient; if the existing title or overview must broaden beyond a meaningful comparison basis to admit the candidate, create a sibling Topic when the two-paper gate is met.
+- Flat comparison rows use canonical keys `paper`, required `source_ref`, `method`, `intervention_granularity`, `main_result`, `boundary`, `pointer`. The publisher upserts them by normalized `source_ref`, preserves table order, and recognizes an unambiguous legacy stem-only link during migration. New links retain the full Vault-relative target. The legacy key `granularity` is still rendered but deprecated.
 - Contradiction items use `position_a` / `position_b` with `position_a_source_ref` / `position_a_pointer` and `position_b_source_ref` / `position_b_pointer`, plus `resolving_evidence` naming the discriminating experiment that would settle the conflict. The legacy keys `source_ref_a` / `pointer_a` / `resolve` are still rendered but deprecated.
 - `key_findings` kinds: `consensus` (multiple independent sources), `single` (one source), `conflict` (disputed). Each finding carries `claim`, optional `source_refs`, and optional `pointer`. The list may be empty when no finding meets the value threshold.
 - `open_questions` entries are strings or objects with `question` and optional `status` (`open` default / `answered`). A string is shorthand for an open question. Answered objects require non-empty `answered_by` source refs and a non-empty `answered_pointer`. The list may be empty.
-- `research_gaps` entries in a new plan must be objects with non-empty `gap`, `source_refs` (a non-empty list of the papers it traces to), `direction`, `continuity`, and optional `status` (`open` default / `answered`). Open gaps additionally require a non-empty `significance`; optional `progress_updates` must use the complete stable-ID record described above. Answered schema 3.0 gaps additionally require non-empty `answered_by`, `answered_pointer`, `resolution_method`, `resolution_summary`, and `resolution_scope`. The publisher retains legacy string input and renders older stored answered entries from whatever resolution fields are available, but `audit_link_plan.py` rejects incomplete objects in newly submitted schema 3.0 plans.
-- Every open `research_gaps` entry must carry a non-empty `significance` that names the judgment or choice it would change; the audit rejects an open gap without it (see the shared [writing guide](../../wiki-shared/references/writing-guide.md)). Answered gaps are exempt. The other five v2 detail fields `evidence_boundary`, `experiment`, `success_criterion`, `risk`, and `priority` remain optional. `priority` uses the labels 高/中/低 (audit rejects other values). An entry carrying any v2 field but lacking both `evidence_boundary` and `experiment` renders with a `[待验证]` tag (a tentative direction); entries without any v2 field render exactly as before. Empty optional fields should be omitted rather than set to `""` (audit warns).
+- `research_gaps` entries in a new plan must be objects with non-empty `gap`, `source_refs` (a non-empty list of the papers it traces to), `direction`, `continuity`, and optional `status` (`open` default / `answered`). `gap` is the reader-facing heading: it names the research object as its grammatical subject and states one blocked judgment. Variables, controls, metrics, budgets, and study-design steps belong in `reader_narrative`, not in the heading. Open gaps additionally require a non-empty `significance`; producer contracts require `reader_narrative` with one or two non-empty prose paragraphs, while the audit warns rather than fails when it is absent to preserve old schema 3.0 plans. Optional `progress_updates` must use the complete stable-ID record described above. Answered schema 3.0 gaps additionally require non-empty `answered_by`, `answered_pointer`, `resolution_method`, `resolution_summary`, and `resolution_scope`. The publisher retains legacy string input and renders older stored answered entries from whatever resolution fields are available.
+- Every open `research_gaps` entry must carry a non-empty `significance` that names the judgment or choice it would change; the audit rejects an open gap without it (see the shared [writing guide](../../wiki-shared/references/writing-guide.md)). Answered gaps are exempt. The structured fields `evidence_boundary`, `experiment`, `success_criterion`, `risk`, and `priority` remain optional. Ingest plans omit `priority`; mining may set 高/中/低 after considering user scope and resources. An entry carrying structured detail but lacking both `evidence_boundary` and `experiment` renders with a `[待验证]` tag (a tentative direction). Empty optional fields should be omitted rather than set to `""` (audit warns).
 - Topic actions may carry an optional single-value `category` (for example `"评估框架"`): the publisher writes it into the topic frontmatter on create and on update (only when given), and the knowledge tree renders a category-first topic view from it. Omit it to leave a topic uncategorized. The category set is small and user-owned; proposing a new category requires user confirmation.
 - Semantic dedup fields (used by mining write-back, available to the linker as well): `remove_open_questions` and `remove_research_gaps` are lists of non-empty strings; the publisher drops existing bullets whose text contains the fragment (whitespace-normalized substring match). `annotate_research_gaps` is a list of `{match, note}` objects; the publisher appends `note` to the matching open gap's 承接 ending, or as a `- 相关空白：…` sub-bullet when there is no such ending. Fragments matching nothing are no-ops; audit rejects malformed shapes, and unknown fields on a topic action are ignored by the publisher, so name these exactly.
-- Classification between `key_findings` and `research_gaps` follows the two-question decision in `linker-brief.md`: findings change what a reader believes about the field's current state; gaps name something missing plus a direction and a way to check it. A statement satisfying both is recorded fully under `key_findings` and referenced by the gap. When a later paper answers an open item, record the answer's substance as a `key_findings` entry and mark the old item answered instead of silently dropping it.
+- Classification between `key_findings` and `research_gaps` follows the evidence-source and four-check gate in `linker-brief.md`: findings change what a reader believes about the field's current state; gaps must also arise from one of the four allowed signals, block a concrete judgment, admit a discriminating study, and name a failure or closure result. A statement satisfying both is recorded fully under `key_findings` and referenced by the gap. When a later paper answers an open item, record the answer's substance as a `key_findings` entry and mark the old item answered instead of silently dropping it.
 
 ## Publisher Boundary
 
