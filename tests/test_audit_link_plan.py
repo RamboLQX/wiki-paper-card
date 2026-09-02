@@ -163,6 +163,35 @@ def valid_v3_refresh_plan() -> dict:
 
 
 class LinkPlanAuditTests(unittest.TestCase):
+    def test_manifest_requires_exact_batch_membership_and_paths(self) -> None:
+        plan = valid_link_plan()
+        plan["batch"]["source_pages"][0]["source_ref"] = "wiki/sources/wrong-a.md"
+        plan["batch"]["source_pages"].pop()
+        manifest = {
+            "schema_version": "1.0",
+            "work_root": "work",
+            "paper_count": 2,
+            "papers": [
+                {
+                    "source_path": "raw/a.pdf",
+                    "source_sha256": "a" * 64,
+                    "source_ref": "wiki/sources/a.md",
+                    "work_dir": "work/a",
+                },
+                {
+                    "source_path": "raw/b.pdf",
+                    "source_sha256": "b" * 64,
+                    "source_ref": "wiki/sources/b.md",
+                    "work_dir": "work/b",
+                },
+            ],
+        }
+        report = LINK_AUDIT.audit(plan, manifest)
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("manifest_source_ref_mismatch", codes)
+        self.assertIn("manifest_batch_missing", codes)
+        self.assertEqual(report["summary"]["status"], "fail")
+
     def test_valid_schema_v3_plan_passes(self) -> None:
         report = LINK_AUDIT.audit(valid_v3_link_plan())
         self.assertEqual(report["summary"]["errors"], 0, report["findings"])

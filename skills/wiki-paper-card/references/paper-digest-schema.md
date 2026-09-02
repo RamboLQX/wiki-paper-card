@@ -2,6 +2,13 @@
 
 `wiki-processor` writes one `paper-digest.json` per paper. The digest is a compact paper-local record used by the batch linker and the deterministic publisher. It must not contain wiki actions.
 
+The processor owns the semantic fields. `paper.source_sha256`,
+`paper.source_ref`, and every Topic seed's single-paper `papers` list are
+system-owned identity fields: `finalize_paper_digest.py` replaces them from
+`batch-manifest.json` and records the before/after values before audit. The
+script never changes title, locator mode, paper type, analysis, seed identity,
+seed name, or seed summary.
+
 ## Top-Level Fields
 
 ```json

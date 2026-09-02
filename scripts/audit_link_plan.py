@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    from batch_manifest import ManifestError, load_manifest
+except ModuleNotFoundError:  # Imported as scripts.audit_link_plan in tests.
+    from scripts.batch_manifest import ManifestError, load_manifest
+
 
 ALLOWED_TOPIC_ACTIONS = {"create_topic", "update_topic"}
 ALLOWED_SCHEMA_VERSIONS = {"2.0", "3.0"}
@@ -1298,7 +1303,10 @@ def audit_topic_action_v3(
     return findings
 
 
-def audit(plan: dict[str, Any]) -> dict[str, Any]:
+def audit(
+    plan: dict[str, Any],
+    manifest: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     if not isinstance(plan, dict):
         return {
@@ -1336,6 +1344,61 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
             batch_refs.add(source_ref)
         require_string(page, "work_dir", findings, f"batch source page {index}")
         require_string(page, "title", findings, f"batch source page {index}")
+    if manifest is not None:
+        expected_by_work = {entry["work_dir"]: entry for entry in manifest["papers"]}
+        actual_by_work: dict[str, dict[str, Any]] = {}
+        for page in source_pages:
+            if not isinstance(page, dict):
+                continue
+            work_dir = page.get("work_dir")
+            if not isinstance(work_dir, str) or not work_dir.strip():
+                continue
+            work_dir = work_dir.strip()
+            if work_dir in actual_by_work:
+                findings.append(
+                    finding(
+                        "error",
+                        "manifest_duplicate_work_dir",
+                        "Link plan repeats a manifest work_dir.",
+                        work_dir=work_dir,
+                    )
+                )
+                continue
+            actual_by_work[work_dir] = page
+        for work_dir in sorted(expected_by_work.keys() - actual_by_work.keys()):
+            findings.append(
+                finding(
+                    "error",
+                    "manifest_batch_missing",
+                    "Link plan omits a paper from the batch manifest.",
+                    work_dir=work_dir,
+                    source_ref=expected_by_work[work_dir]["source_ref"],
+                )
+            )
+        for work_dir in sorted(actual_by_work.keys() - expected_by_work.keys()):
+            findings.append(
+                finding(
+                    "error",
+                    "manifest_batch_extra",
+                    "Link plan contains a work_dir outside the batch manifest.",
+                    work_dir=work_dir,
+                    source_ref=actual_by_work[work_dir].get("source_ref"),
+                )
+            )
+        for work_dir in sorted(expected_by_work.keys() & actual_by_work.keys()):
+            actual_ref = actual_by_work[work_dir].get("source_ref")
+            expected_ref = expected_by_work[work_dir]["source_ref"]
+            if actual_ref != expected_ref:
+                findings.append(
+                    finding(
+                        "error",
+                        "manifest_source_ref_mismatch",
+                        "Link plan source_ref does not match the batch manifest.",
+                        work_dir=work_dir,
+                        actual=actual_ref,
+                        expected=expected_ref,
+                    )
+                )
     if purpose == "ingest" and not batch_refs:
         findings.append(finding("error", "batch", "Link plan must define at least one batch source page."))
     if purpose == "refresh" and schema_version != "3.0":
@@ -1411,6 +1474,7 @@ def audit(plan: dict[str, Any]) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit a link-plan.json.")
     parser.add_argument("--plan", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path)
     parser.add_argument("--report", type=Path)
     return parser.parse_args()
 
@@ -1427,7 +1491,15 @@ def main() -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
-    report = audit(plan)
+    manifest = None
+    if args.manifest:
+        try:
+            manifest = load_manifest(args.manifest.expanduser().resolve())
+        except ManifestError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+
+    report = audit(plan, manifest)
     print(
         f"Audit status: {report['summary']['status']} "
         f"(passes={report['summary']['passes']}, "

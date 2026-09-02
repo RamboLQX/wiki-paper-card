@@ -32,12 +32,17 @@ The parent prompt supplies:
 ```text
 all paper-digest.json paths
 the corresponding final paper-card.md paths
+batch-manifest.json
 the batch link KB context
 the batch work directory
 the wiki root
 ```
 
 Prefer the digests for context. A final card may be read only for a specific ambiguous section named by the linker.
+
+For ingest, copy every `batch.source_pages[].source_ref` and `work_dir` from
+`batch-manifest.json`. Add only the reader-facing `title` and `short` fields.
+Do not reconstruct, shorten, or normalize the manifest paths.
 
 For a `purpose: "refresh"` run, the parent instead supplies all affected Topic
 paths from the mining publish report, their matching sidecars, and the source
@@ -168,7 +173,9 @@ only, not a duplicate finding list. `## 研究空白与候选方向` remains the
 
 Follow [link-plan-schema.md](link-plan-schema.md).
 
-- Include every finalized current batch source page, each with a short display name (`short`) used for wikilinks.
+- Include every finalized current batch source page, copying `source_ref` and
+  `work_dir` exactly from the manifest and adding a short display name (`short`)
+  used for wikilinks.
 - Use `schema_version: "3.0"` and `purpose: "ingest"` for new plans.
 - For an update, compute `base_topic_sha256` from the exact Topic-page bytes read before planning. Include every existing source referenced by the complete narrative in the action's `papers`, while `batch.source_pages` still contains only the current batch.
 - For every existing schema 3.0 Topic, read its matching `wiki/meta/topic-state/<topic-relative-path>.json` before editing open items. Give every new open question and research gap a stable ID and `origin`; preserve the sidecar values when updating, annotating, removing, or answering an existing item. Do not infer identity from visible wording.

@@ -9,6 +9,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    from batch_manifest import ManifestError, entry_for_work_dir, load_manifest, relative_posix
+except ModuleNotFoundError:  # Imported as scripts.audit_paper_digest in tests.
+    from scripts.batch_manifest import ManifestError, entry_for_work_dir, load_manifest, relative_posix
+
 
 ALLOWED_CONFIDENCE = {"high", "medium", "low"}
 MAX_DIGEST_BYTES = 8000
@@ -99,7 +104,10 @@ def audit_topic_seed(topic: dict[str, Any], current_source_ref: str) -> list[dic
     return findings
 
 
-def audit(digest: dict[str, Any]) -> dict[str, Any]:
+def audit(
+    digest: dict[str, Any],
+    expected_identity: dict[str, str] | None = None,
+) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     if not isinstance(digest, dict):
         return {
@@ -123,6 +131,21 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
                     finding("error", "paper_field", f"Paper digest paper must define {field}.", field=field)
                 )
         current_source_ref = paper.get("source_ref", "").strip()
+        if expected_identity is not None:
+            for field in ("source_sha256", "source_ref"):
+                actual = paper.get(field)
+                expected = expected_identity[field]
+                if actual != expected:
+                    findings.append(
+                        finding(
+                            "error",
+                            f"manifest_{field}_mismatch",
+                            f"Paper digest {field} does not match the batch manifest.",
+                            actual=actual,
+                            expected=expected,
+                            work_dir=expected_identity["work_dir"],
+                        )
+                    )
 
     analysis = digest.get("analysis", {})
     if not isinstance(analysis, dict):
@@ -215,6 +238,8 @@ def audit(digest: dict[str, Any]) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit a paper-digest.json.")
     parser.add_argument("--digest", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--wiki-root", type=Path)
     parser.add_argument("--report", type=Path)
     return parser.parse_args()
 
@@ -232,7 +257,21 @@ def main() -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
-    report = audit(digest)
+    if bool(args.manifest) != bool(args.wiki_root):
+        print("ERROR: --manifest and --wiki-root must be supplied together.", file=sys.stderr)
+        return 2
+    expected_identity = None
+    if args.manifest and args.wiki_root:
+        try:
+            manifest = load_manifest(args.manifest.expanduser().resolve())
+            wiki_root = args.wiki_root.expanduser().resolve()
+            work_dir = f"work/{relative_posix(digest_path.parent, wiki_root / 'work', 'digest work_dir')}"
+            expected_identity = entry_for_work_dir(manifest, work_dir)
+        except ManifestError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+
+    report = audit(digest, expected_identity)
     if len(raw.encode("utf-8")) > MAX_DIGEST_BYTES:
         report["findings"].append(
             finding(

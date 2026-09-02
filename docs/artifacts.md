@@ -31,9 +31,11 @@
 | 阶段 | 产物 | 类型 | 说明 |
 |---|---|---|---|
 | 准备 | `work/<名称>/source_bundle.json` | 机器 | 提取出的论文文本，供分析使用 |
+| 准备 | `work/<批次>/batch-manifest.json` | 机器 | 从 source bundle 复算并固定本批论文的原始路径、SHA、目标页面和 work_dir，后续阶段共同使用 |
 | 准备 | `work/<名称>/kb-context.md` | 机器 | 已有知识库的相关上下文摘要 |
 | 分析 | `work/<名称>/paper-card.md` | 中间 | 论文分析的完整草稿，发布前会经过审计和整理 |
 | 分析 | `work/<名称>/paper-digest.json` | 机器 | 论文的结构化摘要，连接阶段使用 |
+| 检查 | `work/<名称>/paper-digest-finalize-report.json` | 机器 | 记录 digest 中 SHA、来源页路径和单篇 seed 成员等系统字段的整理前后值；不修改语义内容 |
 | 检查 | `work/<名称>/audit-report.json` 等 | 机器 | 结构与证据审计报告，失败会阻止继续 |
 | 连接 | `work/<名称>/link-plan.json` | 机器 | schema 3.0 跨论文计划，包含完整叙事、证据台账、稳定开放项 ID 和 Topic 基线哈希 |
 | 发布 | `work/<名称>/publish-report.json` | 机器 | 实际写入 wiki/ 的结果记录 |
@@ -97,7 +99,9 @@ gap-mining 不能改写 Topic 的概述、综合认识、争议或论文对照�
 | `work/gap-mining-report.md` | 面向用户 | 研究空白报告，含待确认清单 |
 | `work/gap-mining-notes.md` | 中间 | 挖掘 Agent 的笔记，不需要读 |
 | `work/topic-refresh-plan.json` 及对应 report | 机器 | mining 归档答案后，批量刷新受影响 Topic 综合叙述的计划、审计与发布结果 |
+| `work/<批次>/batch-manifest.json` | 机器 | 当前论文批次的系统身份清单，是 digest、link-plan 和发布阶段共同核对的唯一来源 |
 | `work/<名称>/paper-card.md` | 中间 | Paper Card 草稿，最终版发布到 wiki/sources |
+| `work/<名称>/paper-digest-finalize-report.json` | 机器 | 系统字段整理差异，便于检查脚本改了什么 |
 | `work/<名称>/link-plan.json` | 机器 | 写回计划，由确定性脚本执行 |
 | `work/` 下的各种 `*-report.json` | 机器 | 审计与发布结果记录，Agent 用它判断流程状态 |
 

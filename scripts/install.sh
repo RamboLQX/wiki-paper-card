@@ -208,7 +208,9 @@ verify_host_resources() {
     local missing=""
     for rel in \
         "vendor/nature-paper-card/SKILL.md" \
-        "scripts/build_processor_pack.py"; do
+        "scripts/build_processor_pack.py" \
+        "scripts/batch_manifest.py" \
+        "scripts/finalize_paper_digest.py"; do
         if [[ ! -r "$host_dir/$rel" ]]; then
             missing="$missing $rel"
         fi

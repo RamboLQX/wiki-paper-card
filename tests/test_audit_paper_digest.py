@@ -124,6 +124,19 @@ class PaperDigestAuditTests(unittest.TestCase):
             any(item["code"] == "topic_seed_candidate_content" for item in report["findings"])
         )
 
+    def test_manifest_identity_mismatch_is_rejected(self) -> None:
+        expected = {
+            "source_sha256": "b" * 64,
+            "source_ref": "wiki/sources/papers/correct.md",
+            "work_dir": "work/batch/paper",
+            "source_path": "raw/papers/correct.pdf",
+        }
+        report = DIGEST_AUDIT.audit(valid_digest(), expected)
+        codes = {item["code"] for item in report["findings"]}
+        self.assertIn("manifest_source_sha256_mismatch", codes)
+        self.assertIn("manifest_source_ref_mismatch", codes)
+        self.assertEqual(report["summary"]["status"], "fail")
+
     def test_cli_writes_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -12,7 +12,9 @@ one or the requested directory is ambiguous.
 2. Compute each target report path.
 3. Skip files whose target report already exists unless the user asks to reprocess.
 4. Run all `prepare_paper.py` and `build_kb_context.py` steps outside the main conversation.
-5. Build the processor pack once per batch with `build_processor_pack.py`; run `--verify` before spawning processors.
+5. Build `batch-manifest.json` from all prepared bundles and use it as the only
+   source for SHA, target page, work directory, and batch membership.
+6. Build the processor pack once per batch with `build_processor_pack.py`; run `--verify` before spawning processors.
 
 ## Card Phase
 
@@ -29,12 +31,13 @@ All paper cards are independent. Do not make one card depend on another current 
 
 Only after every paper card and digest in the batch passes its audits:
 
-1. Collect all `paper-digest.json` paths.
+1. Finalize and audit all `paper-digest.json` files against the batch manifest.
 2. Build one compact existing-wiki context from the combined paper titles.
 3. Run one `wiki-linker` agent to compose a schema 3.0 ingest plan from all
    approved digests and the exact current Topic bytes.
-4. Audit the resulting `link-plan.json`.
-5. Run the deterministic `publish_wiki.py` command for source pages, topic pages, index, and log.
+4. Audit the resulting `link-plan.json` against the same manifest.
+5. Run `publish_wiki.py` with the same manifest for source pages, topic pages,
+   index, and log.
 
 The linker sees all current digests at the same time. Card generation order does not determine cross-paper conclusions.
 

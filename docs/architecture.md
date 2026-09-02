@@ -12,15 +12,22 @@ Host adapters    Claude Code, DSH, and Codex orchestration mappings
 ## Runtime Flow
 
 ```text
-prepare bundles + KB context
+prepare bundles
+    -> deterministic batch-manifest.json (source path, SHA, target page, work dir)
+    -> KB context
     -> independent wiki-processor per paper
     -> paper-card.md + paper-digest.json
-    -> deterministic finalize, evidence, and digest audits
+    -> deterministic card finalize + digest identity finalize
+    -> evidence and manifest-aware digest audits
     -> one wiki-linker per batch
     -> schema 3.0 link-plan.json with complete narrative + evidence ledger
-    -> deterministic link-plan audit
-    -> publish_wiki.py publishes source pages and topic pages
+    -> manifest-aware deterministic link-plan audit
+    -> publish_wiki.py rechecks the manifest, then publishes source and topic pages
 ```
+
+The manifest owns only mechanically reproducible identity fields. The digest
+identity finalizer records every replacement and does not change titles,
+paper types, analysis, Topic seed names, or other semantic content.
 
 Claude Code and Codex keep at most three processors active; Codex also obeys the current session's available subagent slots. DSH starts up to six by default and allows at most eight. Every host preserves the all-pass gate before creating the batch linker, and only the main session runs deterministic publishing.
 

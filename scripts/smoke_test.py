@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -126,6 +127,20 @@ def main() -> int:
 
         work = root / "work" / "smoke"
         work.mkdir(parents=True)
+        raw_source = root / "raw" / "smoke.pdf"
+        raw_source.write_bytes(b"smoke source")
+        source_sha256 = hashlib.sha256(raw_source.read_bytes()).hexdigest()
+        (work / "source_bundle.json").write_text(
+            json.dumps(
+                {
+                    "source_path": str(raw_source.resolve()),
+                    "source_sha256": source_sha256,
+                    "validation": {"status": "valid"},
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
         card = root / "wiki" / "sources" / "smoke.md"
         (work / "paper-card.md").write_text(card.read_text(encoding="utf-8"), encoding="utf-8")
         digest = work / "paper-digest.json"
@@ -138,17 +153,51 @@ def main() -> int:
             json.dumps(build_link_plan(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        for script, argument, value in (
-            ("audit_paper_digest.py", "--digest", digest),
-            ("audit_link_plan.py", "--plan", plan),
-        ):
+        manifest = work / "batch-manifest.json"
+        commands = (
+            (
+                "batch_manifest.py",
+                "--wiki-root",
+                root,
+                "--work-root",
+                work,
+                "--output",
+                manifest,
+            ),
+            (
+                "finalize_paper_digest.py",
+                "--digest",
+                digest,
+                "--manifest",
+                manifest,
+                "--wiki-root",
+                root,
+            ),
+            (
+                "audit_paper_digest.py",
+                "--digest",
+                digest,
+                "--manifest",
+                manifest,
+                "--wiki-root",
+                root,
+            ),
+            (
+                "audit_link_plan.py",
+                "--plan",
+                plan,
+                "--manifest",
+                manifest,
+            ),
+        )
+        for script, *arguments in commands:
+            command = [
+                sys.executable,
+                str(ROOT / "scripts" / script),
+                *(str(argument) for argument in arguments),
+            ]
             result = subprocess.run(
-                [
-                    sys.executable,
-                    str(ROOT / "scripts" / script),
-                    argument,
-                    str(value),
-                ],
+                command,
                 check=False,
                 capture_output=True,
                 text=True,
@@ -167,6 +216,8 @@ def main() -> int:
                 str(plan),
                 "--wiki-root",
                 str(root),
+                "--manifest",
+                str(manifest),
                 "--report",
                 str(work / "publish-report.json"),
             ],

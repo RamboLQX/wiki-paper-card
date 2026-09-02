@@ -2151,7 +2151,10 @@ def append_log(
     return updated.rstrip() + "\n\n" + "\n".join(additions).rstrip() + "\n"
 
 
-def audit_plan(plan: dict[str, Any]) -> dict[str, Any] | None:
+def audit_plan(
+    plan: dict[str, Any],
+    manifest: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     spec = importlib.util.spec_from_file_location(
         "audit_link_plan",
         ROOT / "scripts" / "audit_link_plan.py",
@@ -2160,7 +2163,7 @@ def audit_plan(plan: dict[str, Any]) -> dict[str, Any] | None:
         raise RuntimeError("Unable to load audit_link_plan.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    report = module.audit(plan)
+    report = module.audit(plan, manifest)
     if report["summary"]["errors"]:
         for item in report["findings"]:
             if item["level"] == "error":
@@ -2910,6 +2913,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Publish an audited link-plan.json.")
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--wiki-root", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path)
     parser.add_argument("--report", type=Path)
     return parser.parse_args()
 
@@ -2930,7 +2934,22 @@ def main() -> int:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    if audit_plan(plan) is None:
+    manifest = None
+    if args.manifest:
+        try:
+            manifest_module_spec = importlib.util.spec_from_file_location(
+                "batch_manifest",
+                ROOT / "scripts" / "batch_manifest.py",
+            )
+            if not manifest_module_spec or not manifest_module_spec.loader:
+                raise RuntimeError("Unable to load batch_manifest.py")
+            manifest_module = importlib.util.module_from_spec(manifest_module_spec)
+            manifest_module_spec.loader.exec_module(manifest_module)
+            manifest = manifest_module.load_manifest(args.manifest.expanduser().resolve())
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+    if audit_plan(plan, manifest) is None:
         return 1
 
     blockers = preflight_errors(plan, wiki_root)

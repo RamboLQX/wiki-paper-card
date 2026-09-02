@@ -17,14 +17,14 @@ Codex 宿主下的编排映射。主会话使用 shell 运行 prepare、finalize
 
 | 契约阶段 | Codex 执行方式 |
 |---|---|
-| Phase 0 确定性准备 | 主会话运行 prepare、processor pack 和 KB context 脚本 |
+| Phase 0 确定性准备 | 主会话运行 prepare、batch manifest、processor pack 和 KB context 脚本 |
 | Phase 1 Paper Cards | 每篇论文创建一个 fresh processor 子 Agent，prompt 引用共享 `processor-brief.md` 与 schema |
 | Phase 1 完成检查 | 子 Agent 返回后运行一次 `workflow_status.py`；完成通知不代替文件与退出码验证 |
 | Phase 1 修正循环 | 向同一 processor 发送精确 audit 错误，最多三次；之后该篇转主会话串行处理 |
-| Phase 2 确定性 finalize | 主会话运行 finalize 与 digest audit |
+| Phase 2 确定性 finalize | 主会话运行 card finalize、digest identity finalize 与 manifest-aware digest audit |
 | Phase 3 批量 link | 全部卡片与 digest 通过后，创建一个 fresh linker 子 Agent |
-| Phase 4 链接计划审计 | 主会话运行 `audit_link_plan.py` |
-| Phase 5 发布 | 仅主会话运行 `publish_wiki.py` |
+| Phase 4 链接计划审计 | 主会话使用同一 batch manifest 运行 `audit_link_plan.py` |
+| Phase 5 发布 | 仅主会话使用同一 batch manifest 运行 `publish_wiki.py` |
 
 ## 并发与恢复
 

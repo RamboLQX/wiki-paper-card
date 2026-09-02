@@ -45,6 +45,12 @@ target source page path
 
 The source bundle already contains page text, evidence inventory, metadata, page count, validation status, and recommended locator mode.
 
+`source_sha256`, `source_ref`, and the Topic seed `papers` list are
+system-owned identity fields. The parent finalizer replaces only those values
+from `batch-manifest.json` and writes a change report before the digest audit.
+Do not spend analysis time re-deriving them; use the supplied values as draft
+placeholders and focus on the semantic fields.
+
 ## Paper Card Output
 
 Write Sections 01-16 in order using the user's language.

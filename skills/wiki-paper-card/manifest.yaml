@@ -54,9 +54,11 @@ references:
 
 quality_tools:
   prepare_script: ../../vendor/nature-paper-card/scripts/prepare_paper.py
+  batch_manifest_script: ../../scripts/batch_manifest.py
   upstream_audit_script: ../../vendor/nature-paper-card/scripts/audit_paper_card.py
   kb_context_script: ../../scripts/build_kb_context.py
   finalize_script: ../../scripts/finalize_paper_card.py
+  paper_digest_finalize_script: ../../scripts/finalize_paper_digest.py
   paper_digest_audit_script: ../../scripts/audit_paper_digest.py
   link_plan_audit_script: ../../scripts/audit_link_plan.py
   publish_script: ../../scripts/publish_wiki.py

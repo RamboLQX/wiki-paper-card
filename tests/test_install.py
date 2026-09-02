@@ -30,6 +30,8 @@ RESOURCE_NAMES = ("adapters", "vendor", "scripts")
 SHARED_LEXICAL_REFS = (
     "../../vendor/nature-paper-card/SKILL.md",
     "../../scripts/build_processor_pack.py",
+    "../../scripts/batch_manifest.py",
+    "../../scripts/finalize_paper_digest.py",
 )
 HOST_ADAPTER_REF = {
     ".claude": "../../adapters/claude-code/agents/wiki-processor.md",

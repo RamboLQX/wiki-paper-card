@@ -6,11 +6,13 @@ Process one paper or one batch into:
 
 ```text
 source_bundle.json
+batch-manifest.json
 kb-context.md
 processor-pack.md
 processor-pack.manifest.json
 paper-card.md
 paper-digest.json
+paper-digest-finalize-report.json
 paper-digest-report.json
 evidence-coverage-report.json
 formula-report.json
@@ -40,11 +42,26 @@ script and reference paths in every subagent prompt. Do not ask a subagent to
 rediscover the pinned `vendor/` location.
 
 1. Identify every PDF or supported paper input.
-2. Compute each source SHA-256.
+2. Compute each source SHA-256 in `source_bundle.json`.
 3. Resolve each target path by mirroring the raw relative path under `wiki/sources/`.
 4. Skip papers whose target report has the same SHA-256 unless the user asks to reprocess.
 5. Run the pinned `prepare_paper.py` for every paper.
-6. Build the processor pack once per batch:
+6. After all source bundles exist, build the batch identity manifest once:
+
+```bash
+python "<REPO_ROOT>/scripts/batch_manifest.py" \
+  --wiki-root "<VAULT_ROOT>" \
+  --work-root "<BATCH_WORKDIR>" \
+  --output "<BATCH_WORKDIR>/batch-manifest.json"
+```
+
+The manifest recomputes each source SHA-256 and derives `source_ref` from the
+path below `raw/`. It fails on changed source bytes, path escape, duplicate
+target pages, or duplicate work directories. Treat its `source_path`,
+`source_sha256`, `source_ref`, and `work_dir` as system-owned identity fields;
+do not ask an Agent to infer them again.
+
+7. Build the processor pack once per batch:
 
 ```bash
 python "<REPO_ROOT>/scripts/build_processor_pack.py" \
@@ -57,7 +74,7 @@ including the shared reader-facing writing guide.
 Run it with `--verify` before spawning processors to assert the pinned
 sources are unchanged since the pack was built.
 
-7. Build compact existing-wiki context for every paper:
+8. Build compact existing-wiki context for every paper:
 
 ```bash
 python "<REPO_ROOT>/scripts/build_kb_context.py" \
@@ -76,6 +93,9 @@ recommended locator mode
 extraction confidence
 target report path
 ```
+
+Read these values from `batch-manifest.json` and `source_bundle.json`; do not
+retype or shorten paths in a subagent prompt.
 
 Full paper text must not enter the main conversation.
 
@@ -150,11 +170,25 @@ The finalizer:
 5. Runs the upstream paper audit and wiki audit.
 6. Writes `formula-report.json`, `html-lint-report.json`, `audit-report.json`, and `wiki-audit-report.json`.
 
-Then validate the paper digest:
+Then inject the digest fields that are mechanically determined by the batch
+manifest. This command changes only `paper.source_sha256`, `paper.source_ref`,
+and each Topic seed's single-paper `papers` list, and records every change:
+
+```bash
+python "<REPO_ROOT>/scripts/finalize_paper_digest.py" \
+  --digest "<WORKDIR>/paper-digest.json" \
+  --manifest "<BATCH_WORKDIR>/batch-manifest.json" \
+  --wiki-root "<VAULT_ROOT>" \
+  --report "<WORKDIR>/paper-digest-finalize-report.json"
+```
+
+Then validate the paper digest against the same manifest:
 
 ```bash
 python "<REPO_ROOT>/scripts/audit_paper_digest.py" \
   --digest "<WORKDIR>/paper-digest.json" \
+  --manifest "<BATCH_WORKDIR>/batch-manifest.json" \
+  --wiki-root "<VAULT_ROOT>" \
   --report "<WORKDIR>/paper-digest-report.json"
 ```
 
@@ -178,11 +212,13 @@ python "<REPO_ROOT>/scripts/build_kb_context.py" \
 The linker:
 
 1. Reads [linker-brief.md](linker-brief.md) and [link-plan-schema.md](link-plan-schema.md).
-2. Reads every approved `paper-digest.json` once.
-3. Reads the batch existing-wiki context.
-4. Reads the exact current bytes of every Topic it plans to update and records
+2. Reads `batch-manifest.json` once and copies `batch.source_pages[].source_ref`
+   and `work_dir` from it without editing.
+3. Reads every approved `paper-digest.json` once.
+4. Reads the batch existing-wiki context.
+5. Reads the exact current bytes of every Topic it plans to update and records
    `base_topic_sha256` before composing the complete schema 3.0 narrative.
-5. Writes one `link-plan.json` in the batch work directory.
+6. Writes one `link-plan.json` in the batch work directory.
 
 For a single paper, the linker may only update an existing topic page that the paper directly connects to or answers. It cannot create a topic from one paper alone.
 
@@ -191,6 +227,7 @@ For a single paper, the linker may only update an existing topic page that the p
 ```bash
 python "<REPO_ROOT>/scripts/audit_link_plan.py" \
   --plan "<BATCH_WORKDIR>/link-plan.json" \
+  --manifest "<BATCH_WORKDIR>/batch-manifest.json" \
   --report "<BATCH_WORKDIR>/link-plan-report.json"
 ```
 
@@ -209,12 +246,15 @@ plans only.
 python "<REPO_ROOT>/scripts/publish_wiki.py" \
   --plan "<BATCH_WORKDIR>/link-plan.json" \
   --wiki-root "<VAULT_ROOT>" \
+  --manifest "<BATCH_WORKDIR>/batch-manifest.json" \
   --report "<BATCH_WORKDIR>/publish-report.json"
 ```
 
 The publisher:
 
-1. Re-checks the link plan with the deterministic link-plan audit.
+1. Re-checks the link plan with the deterministic link-plan audit and requires
+   exact batch membership, `work_dir`, and `source_ref` agreement with the
+   supplied manifest.
 2. Preflights every reference before any write: each source page named by topic `papers`, research-gap/progress `source_refs`, or answered evidence must be either part of the current batch or an existing page under `wiki/sources/`, and every batch source page must have a finalized `paper-card.md`. Any missing, escaping, or non-`wiki/sources/` reference blocks the whole publish.
 3. Writes every finalized current source page and appends its `## 关联页面` backlinks.
 4. Applies only `create_topic` and `update_topic` actions.

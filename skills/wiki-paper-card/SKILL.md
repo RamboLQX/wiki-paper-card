@@ -61,7 +61,7 @@ Use at most one secondary lens for a genuinely hybrid paper.
 
 Follow [references/workflow-contract.md](references/workflow-contract.md):
 
-1. Prepare source and KB context with deterministic scripts.
+1. Prepare source, batch identity manifest, and KB context with deterministic scripts.
 2. Generate every paper card and paper digest independently, with bounded concurrency.
 3. Run deterministic packaging, evidence, formula, structural, wiki, and digest audits.
 4. Link all approved digests only after the whole batch passes.

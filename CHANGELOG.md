@@ -2,6 +2,19 @@
 
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [Unreleased]
+
+### 新增与改进
+
+- **批次身份清单**：新增 `batch_manifest.py`，从已准备的 `source_bundle.json` 复算源文件 SHA，并按 `raw/` 相对路径确定性生成来源页路径；路径越界、源文件变化、重复目标或重复 work_dir 会在 Agent 分析前后之间的确定性阶段失败。
+- **Digest 系统字段整理**：新增 `finalize_paper_digest.py`，只整理 `paper.source_sha256`、`paper.source_ref` 和 Topic seed 的单篇 `papers` 列表，并写出逐字段差异报告。标题、论文类型、locator、分析内容、seed 名称和摘要保持模型原值。
+- **发布前一致性门禁**：digest、link-plan 审计和 publisher 可使用同一 batch manifest 精确核对批次成员、work_dir、source_ref 与 SHA；新 ingest 契约要求三个阶段传入同一清单，历史 plan 和 mining/refresh 调用保持兼容。
+
+### 验证
+
+- 新增路径镜像、Unicode 路径、源文件变化、目标冲突、digest 语义字段保护、批次缺失和来源页不一致回归测试。
+- 项目 205 个测试、完整 smoke test、Skill quick validation、processor pack build/verify 与 `git diff --check` 通过。
+
 ## [0.10.0] - 2026-09-02
 
 ### 新增与改进
